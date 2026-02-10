@@ -1,0 +1,56 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  line-height: 1.4;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  /* Subtle left border accent for technique badges */
+  border-left: 2px solid transparent;
+}
+
+.default {
+  background-color: var(--color-cream-300);
+  color: var(--color-text-secondary);
+  border-left-color: var(--color-cream-500);
+}
+
+.role {
+  background-color: var(--technique-role-bg);
+  color: var(--technique-role);
+  border-left-color: var(--technique-role);
+}
+
+.context {
+  background-color: var(--technique-context-bg);
+  color: var(--technique-context);
+  border-left-color: var(--technique-context);
+}
+
+.examples {
+  background-color: var(--technique-examples-bg);
+  color: var(--technique-examples);
+  border-left-color: var(--technique-examples);
+}
+
+.constraints {
+  background-color: var(--technique-constraints-bg);
+  color: var(--technique-constraints);
+  border-left-color: var(--technique-constraints);
+}
+
+.steps {
+  background-color: var(--technique-steps-bg);
+  color: var(--technique-steps);
+  border-left-color: var(--technique-steps);
+}
+
+.thinkFirst {
+  background-color: var(--technique-think-first-bg);
+  color: var(--technique-think-first);
+  border-left-color: var(--technique-think-first);
+}

@@ -12,14 +12,16 @@ Promptomatic is a bilingual (FR/EN) prompt-builder web app for language teachers
 
 ## Stack
 
-- **Frontend:** Cloudflare Pages (framework TBD — SvelteKit or Astro preferred for edge performance)
-- **API:** Cloudflare Pages Functions (Workers runtime)
+- **Frontend:** React 19 + Vite 6 SPA on Cloudflare Workers (via `@cloudflare/vite-plugin`)
+- **API:** Hono router in `worker/index.ts` (Workers runtime — NOT legacy Pages Functions)
 - **Database:** Cloudflare D1 (SQLite at edge)
-- **KV:** Cloudflare KV (sessions, caching)
+- **KV:** Cloudflare KV (sessions, TTL-based expiration)
 - **LLM:** OpenRouter API (targeting cheap powerful models: GLM 4.7/5)
 - **Email:** Resend (invitations, password reset)
-- **Auth:** Invite-only, email + password, session cookies in KV
-- **i18n:** JSON translation files (fr.json, en.json)
+- **Auth:** Invite-only, email + password, bcryptjs, session cookies in KV
+- **i18n:** JSON translation files (fr.json, en.json), lightweight `t()` helper
+- **Fonts:** Fraunces (display) + DM Sans (body) via @fontsource-variable (self-hosted)
+- **UI Components:** Hand-built design system + ReactBits (copy-paste animations)
 
 ---
 
@@ -78,14 +80,20 @@ Invite-only: Admin sends invite → token link → user registers → session co
 - Error messages: friendly, no technical jargon, bilingual
 
 ### File Organization
-- `/src/pages/` — Routes/pages
-- `/src/components/` — Reusable UI components
+- `/src/pages/` — Route page components
+- `/src/components/ui/` — Design system primitives (Button, Input, Card, Badge, Spinner)
+- `/src/components/layout/` — Shell, Nav, layout wrappers
 - `/src/lib/` — Shared utilities, API clients
 - `/src/lib/llm/` — OpenRouter integration, system prompts
 - `/src/lib/db/` — D1 queries and schema
-- `/src/lib/i18n/` — Translation files and helpers
-- `/src/lib/auth/` — Auth utilities, session management
-- `/functions/` — Cloudflare Pages Functions (API routes)
+- `/src/lib/i18n/` — Translation files (fr.json, en.json) and `t()` helper
+- `/src/lib/auth/` — Frontend auth utilities
+- `/src/styles/` — Design tokens (tokens.css) and global styles (global.css)
+- `/src/reactbits/` — Copied ReactBits animation components
+- `/worker/` — Hono API backend (replaces legacy `/functions/`)
+- `/worker/routes/` — API route modules (auth.ts, health.ts)
+- `/worker/lib/` — Backend utilities (session.ts, password.ts, auth-middleware.ts)
+- `/migrations/` — D1 SQL migration files
 
 ### Naming
 - Files: kebab-case (`prompt-editor.tsx`, `interview-engine.ts`)
@@ -114,7 +122,20 @@ Invite-only: Admin sends invite → token link → user registers → session co
 
 ## Known Patterns & Learnings
 
-(This section gets updated as we build — the compound step fills it)
+### Architecture (Phase 1)
+- **Workers + Vite Plugin, NOT Pages Functions:** Cloudflare deprecated the `/functions/` directory approach. Use `@cloudflare/vite-plugin` with `worker/index.ts` as the single backend entry point. Hono handles API routing.
+- **wrangler.jsonc config:** Use `"not_found_handling": "single-page-application"` and `"run_worker_first": ["/api/*"]` for SPA routing. Do NOT create a `404.html` — it overrides the SPA fallback.
+- **D1 SQLite quirks:** No BOOLEAN (use INTEGER 0/1), no ENUM (use TEXT + CHECK), no UUID type (use TEXT + `crypto.randomUUID()`), no ARRAY (use TEXT with JSON).
+- **KV sessions:** Eventually consistent (~60s propagation). Session reads typically hit the same edge that wrote them, so this is fine for auth. TTL minimum is 60 seconds.
+- **bcryptjs on Workers:** Use `bcryptjs` (pure JS), not `bcrypt` (native). 10 rounds is safe for Workers CPU limits.
+- **Self-hosted fonts:** Use `@fontsource-variable` packages, not Google Fonts CDN. Eliminates third-party DNS + GDPR concerns.
+
+### Design System
+- **Sharp rectangular buttons** (radius-none) — TeachInspire brand identity
+- **Color palette:** Navy (primary/text), Cream (backgrounds), Terracotta (accents), Gold (CTAs)
+- **Typography:** Fraunces Variable (display/headings), DM Sans Variable (body/UI)
+- **Technique colors** mapped in CSS custom properties for Study Mode badges
+- **CSS Modules** for component styling, CSS custom properties for design tokens
 
 ---
 

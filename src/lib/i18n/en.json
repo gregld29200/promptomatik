@@ -1,0 +1,57 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close"
+  },
+  "auth": {
+    "login": "Log in",
+    "logout": "Log out",
+    "email": "Email address",
+    "password": "Password",
+    "name": "Your name",
+    "register": "Create account",
+    "forgot_password": "Forgot password?",
+    "invalid_credentials": "Invalid email or password",
+    "invite_expired": "This invitation has expired. Contact your trainer for a new one.",
+    "invite_invalid": "This invitation link is not valid.",
+    "password_min": "Password must be at least 8 characters",
+    "login_subtitle": "Sign in to build your prompts",
+    "invite_only": "Invite-only access",
+    "contact_admin": "Contact your trainer for access."
+  },
+  "dashboard": {
+    "new_prompt": "New prompt",
+    "my_prompts": "My prompts",
+    "templates": "Templates",
+    "welcome": "Welcome, {{name}}",
+    "subtitle": "Your teaching prompts, ready to go.",
+    "empty": "You don't have any prompts yet. Start by creating one!",
+    "empty_title": "No prompts yet"
+  },
+  "techniques": {
+    "role": "Role",
+    "context": "Context",
+    "examples": "Examples",
+    "constraints": "Constraints",
+    "steps": "Steps",
+    "think_first": "Think First"
+  },
+  "prompt": {
+    "user_mode": "User Mode",
+    "study_mode": "Study Mode",
+    "edit": "Edit",
+    "copy_prompt": "Copy prompt",
+    "model_recommendation": "Recommended model",
+    "result_not_good": "Result wasn't good?"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "copy": "Copier",
+    "copied": "Copie !",
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Reessayer",
+    "back": "Retour",
+    "next": "Suivant",
+    "close": "Fermer"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "logout": "Se deconnecter",
+    "email": "Adresse e-mail",
+    "password": "Mot de passe",
+    "name": "Votre nom",
+    "register": "Creer mon compte",
+    "forgot_password": "Mot de passe oublie ?",
+    "invalid_credentials": "E-mail ou mot de passe incorrect",
+    "invite_expired": "Cette invitation a expire. Contactez votre formateur pour en obtenir une nouvelle.",
+    "invite_invalid": "Ce lien d'invitation n'est pas valide.",
+    "password_min": "Le mot de passe doit contenir au moins 8 caracteres",
+    "login_subtitle": "Connectez-vous pour creer vos prompts",
+    "invite_only": "Acces sur invitation",
+    "contact_admin": "Contactez votre formateur pour obtenir un acces."
+  },
+  "dashboard": {
+    "new_prompt": "Nouveau prompt",
+    "my_prompts": "Mes prompts",
+    "templates": "Modeles",
+    "welcome": "Bienvenue, {{name}}",
+    "subtitle": "Vos prompts pedagogiques, prets a l'emploi.",
+    "empty": "Vous n'avez pas encore de prompts. Commencez par en creer un !",
+    "empty_title": "Aucun prompt pour l'instant"
+  },
+  "techniques": {
+    "role": "Role",
+    "context": "Contexte",
+    "examples": "Exemples",
+    "constraints": "Contraintes",
+    "steps": "Etapes",
+    "think_first": "Reflexion prealable"
+  },
+  "prompt": {
+    "user_mode": "Mode utilisateur",
+    "study_mode": "Mode etude",
+    "edit": "Modifier",
+    "copy_prompt": "Copier le prompt",
+    "model_recommendation": "Modele recommande",
+    "result_not_good": "Le resultat n'etait pas bon ?"
+  }
+}

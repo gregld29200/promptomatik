@@ -1,0 +1,21 @@
+.card {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-6);
+  position: relative;
+}
+
+.bordered {
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+}
+
+.elevated {
+  box-shadow: var(--shadow-md);
+}
+
+/* Decorative top-rule variant — like a notebook page */
+.ruled {
+  border-top: 3px solid var(--color-navy-800);
+}
