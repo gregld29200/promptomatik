@@ -8,8 +8,10 @@
   color: var(--color-text-primary);
   background-color: var(--color-bg-card);
   border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  transition: border-color var(--transition-fast);
+  border-radius: var(--radius-none);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .input::placeholder {
@@ -18,8 +20,8 @@
 
 .input:focus {
   outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 2px rgba(196, 82, 52, 0.15);
+  border-color: var(--color-navy-600);
+  box-shadow: 0 0 0 2px rgba(19, 32, 56, 0.1);
 }
 
 .input:disabled {
@@ -30,6 +32,10 @@
 
 .error {
   border-color: var(--color-error);
+}
+
+.error:focus {
+  box-shadow: 0 0 0 2px rgba(191, 78, 54, 0.15);
 }
 
 .textarea {
@@ -43,6 +49,7 @@
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   color: var(--color-text-secondary);
+  letter-spacing: var(--tracking-wide);
 }
 
 .hint {

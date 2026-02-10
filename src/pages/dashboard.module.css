@@ -1,0 +1,75 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: var(--space-10);
+}
+
+.greeting {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-navy-800);
+  letter-spacing: var(--tracking-tight);
+  font-variation-settings: "WONK" var(--display-wonk), "opsz" var(--display-opsz);
+  line-height: var(--leading-tight);
+}
+
+.greetingSub {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+
+/* Empty state — warm, inviting, not sterile */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-16) var(--space-8);
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-cream-100);
+}
+
+.emptyIcon {
+  width: 48px;
+  height: 48px;
+  color: var(--color-navy-300);
+  margin-bottom: var(--space-4);
+}
+
+.emptyTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  color: var(--color-navy-700);
+  margin-bottom: var(--space-2);
+  font-variation-settings: "WONK" 1, "opsz" 24;
+}
+
+.emptyText {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 320px;
+  line-height: var(--leading-relaxed);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+
+  .greeting {
+    font-size: var(--text-2xl);
+  }
+
+  .emptyState {
+    padding: var(--space-10) var(--space-6);
+  }
+}

@@ -1,60 +1,63 @@
 :root {
   /* ============================================================
      COLORS — TeachInspire Brand Kit
+     Editorial stationery: warm cream paper, sharp ink navy,
+     gilt gold accents, terracotta wax seal touches
      ============================================================ */
 
-  /* Navy — Primary, backgrounds, text */
-  --color-navy-900: #0a1628;
-  --color-navy-800: #111d35;
-  --color-navy-700: #1a2a4a;
-  --color-navy-600: #253d6b;
-  --color-navy-500: #2f4f8f;
-  --color-navy-400: #4a6faf;
-  --color-navy-300: #7a9fd4;
-  --color-navy-200: #b0c8e8;
-  --color-navy-100: #dde8f5;
-  --color-navy-50: #f0f4fa;
+  /* Navy — Ink, primary text, authority */
+  --color-navy-900: #0b1726;
+  --color-navy-800: #132038;
+  --color-navy-700: #1c2f50;
+  --color-navy-600: #274068;
+  --color-navy-500: #345588;
+  --color-navy-400: #5272a4;
+  --color-navy-300: #7e9bc5;
+  --color-navy-200: #aec3de;
+  --color-navy-100: #d6e1f0;
+  --color-navy-50: #eef2f8;
 
-  /* Cream — Backgrounds, cards, surfaces */
-  --color-cream-900: #6b5e4f;
-  --color-cream-800: #8a7d6e;
-  --color-cream-700: #a99c8d;
-  --color-cream-600: #c4b9ab;
-  --color-cream-500: #d9d0c4;
-  --color-cream-400: #e8e1d7;
-  --color-cream-300: #f0ebe4;
-  --color-cream-200: #f5f1ec;
-  --color-cream-100: #faf8f5;
-  --color-cream-50: #fdfcfa;
+  /* Cream — Paper, warmth, surfaces */
+  --color-cream-900: #5c513f;
+  --color-cream-800: #7d7260;
+  --color-cream-700: #9e9483;
+  --color-cream-600: #bfb5a4;
+  --color-cream-500: #d6cebe;
+  --color-cream-400: #e5dfd4;
+  --color-cream-300: #ede9e1;
+  --color-cream-200: #f4f1eb;
+  --color-cream-100: #f9f7f3;
+  --color-cream-50: #fdfcf9;
 
-  /* Terracotta — Accents, warnings, active states */
-  --color-terracotta-900: #6b2a1a;
-  --color-terracotta-800: #8b3622;
-  --color-terracotta-700: #a8432b;
-  --color-terracotta-600: #c45234;
+  /* Terracotta — Wax seal, accents, warmth */
+  --color-terracotta-900: #5e2416;
+  --color-terracotta-800: #7c3020;
+  --color-terracotta-700: #9b3d2a;
+  --color-terracotta-600: #bf4e36;
   --color-terracotta-500: #d4654a;
-  --color-terracotta-400: #e07d65;
-  --color-terracotta-300: #ea9e8a;
-  --color-terracotta-200: #f2c0b3;
-  --color-terracotta-100: #f9dfda;
-  --color-terracotta-50: #fdf0ed;
+  --color-terracotta-400: #e07e66;
+  --color-terracotta-300: #ea9d89;
+  --color-terracotta-200: #f2bfb2;
+  --color-terracotta-100: #f8ddd6;
+  --color-terracotta-50: #fdf0ec;
 
-  /* Gold — CTAs, highlights, success */
-  --color-gold-900: #5a4a0e;
-  --color-gold-800: #7a6412;
-  --color-gold-700: #9a7f18;
-  --color-gold-600: #b8991e;
-  --color-gold-500: #d4b225;
-  --color-gold-400: #e0c44a;
-  --color-gold-300: #ebd67a;
-  --color-gold-200: #f3e6a8;
-  --color-gold-100: #f9f1d4;
-  --color-gold-50: #fdf9ec;
+  /* Gold — Gilt edge, CTAs, highlights */
+  --color-gold-900: #524008;
+  --color-gold-800: #725a0f;
+  --color-gold-700: #947416;
+  --color-gold-600: #b5901f;
+  --color-gold-500: #ccaa30;
+  --color-gold-400: #dfc052;
+  --color-gold-300: #e8d27c;
+  --color-gold-200: #f0e3a8;
+  --color-gold-100: #f7f0d0;
+  --color-gold-50: #fbf8eb;
 
-  /* Semantic colors */
+  /* Semantic — Mapped to brand purpose */
   --color-bg: var(--color-cream-50);
   --color-bg-card: #ffffff;
   --color-bg-elevated: var(--color-cream-100);
+  --color-bg-warm: var(--color-cream-200);
   --color-text-primary: var(--color-navy-900);
   --color-text-secondary: var(--color-navy-600);
   --color-text-muted: var(--color-navy-400);
@@ -65,25 +68,33 @@
   --color-accent-hover: var(--color-terracotta-700);
   --color-cta: var(--color-gold-600);
   --color-cta-hover: var(--color-gold-700);
+  --color-cta-text: var(--color-navy-900);
   --color-success: var(--color-gold-600);
   --color-error: var(--color-terracotta-600);
 
   /* ============================================================
-     TYPOGRAPHY
+     TYPOGRAPHY — Letterpress meets modern clarity
      ============================================================ */
   --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
   --font-body: "DM Sans Variable", system-ui, -apple-system, sans-serif;
 
+  /* Fraunces optical axis for display headings */
+  --display-opsz: 48;
+  --display-wonk: 1;
+
+  /* Type scale — generous for readability */
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 1rem;
   --text-lg: 1.125rem;
   --text-xl: 1.25rem;
   --text-2xl: 1.5rem;
-  --text-3xl: 1.875rem;
-  --text-4xl: 2.25rem;
+  --text-3xl: 2rem;
+  --text-4xl: 2.75rem;
+  --text-5xl: 3.5rem;
 
-  --leading-tight: 1.2;
+  --leading-tight: 1.15;
+  --leading-snug: 1.3;
   --leading-normal: 1.5;
   --leading-relaxed: 1.65;
 
@@ -91,6 +102,11 @@
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
+
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.08em;
 
   /* ============================================================
      SPACING
@@ -105,27 +121,31 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
+  --space-20: 5rem;
+  --space-24: 6rem;
 
   /* ============================================================
-     BORDERS & SHAPES
+     BORDERS & SHAPES — Sharp, ruled, intentional
      ============================================================ */
   --radius-none: 0;
   --radius-sm: 2px;
-  --radius-md: 4px;
+  --radius-md: 3px;
 
   /* ============================================================
-     SHADOWS
+     SHADOWS — Subtle depth, paper-like
      ============================================================ */
-  --shadow-sm: 0 1px 2px rgba(10, 22, 40, 0.06);
-  --shadow-md: 0 2px 8px rgba(10, 22, 40, 0.08);
-  --shadow-lg: 0 4px 16px rgba(10, 22, 40, 0.12);
+  --shadow-sm: 0 1px 3px rgba(11, 23, 38, 0.05), 0 1px 2px rgba(11, 23, 38, 0.03);
+  --shadow-md: 0 3px 10px rgba(11, 23, 38, 0.06), 0 1px 4px rgba(11, 23, 38, 0.04);
+  --shadow-lg: 0 8px 24px rgba(11, 23, 38, 0.08), 0 2px 8px rgba(11, 23, 38, 0.04);
+  --shadow-lifted: 0 12px 32px rgba(11, 23, 38, 0.1), 0 4px 12px rgba(11, 23, 38, 0.05);
 
   /* ============================================================
      TRANSITIONS
      ============================================================ */
   --transition-fast: 120ms ease;
   --transition-normal: 200ms ease;
-  --transition-slow: 350ms ease;
+  --transition-slow: 350ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-bounce: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ============================================================
      LAYOUT
@@ -135,12 +155,18 @@
   --max-width-wide: 1200px;
 
   /* ============================================================
-     TECHNIQUE COLORS (Study Mode)
+     TECHNIQUE COLORS (Study Mode) — Distinct, readable
      ============================================================ */
-  --technique-role: var(--color-navy-500);
-  --technique-context: var(--color-gold-600);
-  --technique-examples: var(--color-terracotta-500);
-  --technique-constraints: var(--color-navy-300);
-  --technique-steps: var(--color-gold-400);
-  --technique-think-first: var(--color-terracotta-300);
+  --technique-role: #345588;
+  --technique-role-bg: #eef2f8;
+  --technique-context: #b5901f;
+  --technique-context-bg: #fbf8eb;
+  --technique-examples: #bf4e36;
+  --technique-examples-bg: #fdf0ec;
+  --technique-constraints: #5272a4;
+  --technique-constraints-bg: #eef2f8;
+  --technique-steps: #947416;
+  --technique-steps-bg: #f7f0d0;
+  --technique-think-first: #9b3d2a;
+  --technique-think-first-bg: #f8ddd6;
 }

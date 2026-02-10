@@ -2,7 +2,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import s from "./card.module.css";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "bordered" | "elevated";
+  variant?: "default" | "bordered" | "elevated" | "ruled";
   children: ReactNode;
 }
 

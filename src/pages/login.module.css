@@ -1,0 +1,101 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg);
+  padding: var(--space-6);
+}
+
+.container {
+  width: 100%;
+  max-width: 400px;
+}
+
+.card {
+  padding: var(--space-8);
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-navy-800);
+  letter-spacing: var(--tracking-tight);
+  font-variation-settings: "WONK" var(--display-wonk), "opsz" var(--display-opsz);
+  margin-bottom: var(--space-2);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-8);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.submitButton {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--color-border);
+}
+
+.footer {
+  margin-top: var(--space-4);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.footer a {
+  color: var(--color-navy-700);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--transition-fast);
+}
+
+.footer a:hover {
+  border-bottom-color: var(--color-gold-500);
+}
+
+/* Gold accent line on the card — like a gilt-edge page */
+.accent {
+  width: 48px;
+  height: 3px;
+  background-color: var(--color-gold-500);
+  margin-bottom: var(--space-6);
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: var(--space-4);
+    align-items: flex-start;
+    padding-top: var(--space-16);
+  }
+
+  .card {
+    padding: var(--space-6);
+  }
+}
