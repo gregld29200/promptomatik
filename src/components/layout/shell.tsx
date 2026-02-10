@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
+import { useAuth } from "@/lib/auth/auth-context";
 import { t } from "@/lib/i18n";
 import s from "./shell.module.css";
 
@@ -8,6 +9,14 @@ interface ShellProps {
 }
 
 export function Shell({ children }: ShellProps) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleLogout() {
+    await logout();
+    navigate("/login");
+  }
+
   return (
     <div className={s.shell}>
       <nav className={s.nav}>
@@ -24,6 +33,11 @@ export function Shell({ children }: ShellProps) {
             <Link to="/templates" className={s.navLink}>
               {t("dashboard.templates")}
             </Link>
+          </li>
+          <li>
+            <button onClick={handleLogout} className={s.navLink} type="button">
+              {t("auth.logout")}
+            </button>
           </li>
         </ul>
       </nav>

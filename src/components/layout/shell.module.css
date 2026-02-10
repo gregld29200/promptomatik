@@ -41,11 +41,16 @@
 .navLink {
   color: var(--color-cream-300);
   text-decoration: none;
+  font-family: var(--font-body);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
   letter-spacing: var(--tracking-wide);
+  padding: 0;
   padding-bottom: 2px;
+  background: none;
+  border: none;
   border-bottom: 1px solid transparent;
+  cursor: pointer;
   transition:
     color var(--transition-fast),
     border-color var(--transition-fast);

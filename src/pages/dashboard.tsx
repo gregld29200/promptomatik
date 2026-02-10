@@ -2,17 +2,20 @@ import { Shell } from "@/components/layout/shell";
 import { Button } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
 import BlurText from "@/reactbits/blur-text";
+import { useAuth } from "@/lib/auth/auth-context";
 import { t } from "@/lib/i18n";
 import { FileText } from "lucide-react";
 import s from "./dashboard.module.css";
 
 export function DashboardPage() {
+  const { user } = useAuth();
+
   return (
     <Shell>
       <div className={s.header}>
         <div>
           <BlurText
-            text={t("dashboard.welcome", { name: "Greg" })}
+            text={t("dashboard.welcome", { name: user?.name ?? "" })}
             className={s.greeting}
             delay={60}
             animateBy="words"

@@ -118,6 +118,21 @@ auth.post("/register", async (c) => {
   );
 });
 
+auth.get("/me", requireAuth, async (c) => {
+  const session = c.get("session");
+  const user = await c.env.DB.prepare(
+    "SELECT id, email, name, role FROM users WHERE id = ?"
+  )
+    .bind(session.userId)
+    .first<{ id: string; email: string; name: string; role: string }>();
+
+  if (!user) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  return c.json({ user });
+});
+
 auth.post("/logout", requireAuth, async (c) => {
   await destroySession(c.env, c.req.raw);
   return c.json({ success: true }, 200, {
