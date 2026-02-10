@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "promptomatik",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-02-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "promptomatik-db",
+      "database_id": "placeholder-create-with-wrangler-d1-create"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SESSIONS",
+      "id": "placeholder-create-with-wrangler-kv-create",
+      "preview_id": "placeholder-create-with-wrangler-kv-create-preview"
+    }
+  ]
+}

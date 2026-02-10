@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Vite
+*.local
+
+# Cloudflare
+.wrangler/
+.dev.vars
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local

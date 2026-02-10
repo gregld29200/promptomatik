@@ -1,0 +1,146 @@
+:root {
+  /* ============================================================
+     COLORS — TeachInspire Brand Kit
+     ============================================================ */
+
+  /* Navy — Primary, backgrounds, text */
+  --color-navy-900: #0a1628;
+  --color-navy-800: #111d35;
+  --color-navy-700: #1a2a4a;
+  --color-navy-600: #253d6b;
+  --color-navy-500: #2f4f8f;
+  --color-navy-400: #4a6faf;
+  --color-navy-300: #7a9fd4;
+  --color-navy-200: #b0c8e8;
+  --color-navy-100: #dde8f5;
+  --color-navy-50: #f0f4fa;
+
+  /* Cream — Backgrounds, cards, surfaces */
+  --color-cream-900: #6b5e4f;
+  --color-cream-800: #8a7d6e;
+  --color-cream-700: #a99c8d;
+  --color-cream-600: #c4b9ab;
+  --color-cream-500: #d9d0c4;
+  --color-cream-400: #e8e1d7;
+  --color-cream-300: #f0ebe4;
+  --color-cream-200: #f5f1ec;
+  --color-cream-100: #faf8f5;
+  --color-cream-50: #fdfcfa;
+
+  /* Terracotta — Accents, warnings, active states */
+  --color-terracotta-900: #6b2a1a;
+  --color-terracotta-800: #8b3622;
+  --color-terracotta-700: #a8432b;
+  --color-terracotta-600: #c45234;
+  --color-terracotta-500: #d4654a;
+  --color-terracotta-400: #e07d65;
+  --color-terracotta-300: #ea9e8a;
+  --color-terracotta-200: #f2c0b3;
+  --color-terracotta-100: #f9dfda;
+  --color-terracotta-50: #fdf0ed;
+
+  /* Gold — CTAs, highlights, success */
+  --color-gold-900: #5a4a0e;
+  --color-gold-800: #7a6412;
+  --color-gold-700: #9a7f18;
+  --color-gold-600: #b8991e;
+  --color-gold-500: #d4b225;
+  --color-gold-400: #e0c44a;
+  --color-gold-300: #ebd67a;
+  --color-gold-200: #f3e6a8;
+  --color-gold-100: #f9f1d4;
+  --color-gold-50: #fdf9ec;
+
+  /* Semantic colors */
+  --color-bg: var(--color-cream-50);
+  --color-bg-card: #ffffff;
+  --color-bg-elevated: var(--color-cream-100);
+  --color-text-primary: var(--color-navy-900);
+  --color-text-secondary: var(--color-navy-600);
+  --color-text-muted: var(--color-navy-400);
+  --color-text-inverse: var(--color-cream-50);
+  --color-border: var(--color-cream-400);
+  --color-border-strong: var(--color-navy-200);
+  --color-accent: var(--color-terracotta-600);
+  --color-accent-hover: var(--color-terracotta-700);
+  --color-cta: var(--color-gold-600);
+  --color-cta-hover: var(--color-gold-700);
+  --color-success: var(--color-gold-600);
+  --color-error: var(--color-terracotta-600);
+
+  /* ============================================================
+     TYPOGRAPHY
+     ============================================================ */
+  --font-display: "Fraunces Variable", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans Variable", system-ui, -apple-system, sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* ============================================================
+     SPACING
+     ============================================================ */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* ============================================================
+     BORDERS & SHAPES
+     ============================================================ */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+
+  /* ============================================================
+     SHADOWS
+     ============================================================ */
+  --shadow-sm: 0 1px 2px rgba(10, 22, 40, 0.06);
+  --shadow-md: 0 2px 8px rgba(10, 22, 40, 0.08);
+  --shadow-lg: 0 4px 16px rgba(10, 22, 40, 0.12);
+
+  /* ============================================================
+     TRANSITIONS
+     ============================================================ */
+  --transition-fast: 120ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 350ms ease;
+
+  /* ============================================================
+     LAYOUT
+     ============================================================ */
+  --max-width: 960px;
+  --max-width-narrow: 640px;
+  --max-width-wide: 1200px;
+
+  /* ============================================================
+     TECHNIQUE COLORS (Study Mode)
+     ============================================================ */
+  --technique-role: var(--color-navy-500);
+  --technique-context: var(--color-gold-600);
+  --technique-examples: var(--color-terracotta-500);
+  --technique-constraints: var(--color-navy-300);
+  --technique-steps: var(--color-gold-400);
+  --technique-think-first: var(--color-terracotta-300);
+}
