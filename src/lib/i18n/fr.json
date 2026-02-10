@@ -11,7 +11,9 @@
     "retry": "Reessayer",
     "back": "Retour",
     "next": "Suivant",
-    "close": "Fermer"
+    "close": "Fermer",
+    "saved": "Enregistre",
+    "saving": "Enregistrement..."
   },
   "auth": {
     "login": "Se connecter",
@@ -46,12 +48,45 @@
     "steps": "Etapes",
     "think_first": "Reflexion prealable"
   },
+  "interview": {
+    "title": "Nouveau prompt",
+    "subtitle": "Decrivez ce dont vous avez besoin, et l'app construira un prompt structure pour vous.",
+    "placeholder": "Ex: J'ai besoin d'un jeu de role B1 sur la commande au restaurant pour des adultes...",
+    "submit": "Analyser ma demande",
+    "min_length": "Decrivez votre besoin en au moins 20 caracteres.",
+    "analyzing": "Analyse de votre demande...",
+    "analyzing_sub": "L'IA identifie le niveau, le sujet et le type d'activite.",
+    "questions_title": "Quelques precisions",
+    "questions_sub": "Pour construire le meilleur prompt possible, j'ai besoin de quelques details.",
+    "question_of": "Question {{current}} sur {{total}}",
+    "or_type": "Ou ecrivez votre reponse...",
+    "assembling": "Construction du prompt...",
+    "assembling_sub": "L'IA assemble les techniques de prompting adaptees a votre besoin.",
+    "done_title": "Votre prompt est pret !",
+    "done_sub": "Vous pouvez le copier, l'etudier ou le modifier.",
+    "save_prompt": "Enregistrer le prompt",
+    "start_over": "Recommencer",
+    "summary": "Resume"
+  },
   "prompt": {
-    "user_mode": "Mode utilisateur",
-    "study_mode": "Mode etude",
-    "edit": "Modifier",
+    "user_mode": "Utilisateur",
+    "study_mode": "Etude",
+    "edit_mode": "Modifier",
     "copy_prompt": "Copier le prompt",
+    "copied": "Copie !",
     "model_recommendation": "Modele recommande",
-    "result_not_good": "Le resultat n'etait pas bon ?"
+    "result_not_good": "Le resultat n'etait pas bon ?",
+    "saved": "Prompt enregistre !",
+    "deleted": "Prompt supprime",
+    "no_blocks": "Ce prompt n'a pas encore de contenu.",
+    "add_block": "Ajouter un bloc",
+    "delete_block": "Supprimer ce bloc",
+    "move_up": "Monter",
+    "move_down": "Descendre",
+    "block_content": "Contenu du bloc",
+    "annotation": "Annotation pedagogique",
+    "not_found": "Prompt introuvable",
+    "not_found_sub": "Ce prompt n'existe pas ou ne vous appartient pas.",
+    "back_to_dashboard": "Retour au tableau de bord"
   }
 }

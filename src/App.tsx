@@ -3,6 +3,8 @@ import { AuthProvider } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/lib/auth/protected-route";
 import { LoginPage } from "@/pages/login";
 import { DashboardPage } from "@/pages/dashboard";
+import { NewPromptPage } from "@/pages/new-prompt";
+import { PromptViewPage } from "@/pages/prompt-view";
 
 export function App() {
   return (
@@ -15,6 +17,22 @@ export function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/new"
+            element={
+              <ProtectedRoute>
+                <NewPromptPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/prompt/:id"
+            element={
+              <ProtectedRoute>
+                <PromptViewPage />
               </ProtectedRoute>
             }
           />

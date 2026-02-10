@@ -11,7 +11,9 @@
     "retry": "Try again",
     "back": "Back",
     "next": "Next",
-    "close": "Close"
+    "close": "Close",
+    "saved": "Saved",
+    "saving": "Saving..."
   },
   "auth": {
     "login": "Log in",
@@ -46,12 +48,45 @@
     "steps": "Steps",
     "think_first": "Think First"
   },
+  "interview": {
+    "title": "New prompt",
+    "subtitle": "Describe what you need, and the app will build a structured prompt for you.",
+    "placeholder": "E.g.: I need a B1 roleplay about ordering at a restaurant for adult learners...",
+    "submit": "Analyze my request",
+    "min_length": "Please describe your needs in at least 20 characters.",
+    "analyzing": "Analyzing your request...",
+    "analyzing_sub": "The AI is identifying the level, topic, and activity type.",
+    "questions_title": "A few more details",
+    "questions_sub": "To build the best prompt, I need a few more details.",
+    "question_of": "Question {{current}} of {{total}}",
+    "or_type": "Or type your answer...",
+    "assembling": "Building your prompt...",
+    "assembling_sub": "The AI is assembling the right prompting techniques for your needs.",
+    "done_title": "Your prompt is ready!",
+    "done_sub": "You can copy it, study it, or edit it.",
+    "save_prompt": "Save prompt",
+    "start_over": "Start over",
+    "summary": "Summary"
+  },
   "prompt": {
-    "user_mode": "User Mode",
-    "study_mode": "Study Mode",
-    "edit": "Edit",
+    "user_mode": "User",
+    "study_mode": "Study",
+    "edit_mode": "Edit",
     "copy_prompt": "Copy prompt",
+    "copied": "Copied!",
     "model_recommendation": "Recommended model",
-    "result_not_good": "Result wasn't good?"
+    "result_not_good": "Result wasn't good?",
+    "saved": "Prompt saved!",
+    "deleted": "Prompt deleted",
+    "no_blocks": "This prompt has no content yet.",
+    "add_block": "Add a block",
+    "delete_block": "Delete this block",
+    "move_up": "Move up",
+    "move_down": "Move down",
+    "block_content": "Block content",
+    "annotation": "Teaching annotation",
+    "not_found": "Prompt not found",
+    "not_found_sub": "This prompt doesn't exist or doesn't belong to you.",
+    "back_to_dashboard": "Back to dashboard"
   }
 }

@@ -1,0 +1,22 @@
+.bar {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-cream-200);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: var(--leading-relaxed);
+}
+
+.label {
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.model {
+  font-family: monospace;
+  color: var(--color-text-secondary);
+}
+
+.reason {
+  color: var(--color-text-muted);
+}

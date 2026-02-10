@@ -1,0 +1,14 @@
+.prose {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  line-height: var(--leading-relaxed);
+}
+
+.prose p {
+  margin-bottom: var(--space-4);
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
