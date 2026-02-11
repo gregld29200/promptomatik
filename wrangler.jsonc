@@ -12,14 +12,14 @@
     {
       "binding": "DB",
       "database_name": "promptomatik-db",
-      "database_id": "placeholder-create-with-wrangler-d1-create"
+      "database_id": "56ffb3e4-698b-47c0-86f1-256a999e5e0e"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "SESSIONS",
-      "id": "placeholder-create-with-wrangler-kv-create",
-      "preview_id": "placeholder-create-with-wrangler-kv-create-preview"
+      "id": "3678a6b34e5e4ab79cc93303fb091593",
+      "preview_id": "3678a6b34e5e4ab79cc93303fb091593"
     }
   ]
 }
