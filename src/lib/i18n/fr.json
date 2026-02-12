@@ -235,6 +235,9 @@
     "skip": "Passer",
     "finish": "Terminer",
     "replay": "Revoir l'onboarding",
+    "main": {
+      "replay": "Revoir l'onboarding des prompts"
+    },
     "dashboard_new_prompt": {
       "title": "Creez votre premier prompt",
       "body": "Cliquez sur « Nouveau prompt » pour commencer a construire un prompt structure."

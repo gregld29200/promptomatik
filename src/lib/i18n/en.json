@@ -235,6 +235,9 @@
     "skip": "Skip",
     "finish": "Finish",
     "replay": "Replay onboarding",
+    "main": {
+      "replay": "Replay prompts onboarding"
+    },
     "dashboard_new_prompt": {
       "title": "Create your first prompt",
       "body": "Click “New prompt” to start building a structured teaching prompt."

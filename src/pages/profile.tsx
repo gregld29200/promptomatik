@@ -220,6 +220,13 @@ export function ProfilePage() {
               >
                 {t("onboarding.profile.replay")}
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => onboarding.start("main", "manual")}
+              >
+                {t("onboarding.main.replay")}
+              </Button>
               <Button type="button" variant="ghost" onClick={() => navigate("/dashboard")}>
                 {t("common.back")}
               </Button>
