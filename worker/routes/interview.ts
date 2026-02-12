@@ -24,6 +24,19 @@ const interview = new Hono<InterviewEnv>();
 
 interview.use("/*", requireAuth);
 
+function normalizeModelName(name?: string): string | undefined {
+  const trimmed = name?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function llmModels(env: Env): { primaryModel?: string; fallbackModel?: string } {
+  return {
+    // Allows model tuning via Wrangler vars / .dev.vars without code changes.
+    primaryModel: normalizeModelName(env.OPENROUTER_MODEL),
+    fallbackModel: normalizeModelName(env.OPENROUTER_FALLBACK_MODEL),
+  };
+}
+
 function normalizeQuestion(q: InterviewQuestion): InterviewQuestion {
   const anyQ = q as unknown as {
     options?: unknown;
@@ -90,6 +103,7 @@ interview.post("/analyze", async (c) => {
   const lang = language === "en" ? "en" : "fr";
   const session = c.get("session");
   const profile = await fetchProfile(c.env.DB, session.userId);
+  const models = llmModels(c.env);
 
   const result = await chatCompletion<IntentAnalysis>(c.env.OPENROUTER_API_KEY, {
     messages: [
@@ -97,7 +111,7 @@ interview.post("/analyze", async (c) => {
       { role: "user", content: text.trim() },
     ],
     temperature: 0.3,
-  });
+  }, models);
 
   if (result.error) {
     const retry = await chatCompletion<IntentAnalysis>(c.env.OPENROUTER_API_KEY, {
@@ -106,7 +120,7 @@ interview.post("/analyze", async (c) => {
         { role: "user", content: text.trim() },
       ],
       temperature: 0.2,
-    });
+    }, models);
     if (retry.error) {
       return c.json({ error: retry.error }, 502);
     }
@@ -135,6 +149,7 @@ interview.post("/questions", async (c) => {
   const lang = language === "en" ? "en" : "fr";
   const session = c.get("session");
   const profile = await fetchProfile(c.env.DB, session.userId);
+  const models = llmModels(c.env);
 
   const userMessage = `Here is the intent analysis:
 ${JSON.stringify(intent, null, 2)}
@@ -151,7 +166,8 @@ Generate questions ONLY for the missing fields listed above.`;
         { role: "user", content: userMessage },
       ],
       temperature: 0.6,
-    }
+    },
+    models
   );
 
   if (result.error) {
@@ -163,7 +179,8 @@ Generate questions ONLY for the missing fields listed above.`;
           { role: "user", content: userMessage },
         ],
         temperature: 0.4,
-      }
+      },
+      models
     );
     if (retry.error) {
       return c.json({ error: retry.error }, 502);
@@ -190,6 +207,7 @@ interview.post("/assemble", async (c) => {
   const lang = language === "en" ? "en" : "fr";
   const session = c.get("session");
   const profile = await fetchProfile(c.env.DB, session.userId);
+  const models = llmModels(c.env);
 
   const userMessage = `Original teacher request:
 "${original_text}"
@@ -209,7 +227,7 @@ Assemble a complete, ready-to-use teaching prompt using the appropriate techniqu
     ],
     temperature: 0.5,
     max_tokens: 4096,
-  });
+  }, models);
 
   if (result.error) {
     const retry = await chatCompletion<AssembleResult>(c.env.OPENROUTER_API_KEY, {
@@ -219,7 +237,7 @@ Assemble a complete, ready-to-use teaching prompt using the appropriate techniqu
       ],
       temperature: 0.4,
       max_tokens: 4096,
-    });
+    }, models);
     if (retry.error) {
       return c.json({ error: retry.error }, 502);
     }
@@ -277,6 +295,7 @@ interview.post("/refine", async (c) => {
 
   const currentBlocks = JSON.parse(row.blocks);
   const profile = await fetchProfile(c.env.DB, session.userId);
+  const models = llmModels(c.env);
 
   const userMessage = `Current prompt blocks:
 ${JSON.stringify(currentBlocks, null, 2)}
@@ -294,7 +313,7 @@ Revise the prompt to fix this issue. Only change what needs changing.`;
     ],
     temperature: 0.4,
     max_tokens: 4096,
-  });
+  }, models);
 
   if (result.error) {
     const retry = await chatCompletion<RefinedPrompt>(c.env.OPENROUTER_API_KEY, {
@@ -304,7 +323,7 @@ Revise the prompt to fix this issue. Only change what needs changing.`;
       ],
       temperature: 0.3,
       max_tokens: 4096,
-    });
+    }, models);
     if (retry.error) {
       return c.json({ error: retry.error }, 502);
     }

@@ -18,6 +18,7 @@ Bilingual (FR/EN) prompt-builder for language teachers, companion app for [Teach
 npm install
 cp .env.example .dev.vars
 # fill OPENROUTER_API_KEY, RESEND_API_KEY, APP_SECRET, APP_URL
+# optional: OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL
 npm run db:migrate
 npm run dev
 ```
@@ -40,6 +41,14 @@ npx wrangler kv namespace create SESSIONS --preview
 npx wrangler secret put OPENROUTER_API_KEY
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put APP_SECRET
+```
+Optional model vars in `wrangler.jsonc`:
+```jsonc
+"vars": {
+  "APP_URL": "https://promptomatik.com",
+  "OPENROUTER_MODEL": "z-ai/glm-5",
+  "OPENROUTER_FALLBACK_MODEL": "minimax/minimax-m2.5"
+}
 ```
 5. Verify Resend domain `promptomatik.com` and sender `noreply@promptomatik.com`.
 6. Deploy:
