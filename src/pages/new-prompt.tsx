@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Shell } from "@/components/layout/shell";
 import { Button, Card, Spinner, Badge } from "@/components/ui";
@@ -6,6 +6,7 @@ import { FadeIn } from "@/reactbits/fade-in";
 import BlurText from "@/reactbits/blur-text";
 import { QuestionCard } from "@/components/interview/question-card";
 import { useInterview } from "@/lib/hooks/use-interview";
+import { Tips } from "@/components/prompt/tips";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import type { Technique } from "@/lib/api";
@@ -30,6 +31,12 @@ export function NewPromptPage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (step === "questions") {
+      setCurrentQ(0);
+    }
+  }, [step, questions.length]);
+
   function handleSubmitText(e: React.FormEvent) {
     e.preventDefault();
     if (text.trim().length >= 20) {
@@ -53,8 +60,7 @@ export function NewPromptPage() {
     const res = await api.createPrompt({
       name: result.name,
       blocks: result.blocks,
-      model_recommendation: result.model_recommendation,
-      model_recommendation_reason: result.model_recommendation_reason,
+      tips: result.tips || [],
       source_type: result.source_type,
       tags: result.suggested_tags,
     });
@@ -90,6 +96,7 @@ export function NewPromptPage() {
                   onChange={(e) => setText(e.target.value)}
                   placeholder={t("interview.placeholder")}
                   rows={5}
+                  data-onboard="request-text"
                 />
                 {text.length > 0 && text.trim().length < 20 && (
                   <p className={s.hint}>{t("interview.min_length")}</p>
@@ -99,6 +106,7 @@ export function NewPromptPage() {
                   size="large"
                   type="submit"
                   disabled={text.trim().length < 20}
+                  data-onboard="submit-request"
                 >
                   {t("interview.submit")}
                 </Button>
@@ -203,21 +211,8 @@ export function NewPromptPage() {
                       </div>
                     ))}
                 </div>
-                {result.model_recommendation && (
-                  <div className={s.modelRec}>
-                    <span className={s.modelLabel}>
-                      {t("prompt.model_recommendation")}:
-                    </span>{" "}
-                    <span className={s.modelName}>
-                      {result.model_recommendation}
-                    </span>
-                    {result.model_recommendation_reason && (
-                      <span className={s.modelReason}>
-                        {" "}
-                        — {result.model_recommendation_reason}
-                      </span>
-                    )}
-                  </div>
+                {result.tips && result.tips.length > 0 && (
+                  <Tips items={result.tips} />
                 )}
               </Card>
 
@@ -227,6 +222,7 @@ export function NewPromptPage() {
                   size="large"
                   onClick={handleSave}
                   disabled={saving}
+                  data-onboard="save-prompt"
                 >
                   {saving ? t("common.saving") : t("interview.save_prompt")}
                 </Button>

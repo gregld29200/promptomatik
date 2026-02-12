@@ -27,8 +27,12 @@ body {
   line-height: var(--leading-normal);
   color: var(--color-text-primary);
   background-color: var(--color-bg);
-  /* Subtle grain texture for paper feel */
-  background-image: url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.015'/%3E%3C/svg%3E");
+  /* Layered: warm gradient atmosphere + subtle paper grain */
+  background-image:
+    radial-gradient(ellipse at 15% 10%, rgba(204, 170, 48, 0.03) 0%, transparent 40%),
+    radial-gradient(ellipse at 85% 90%, rgba(191, 78, 54, 0.02) 0%, transparent 40%),
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.018'/%3E%3C/svg%3E");
+  background-attachment: fixed;
 }
 
 /* ============================================================

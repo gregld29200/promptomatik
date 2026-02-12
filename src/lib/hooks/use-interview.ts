@@ -3,6 +3,7 @@ import * as api from "@/lib/api";
 import type {
   IntentAnalysis,
   InterviewQuestion,
+  AssembleResult,
   AssembledPrompt,
 } from "@/lib/api";
 import { getLanguage } from "@/lib/i18n";
@@ -25,6 +26,32 @@ export function useInterview() {
   const [error, setError] = useState<string | null>(null);
 
   const language = getLanguage();
+
+  const requireReanswer = useCallback((next: InterviewQuestion[]) => {
+    setAnswers((prev) => {
+      const copy = { ...prev };
+      for (const q of next) {
+        // Force the UI to collect an answer even if we asked the same field earlier.
+        delete copy[q.field];
+      }
+      return copy;
+    });
+  }, []);
+
+  const handleAssembleResponse = useCallback((res: AssembleResult, textForContext: string) => {
+    if (res.kind === "prompt") {
+      setResult(res.prompt);
+      setStep("done");
+      return;
+    }
+
+    // ask_user
+    requireReanswer(res.questions);
+    setQuestions(res.questions);
+    setStep("questions");
+    // Keep originalText for subsequent /assemble calls
+    setOriginalText(textForContext);
+  }, [requireReanswer]);
 
   const submitText = useCallback(
     async (text: string) => {
@@ -59,8 +86,7 @@ export function useInterview() {
           setStep("error");
           return;
         }
-        setResult(assembleResult.data.prompt);
-        setStep("done");
+        handleAssembleResponse(assembleResult.data, text);
         return;
       }
 
@@ -73,9 +99,10 @@ export function useInterview() {
       }
 
       setQuestions(questionsResult.data.questions);
+      requireReanswer(questionsResult.data.questions);
       setStep("questions");
     },
-    [language]
+    [language, handleAssembleResponse, requireReanswer]
   );
 
   const answerQuestion = useCallback((field: string, value: string) => {
@@ -99,9 +126,8 @@ export function useInterview() {
       return;
     }
 
-    setResult(assembleResult.data.prompt);
-    setStep("done");
-  }, [intent, answers, originalText, language]);
+    handleAssembleResponse(assembleResult.data, originalText);
+  }, [intent, answers, originalText, language, handleAssembleResponse]);
 
   const reset = useCallback(() => {
     setStep("input");

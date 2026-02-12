@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate } from "react-router";
+import { Navigate, Link } from "react-router";
 import { Card, Button, Input, Spinner } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
 import BlurText from "@/reactbits/blur-text";
@@ -46,7 +46,7 @@ export function LoginPage() {
           <Card className={s.card} variant="elevated">
             <div className={s.accent} />
             <BlurText
-              text="Promptomatic"
+              text="Promptomatik"
               className={s.heading}
               delay={80}
               animateBy="letters"
@@ -74,6 +74,11 @@ export function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+                <div className={s.forgotRow}>
+                  <Link to="/forgot-password" className={s.forgotLink}>
+                    {t("auth.forgot_password")}
+                  </Link>
+                </div>
                 {error && <p className={s.error}>{error}</p>}
                 <Button
                   variant="primary"

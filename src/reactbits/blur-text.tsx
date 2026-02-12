@@ -18,6 +18,23 @@ type BlurTextProps = {
   stepDuration?: number;
 };
 
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return reduced;
+}
+
 const buildKeyframes = (
   from: Record<string, string | number>,
   steps: Array<Record<string, string | number>>
@@ -47,24 +64,10 @@ const BlurText: React.FC<BlurTextProps> = ({
   onAnimationComplete,
   stepDuration = 0.35,
 }) => {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const elements = animateBy === "words" ? text.split(" ") : text.split("");
   const [inView, setInView] = useState(false);
   const ref = useRef<HTMLParagraphElement>(null);
-
-  useEffect(() => {
-    if (!ref.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          observer.unobserve(ref.current as Element);
-        }
-      },
-      { threshold, rootMargin }
-    );
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [threshold, rootMargin]);
 
   const defaultFrom = useMemo(
     () =>
@@ -85,6 +88,30 @@ const BlurText: React.FC<BlurTextProps> = ({
     ],
     [direction]
   );
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.unobserve(ref.current as Element);
+        }
+      },
+      { threshold, rootMargin }
+    );
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [threshold, rootMargin]);
+
+  // Reduced motion: render text instantly
+  if (prefersReducedMotion) {
+    return (
+      <p ref={ref} className={className}>
+        {text}
+      </p>
+    );
+  }
 
   const fromSnapshot = animationFrom ?? defaultFrom;
   const toSnapshots = animationTo ?? defaultTo;

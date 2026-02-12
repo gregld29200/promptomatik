@@ -6,14 +6,19 @@ export type ViewMode = "user" | "study" | "edit";
 interface ModeToggleProps {
   mode: ViewMode;
   onChange: (mode: ViewMode) => void;
+  visibleModes?: ViewMode[];
 }
 
-export function ModeToggle({ mode, onChange }: ModeToggleProps) {
-  const modes: { value: ViewMode; label: string }[] = [
+export function ModeToggle({ mode, onChange, visibleModes }: ModeToggleProps) {
+  const allModes: { value: ViewMode; label: string }[] = [
     { value: "user", label: t("prompt.user_mode") },
     { value: "study", label: t("prompt.study_mode") },
     { value: "edit", label: t("prompt.edit_mode") },
   ];
+
+  const modes = visibleModes
+    ? allModes.filter((m) => visibleModes.includes(m.value))
+    : allModes;
 
   return (
     <div className={s.toggle}>

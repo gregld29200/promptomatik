@@ -1,11 +1,16 @@
 .card {
-  padding: var(--space-4);
-  padding-left: var(--space-5);
-  border-left: 3px solid var(--color-border);
+  padding: var(--space-5);
+  padding-left: var(--space-6);
   background: var(--color-bg-card);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
-  border-left-width: 3px;
+  border-left: 3px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-normal);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .header {
@@ -32,7 +37,9 @@
   color: var(--color-text-muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .iconBtn:hover:not(:disabled) {
@@ -62,12 +69,15 @@
   border-radius: var(--radius-sm);
   resize: vertical;
   line-height: var(--leading-relaxed);
-  transition: border-color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .textarea:focus {
   outline: none;
   border-color: var(--color-navy-400);
+  box-shadow: 0 0 0 2px rgba(19, 32, 56, 0.06);
 }
 
 .textarea::placeholder {

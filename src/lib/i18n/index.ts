@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import fr from "./fr.json";
 import en from "./en.json";
 
@@ -6,14 +7,39 @@ type Translations = typeof fr;
 
 const translations: Record<Language, Translations> = { fr, en };
 
-let currentLang: Language = "fr";
+// Initialize from localStorage
+const stored = typeof window !== "undefined" ? localStorage.getItem("lang") : null;
+let currentLang: Language = stored === "en" ? "en" : "fr";
+
+const listeners = new Set<() => void>();
+
+function emitChange() {
+  for (const fn of listeners) fn();
+}
 
 export function setLanguage(lang: Language): void {
   currentLang = lang;
+  if (typeof window !== "undefined") {
+    localStorage.setItem("lang", lang);
+  }
+  emitChange();
 }
 
 export function getLanguage(): Language {
   return currentLang;
+}
+
+export function useLanguage(): [Language, (lang: Language) => void] {
+  const lang = useSyncExternalStore(
+    (callback) => {
+      listeners.add(callback);
+      return () => {
+        listeners.delete(callback);
+      };
+    },
+    () => currentLang,
+  );
+  return [lang, setLanguage];
 }
 
 export function t(key: string, vars?: Record<string, string>): string {

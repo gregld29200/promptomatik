@@ -4,7 +4,7 @@
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-2.0-flash-001";
+const DEFAULT_MODEL = "z-ai/glm-5";
 const TIMEOUT_MS = 30_000;
 
 interface ChatMessage {
@@ -37,8 +37,8 @@ export async function chatCompletion<T>(
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://promptomatic.com",
-        "X-Title": "Promptomatic",
+        "HTTP-Referer": "https://promptomatik.com",
+        "X-Title": "Promptomatik",
       },
       body: JSON.stringify({
         model: req.model ?? DEFAULT_MODEL,

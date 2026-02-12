@@ -1,4 +1,4 @@
--- Promptomatic v1 — Initial Schema
+-- Promptomatik v1 — Initial Schema
 -- D1 (SQLite at edge)
 
 -- ============================================================

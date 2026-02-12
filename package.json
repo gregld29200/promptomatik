@@ -9,7 +9,7 @@
 		"preview": "vite preview",
 		"deploy": "npm run build && wrangler deploy",
 		"seed": "npx tsx seed/seed.ts",
-		"db:migrate": "npx wrangler d1 execute promptomatik-db --local --file=./migrations/0001_init-schema.sql"
+		"db:migrate": "npx wrangler d1 execute promptomatik-db --local --file=./migrations/0001_init-schema.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0002_add-is-active.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0003_replace-model-rec-with-tips.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0004_add-template-moderation.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0005_add-password-resets.sql"
 	},
 	"dependencies": {
 		"@fontsource-variable/dm-sans": "^5.2.8",

@@ -5,20 +5,24 @@
   justify-content: center;
   background-color: var(--color-bg);
   padding: var(--space-6);
+  /* Warm gradient overlay for depth */
+  background-image:
+    radial-gradient(ellipse at 30% 20%, rgba(204, 170, 48, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(191, 78, 54, 0.03) 0%, transparent 50%);
 }
 
 .container {
   width: 100%;
-  max-width: 400px;
+  max-width: 420px;
 }
 
 .card {
-  padding: var(--space-8);
+  padding: var(--space-10);
 }
 
 .heading {
   font-family: var(--font-display);
-  font-size: var(--text-3xl);
+  font-size: var(--text-4xl);
   font-weight: var(--weight-bold);
   color: var(--color-navy-800);
   letter-spacing: var(--tracking-tight);
@@ -30,12 +34,30 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
   margin-bottom: var(--space-8);
+  line-height: var(--leading-relaxed);
 }
 
 .form {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+}
+
+.forgotRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: calc(var(--space-3) * -1);
+}
+
+.forgotLink {
+  font-size: var(--text-xs);
+  color: var(--color-navy-700);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.forgotLink:hover {
+  border-bottom-color: var(--color-gold-500);
 }
 
 .error {
@@ -53,7 +75,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  margin-top: var(--space-6);
+  margin-top: var(--space-8);
   color: var(--color-text-muted);
   font-size: var(--text-xs);
   letter-spacing: var(--tracking-wide);
@@ -64,7 +86,7 @@
   content: "";
   flex: 1;
   height: 1px;
-  background-color: var(--color-border);
+  background: linear-gradient(90deg, transparent, var(--color-border), transparent);
 }
 
 .footer {
@@ -88,10 +110,10 @@
 
 /* Gold accent line on the card — like a gilt-edge page */
 .accent {
-  width: 48px;
+  width: 56px;
   height: 3px;
-  background-color: var(--color-gold-500);
-  margin-bottom: var(--space-6);
+  background: linear-gradient(90deg, var(--color-gold-500), var(--color-gold-400));
+  margin-bottom: var(--space-8);
 }
 
 @media (max-width: 480px) {
@@ -103,5 +125,9 @@
 
   .card {
     padding: var(--space-6);
+  }
+
+  .heading {
+    font-size: var(--text-3xl);
   }
 }

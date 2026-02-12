@@ -1,8 +1,16 @@
 .prose {
   font-family: var(--font-body);
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   color: var(--color-text-primary);
   line-height: var(--leading-relaxed);
+  background:
+    radial-gradient(circle at 88% 12%, rgba(204, 170, 48, 0.1), transparent 42%),
+    linear-gradient(140deg, #ffffff 0%, var(--color-cream-50) 100%);
+  padding: var(--space-6);
+  border-radius: 24px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-gold-500);
 }
 
 .prose p {

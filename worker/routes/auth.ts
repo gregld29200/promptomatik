@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../env";
 import { hashPassword, verifyPassword } from "../lib/password";
+import { sendPasswordResetEmail } from "../lib/email";
 import {
   createSession,
   destroySession,
@@ -22,7 +23,7 @@ auth.post("/login", async (c) => {
   }
 
   const user = await c.env.DB.prepare(
-    "SELECT id, email, name, password_hash, role, language_preference FROM users WHERE email = ?"
+    "SELECT id, email, name, password_hash, role, language_preference, is_active FROM users WHERE email = ?"
   )
     .bind(email.toLowerCase().trim())
     .first<{
@@ -32,10 +33,15 @@ auth.post("/login", async (c) => {
       password_hash: string;
       role: "teacher" | "admin";
       language_preference: "fr" | "en";
+      is_active: number;
     }>();
 
   if (!user || !(await verifyPassword(password, user.password_hash))) {
     return c.json({ error: "Invalid credentials" }, 401);
+  }
+
+  if (!user.is_active) {
+    return c.json({ error: "Account deactivated" }, 403);
   }
 
   const sessionId = await createSession(c.env, {
@@ -116,6 +122,104 @@ auth.post("/register", async (c) => {
     201,
     { "Set-Cookie": sessionCookie(sessionId) }
   );
+});
+
+auth.post("/forgot-password", async (c) => {
+  const { email } = await c.req.json<{ email: string }>();
+
+  if (!email) {
+    return c.json({ error: "Email is required" }, 400);
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await c.env.DB.prepare(
+    "SELECT id, email, language_preference FROM users WHERE email = ?"
+  )
+    .bind(normalizedEmail)
+    .first<{
+      id: string;
+      email: string;
+      language_preference: "fr" | "en";
+    }>();
+
+  // Always return success to avoid account enumeration
+  if (!user) {
+    return c.json({ success: true });
+  }
+
+  const token = crypto.randomUUID();
+  const resetId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  const appBaseUrl = c.env.APP_URL ?? new URL(c.req.url).origin;
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL"
+    ).bind(now, user.id),
+    c.env.DB.prepare(
+      "INSERT INTO password_resets (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)"
+    ).bind(resetId, user.id, token, expiresAt, now),
+  ]);
+
+  await sendPasswordResetEmail(c.env.RESEND_API_KEY, {
+    to: user.email,
+    token,
+    lang: user.language_preference ?? "fr",
+    appBaseUrl,
+  });
+
+  return c.json({ success: true });
+});
+
+auth.post("/reset-password", async (c) => {
+  const { token, password } = await c.req.json<{
+    token: string;
+    password: string;
+  }>();
+
+  if (!token || !password) {
+    return c.json({ error: "Token and password are required" }, 400);
+  }
+
+  if (password.length < 8) {
+    return c.json({ error: "Password must be at least 8 characters" }, 400);
+  }
+
+  const reset = await c.env.DB.prepare(
+    `SELECT id, user_id, expires_at, used_at
+     FROM password_resets
+     WHERE token = ?`
+  )
+    .bind(token)
+    .first<{
+      id: string;
+      user_id: string;
+      expires_at: string;
+      used_at: string | null;
+    }>();
+
+  if (!reset || reset.used_at) {
+    return c.json({ error: "Invalid or used reset token" }, 400);
+  }
+
+  if (new Date(reset.expires_at) < new Date()) {
+    return c.json({ error: "Reset token has expired" }, 400);
+  }
+
+  const passwordHash = await hashPassword(password);
+  const now = new Date().toISOString();
+
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?"
+    ).bind(passwordHash, now, reset.user_id),
+    c.env.DB.prepare(
+      "UPDATE password_resets SET used_at = ? WHERE id = ?"
+    ).bind(now, reset.id),
+  ]);
+
+  return c.json({ success: true });
 });
 
 auth.get("/me", requireAuth, async (c) => {

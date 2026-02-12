@@ -1,0 +1,63 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 10, 18, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+.highlight {
+  position: absolute;
+  border-radius: 14px;
+  border: 2px solid rgba(223, 192, 82, 0.95);
+  box-shadow:
+    0 0 0 6px rgba(223, 192, 82, 0.12),
+    0 18px 50px rgba(0, 0, 0, 0.35);
+}
+
+.tooltip {
+  position: absolute;
+  width: min(360px, calc(100vw - 32px));
+  padding: 14px 14px 12px;
+  border-radius: 16px;
+  background: #0b1726;
+  color: #f7f3ea;
+  border: 1px solid rgba(223, 192, 82, 0.35);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  pointer-events: auto;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  margin: 0 0 6px;
+  font-size: var(--text-base);
+}
+
+.body {
+  margin: 0 0 12px;
+  color: rgba(247, 243, 234, 0.85);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+.controls {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.controlsLeft,
+.controlsRight {
+  display: flex;
+  gap: 8px;
+}
+

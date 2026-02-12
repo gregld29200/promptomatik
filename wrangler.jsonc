@@ -4,6 +4,9 @@
   "main": "./worker/index.ts",
   "compatibility_date": "2026-02-10",
   "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "APP_URL": "https://promptomatik.com"
+  },
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]

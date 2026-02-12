@@ -1,6 +1,6 @@
 // Lightweight fade-in using motion/react (inspired by ReactBits FadeContent)
 import { motion, type Variants } from "motion/react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 interface FadeInProps {
   children: ReactNode;
@@ -10,6 +10,23 @@ interface FadeInProps {
   direction?: "up" | "down" | "left" | "right" | "none";
   distance?: number;
   blur?: boolean;
+}
+
+function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return reduced;
 }
 
 const directionOffset = {
@@ -29,6 +46,12 @@ export function FadeIn({
   distance = 24,
   blur = false,
 }: FadeInProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  if (prefersReducedMotion) {
+    return <div className={className}>{children}</div>;
+  }
+
   const offset = directionOffset[direction];
 
   const variants: Variants = {

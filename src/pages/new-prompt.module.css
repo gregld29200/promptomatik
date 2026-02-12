@@ -44,6 +44,13 @@
   align-items: center;
   gap: var(--space-4);
   width: 100%;
+  padding: var(--space-6);
+  border-radius: 26px;
+  border: 1px solid var(--color-border);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(224, 126, 102, 0.11), transparent 45%),
+    linear-gradient(145deg, #ffffff 0%, var(--color-cream-50) 100%);
+  box-shadow: var(--shadow-md);
 }
 
 .textarea {
@@ -55,15 +62,18 @@
   color: var(--color-text-primary);
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   resize: vertical;
   line-height: var(--leading-relaxed);
-  transition: border-color var(--transition-fast);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .textarea:focus {
   outline: none;
   border-color: var(--color-navy-400);
+  box-shadow: 0 0 0 3px rgba(19, 32, 56, 0.08);
 }
 
 .textarea::placeholder {
@@ -104,6 +114,11 @@
   width: 100%;
   text-align: left;
   padding: var(--space-4);
+  border-radius: 22px;
+  border: 1px solid var(--color-border);
+  background:
+    radial-gradient(circle at 92% 16%, rgba(204, 170, 48, 0.1), transparent 45%),
+    linear-gradient(140deg, #ffffff 0%, var(--color-cream-50) 100%);
 }
 
 .summaryLabel {
@@ -141,6 +156,8 @@
   width: 100%;
   text-align: left;
   padding: var(--space-6);
+  border-radius: 28px;
+  box-shadow: var(--shadow-lg);
 }
 
 .resultName {

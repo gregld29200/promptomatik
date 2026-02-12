@@ -30,15 +30,38 @@ export interface InterviewQuestion {
   id: string;
   question: string;
   field: string;
-  options: string[];
-  allow_freetext: boolean;
+  options: { label: string; value: string; recommended?: boolean }[];
+  multi_select?: boolean;
+  allow_other?: boolean;
+  other_placeholder?: string;
+
+  /**
+   * Back-compat with earlier question schema.
+   * If present, treat as allow_other.
+   */
+  allow_freetext?: boolean;
 }
+
+export type AssembleResult =
+  | { kind: "prompt"; prompt: AssembledPrompt }
+  | { kind: "ask_user"; questions: InterviewQuestion[] };
 
 export interface AssembledPrompt {
   name: string;
   blocks: PromptBlock[];
-  model_recommendation: string;
-  model_recommendation_reason: string;
+  tips: string[];
   source_type: "from_scratch" | "from_source";
   suggested_tags: string[];
+}
+
+export interface RefinementChange {
+  technique: Technique;
+  type: "modified" | "added" | "removed";
+  reason: string;
+}
+
+export interface RefinedPrompt {
+  blocks: PromptBlock[];
+  changes: RefinementChange[];
+  tips: string[];
 }

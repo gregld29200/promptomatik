@@ -9,8 +9,8 @@
   line-height: 1.4;
   border-radius: var(--radius-sm);
   white-space: nowrap;
-  /* Subtle left border accent for technique badges */
-  border-left: 2px solid transparent;
+  border-left: 2.5px solid transparent;
+  transition: transform var(--transition-fast);
 }
 
 .default {

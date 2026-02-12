@@ -1,13 +1,17 @@
 .card {
   background-color: var(--color-bg-card);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
   padding: var(--space-6);
   position: relative;
+  transition:
+    box-shadow var(--transition-normal),
+    transform var(--transition-normal),
+    border-color var(--transition-normal);
 }
 
 .bordered {
-  border: 1px solid var(--color-border);
   box-shadow: none;
 }
 
@@ -18,4 +22,10 @@
 /* Decorative top-rule variant — like a notebook page */
 .ruled {
   border-top: 3px solid var(--color-navy-800);
+}
+
+/* Gilt-edge variant — gold left accent like a fine book page */
+.gilt {
+  border-left: 4px solid var(--color-gold-500);
+  box-shadow: var(--shadow-md);
 }

@@ -11,6 +11,7 @@ dist/
 # Cloudflare
 .wrangler/
 .dev.vars
+.tmp/
 
 # OS
 .DS_Store
