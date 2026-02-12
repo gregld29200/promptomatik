@@ -13,6 +13,7 @@ import type { Technique } from "@/lib/api";
 import s from "./new-prompt.module.css";
 
 export function NewPromptPage() {
+  const spriteSrc = "/lightbulb-sprite.png";
   const navigate = useNavigate();
   const {
     step,
@@ -30,6 +31,7 @@ export function NewPromptPage() {
   const [text, setText] = useState("");
   const [currentQ, setCurrentQ] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [spriteReady, setSpriteReady] = useState(false);
 
   useEffect(() => {
     if (step === "questions") {
@@ -119,7 +121,22 @@ export function NewPromptPage() {
         {step === "analyzing" && (
           <FadeIn duration={0.4} direction="up" distance={16}>
             <div className={s.loading}>
-              <Spinner size={32} />
+              {/* Drop the sprite sheet at public/lightbulb-sprite.png (4 columns x 2 rows). */}
+              <img
+                src={spriteSrc}
+                alt=""
+                aria-hidden="true"
+                className={s.spritePreload}
+                onLoad={() => setSpriteReady(true)}
+                onError={() => setSpriteReady(false)}
+              />
+              <div className={s.animationWrap} aria-hidden="true">
+                {spriteReady ? (
+                  <div className={s.lightbulbSprite} />
+                ) : (
+                  <Spinner size={32} />
+                )}
+              </div>
               <p className={s.loadingTitle}>{t("interview.analyzing")}</p>
               <p className={s.loadingSub}>{t("interview.analyzing_sub")}</p>
             </div>

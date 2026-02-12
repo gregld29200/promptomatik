@@ -87,6 +87,7 @@
 
 /* Loading states */
 .loading {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -94,6 +95,58 @@
   text-align: center;
   gap: var(--space-4);
   padding: var(--space-16) 0;
+}
+
+.spritePreload {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.animationWrap {
+  width: min(240px, 68vw);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.lightbulbSprite {
+  width: 100%;
+  height: 100%;
+  background-image: url("/lightbulb-sprite.png");
+  background-repeat: no-repeat;
+  background-size: 400% 200%;
+  filter: drop-shadow(0 10px 22px rgba(204, 170, 48, 0.35));
+  animation:
+    bulbSpriteFrames 1200ms steps(1, end) infinite,
+    bulbFloat 2800ms ease-in-out infinite;
+}
+
+@keyframes bulbSpriteFrames {
+  0% { background-position: 0% 0%; }
+  12.5% { background-position: 33.333% 0%; }
+  25% { background-position: 66.666% 0%; }
+  37.5% { background-position: 100% 0%; }
+  50% { background-position: 0% 100%; }
+  62.5% { background-position: 33.333% 100%; }
+  75% { background-position: 66.666% 100%; }
+  87.5% { background-position: 100% 100%; }
+  100% { background-position: 100% 100%; }
+}
+
+@keyframes bulbFloat {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lightbulbSprite {
+    animation: none;
+    background-position: 100% 100%;
+  }
 }
 
 .loadingTitle {
