@@ -114,17 +114,7 @@ interview.post("/analyze", async (c) => {
   }, models);
 
   if (result.error) {
-    const retry = await chatCompletion<IntentAnalysis>(c.env.OPENROUTER_API_KEY, {
-      messages: [
-        { role: "system", content: intentAnalysisPrompt(lang, profile) },
-        { role: "user", content: text.trim() },
-      ],
-      temperature: 0.2,
-    }, models);
-    if (retry.error) {
-      return c.json({ error: retry.error }, 502);
-    }
-    return c.json({ intent: retry.data });
+    return c.json({ error: result.error }, 502);
   }
 
   return c.json({ intent: result.data });
@@ -171,21 +161,7 @@ Generate questions ONLY for the missing fields listed above.`;
   );
 
   if (result.error) {
-    const retry = await chatCompletion<{ questions: InterviewQuestion[] }>(
-      c.env.OPENROUTER_API_KEY,
-      {
-        messages: [
-          { role: "system", content: interviewQuestionsPrompt(lang, profile) },
-          { role: "user", content: userMessage },
-        ],
-        temperature: 0.4,
-      },
-      models
-    );
-    if (retry.error) {
-      return c.json({ error: retry.error }, 502);
-    }
-    return c.json({ questions: normalizeQuestions(retry.data!.questions) });
+    return c.json({ error: result.error }, 502);
   }
 
   return c.json({ questions: normalizeQuestions(result.data!.questions) });
@@ -230,27 +206,7 @@ Assemble a complete, ready-to-use teaching prompt using the appropriate techniqu
   }, models);
 
   if (result.error) {
-    const retry = await chatCompletion<AssembleResult>(c.env.OPENROUTER_API_KEY, {
-      messages: [
-        { role: "system", content: promptAssemblyPrompt(lang, profile) },
-        { role: "user", content: userMessage },
-      ],
-      temperature: 0.4,
-      max_tokens: 4096,
-    }, models);
-    if (retry.error) {
-      return c.json({ error: retry.error }, 502);
-    }
-    const data = retry.data;
-    if (!data) return c.json({ error: "Empty response from AI." }, 502);
-    if (data.kind === "ask_user") {
-      return c.json({ ...data, questions: normalizeQuestions(data.questions) });
-    }
-    if (data.kind === "prompt") {
-      return c.json(data);
-    }
-    // Back-compat: treat unknown shape as prompt payload
-    return c.json({ kind: "prompt", prompt: data as unknown as AssembledPrompt });
+    return c.json({ error: result.error }, 502);
   }
 
   const data = result.data;
@@ -316,18 +272,7 @@ Revise the prompt to fix this issue. Only change what needs changing.`;
   }, models);
 
   if (result.error) {
-    const retry = await chatCompletion<RefinedPrompt>(c.env.OPENROUTER_API_KEY, {
-      messages: [
-        { role: "system", content: promptRefinementPrompt(lang, profile) },
-        { role: "user", content: userMessage },
-      ],
-      temperature: 0.3,
-      max_tokens: 4096,
-    }, models);
-    if (retry.error) {
-      return c.json({ error: retry.error }, 502);
-    }
-    return c.json({ refined: retry.data });
+    return c.json({ error: result.error }, 502);
   }
 
   return c.json({ refined: result.data });

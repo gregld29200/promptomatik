@@ -6,8 +6,9 @@
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "z-ai/glm-5";
 const FALLBACK_MODEL = "minimax/minimax-m2.5";
-// Reasoning models can take materially longer than non-reasoning chat models.
-const TIMEOUT_MS = 90_000;
+// Keep total request time within Cloudflare edge limits.
+const ATTEMPT_TIMEOUT_MS = 55_000;
+const TOTAL_TIMEOUT_MS = 95_000;
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -65,9 +66,9 @@ export async function chatCompletion<T>(
     return b.includes("response_format") || b.includes("json_object") || b.includes("json schema") || b.includes("json_schema");
   };
 
-  const callModel = async (model: string): Promise<LLMResult<T>> => {
+  const callModel = async (model: string, timeoutMs: number): Promise<LLMResult<T>> => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const baseBody = {
@@ -146,9 +147,17 @@ export async function chatCompletion<T>(
   const modelChain = primaryModel === fallbackModel
     ? [primaryModel]
     : [primaryModel, fallbackModel];
+  const startedAt = Date.now();
 
   for (let i = 0; i < modelChain.length; i += 1) {
-    const result = await callModel(modelChain[i]);
+    const elapsedMs = Date.now() - startedAt;
+    const remainingMs = TOTAL_TIMEOUT_MS - elapsedMs;
+    if (remainingMs <= 1_000) {
+      return { data: null, error: "AI request timed out. Please try again." };
+    }
+
+    const attemptTimeoutMs = Math.min(ATTEMPT_TIMEOUT_MS, remainingMs);
+    const result = await callModel(modelChain[i], attemptTimeoutMs);
     if (!result.error) return result;
 
     const shouldTryFallback =
