@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="256" viewBox="0 0 512 256" fill="none">
+  <defs>
+    <g id="funnel-base">
+      <ellipse cx="64" cy="40" rx="34" ry="8" stroke="#2F4265" stroke-width="3"/>
+      <ellipse cx="64" cy="45" rx="30" ry="6" stroke="#2F4265" stroke-width="2" opacity="0.9"/>
+      <path d="M30 40L52 78L56 112L72 100L76 78L98 40" stroke="#2F4265" stroke-width="3" fill="none" stroke-linejoin="round"/>
+      <path d="M34 44L53 77L56 102" stroke="#2F4265" stroke-width="1.5" opacity="0.45"/>
+      <path d="M40 43L58 75L60 98" stroke="#2F4265" stroke-width="1.2" opacity="0.35"/>
+    </g>
+
+    <g id="doc">
+      <rect x="54" y="84" width="30" height="38" rx="4" fill="#EBD06C" stroke="#2F4265" stroke-width="3"/>
+      <path d="M72 122V112H84" fill="#F7F0C8" stroke="#2F4265" stroke-width="2"/>
+    </g>
+
+    <g id="sparkles" stroke="#E5BD4E" stroke-width="3" stroke-linecap="round">
+      <line x1="88" y1="94" x2="94" y2="94"/>
+      <line x1="91" y1="91" x2="91" y2="97"/>
+      <line x1="96" y1="104" x2="102" y2="104"/>
+      <line x1="99" y1="101" x2="99" y2="107"/>
+      <line x1="84" y1="108" x2="90" y2="108"/>
+      <line x1="87" y1="105" x2="87" y2="111"/>
+    </g>
+
+    <g id="shape-tri">
+      <polygon points="0,0 10,3 2,12" fill="#9BB9B1" stroke="#5A7D79" stroke-width="2"/>
+    </g>
+    <g id="shape-circ">
+      <circle cx="0" cy="0" r="7" fill="#9BB9B1" stroke="#5A7D79" stroke-width="2"/>
+    </g>
+    <g id="shape-diamond">
+      <rect x="-7" y="-7" width="14" height="14" transform="rotate(18)" fill="#9BB9B1" stroke="#5A7D79" stroke-width="2"/>
+    </g>
+
+    <g id="frame-0">
+      <rect x="2.5" y="2.5" width="123" height="123" stroke="#2F4265" stroke-width="3"/>
+      <use href="#funnel-base"/>
+      <g transform="translate(44 20)"><use href="#shape-tri"/></g>
+      <g transform="translate(66 17)"><use href="#shape-circ"/></g>
+      <g transform="translate(85 23)"><use href="#shape-diamond"/></g>
+    </g>
+
+    <g id="frame-1">
+      <rect x="2.5" y="2.5" width="123" height="123" stroke="#2F4265" stroke-width="3"/>
+      <use href="#funnel-base"/>
+      <g transform="translate(46 36)"><use href="#shape-tri"/></g>
+      <g transform="translate(66 30)"><use href="#shape-circ"/></g>
+      <g transform="translate(80 42)"><use href="#shape-diamond"/></g>
+    </g>
+
+    <g id="frame-2">
+      <rect x="2.5" y="2.5" width="123" height="123" stroke="#2F4265" stroke-width="3"/>
+      <use href="#funnel-base"/>
+      <g transform="translate(48 55)"><use href="#shape-tri"/></g>
+      <g transform="translate(68 52)"><use href="#shape-circ"/></g>
+      <g transform="translate(79 62)"><use href="#shape-diamond"/></g>
+    </g>
+
+    <g id="frame-3">
+      <rect x="2.5" y="2.5" width="123" height="123" stroke="#2F4265" stroke-width="3"/>
+      <use href="#funnel-base"/>
+      <g transform="translate(48 56)"><use href="#shape-tri"/></g>
+      <g transform="translate(68 53)"><use href="#shape-circ"/></g>
+      <g transform="translate(79 63)"><use href="#shape-diamond"/></g>
+      <ellipse cx="64" cy="87" rx="18" ry="28" fill="#E5BD4E" opacity="0.22"/>
+    </g>
+
+    <g id="frame-4">
+      <rect x="2.5" y="2.5" width="123" height="123" stroke="#2F4265" stroke-width="3"/>
+      <use href="#funnel-base"/>
+      <ellipse cx="64" cy="86" rx="25" ry="36" fill="#E5BD4E" opacity="0.3"/>
+    </g>
+
+    <g id="frame-5">
+      <rect x="2.5" y="2.5" width="123" height="123" stroke="#2F4265" stroke-width="3"/>
+      <use href="#funnel-base"/>
+      <ellipse cx="64" cy="86" rx="25" ry="36" fill="#E5BD4E" opacity="0.32"/>
+      <use href="#doc"/>
+    </g>
+
+    <g id="frame-6">
+      <rect x="2.5" y="2.5" width="123" height="123" stroke="#2F4265" stroke-width="3"/>
+      <use href="#funnel-base"/>
+      <ellipse cx="64" cy="86" rx="25" ry="36" fill="#E5BD4E" opacity="0.34"/>
+      <use href="#doc"/>
+    </g>
+
+    <g id="frame-7">
+      <rect x="2.5" y="2.5" width="123" height="123" stroke="#2F4265" stroke-width="3"/>
+      <use href="#funnel-base"/>
+      <ellipse cx="64" cy="86" rx="27" ry="38" fill="#E5BD4E" opacity="0.36"/>
+      <use href="#doc"/>
+      <use href="#sparkles"/>
+    </g>
+  </defs>
+
+  <use href="#frame-0" x="0" y="0"/>
+  <use href="#frame-1" x="128" y="0"/>
+  <use href="#frame-2" x="256" y="0"/>
+  <use href="#frame-3" x="384" y="0"/>
+  <use href="#frame-4" x="0" y="128"/>
+  <use href="#frame-5" x="128" y="128"/>
+  <use href="#frame-6" x="256" y="128"/>
+  <use href="#frame-7" x="384" y="128"/>
+</svg>

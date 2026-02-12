@@ -13,7 +13,8 @@ import type { Technique } from "@/lib/api";
 import s from "./new-prompt.module.css";
 
 export function NewPromptPage() {
-  const spriteSrc = "/lightbulb-sprite.svg";
+  const analyzeSpriteSrc = "/lightbulb-sprite.svg";
+  const assemblingSpriteSrc = "/funnel-sprite.svg";
   const navigate = useNavigate();
   const {
     step,
@@ -32,7 +33,8 @@ export function NewPromptPage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [spriteReady, setSpriteReady] = useState(false);
+  const [analyzeSpriteReady, setAnalyzeSpriteReady] = useState(false);
+  const [assemblingSpriteReady, setAssemblingSpriteReady] = useState(false);
 
   useEffect(() => {
     if (step === "questions") {
@@ -132,15 +134,15 @@ export function NewPromptPage() {
             <div className={s.loading}>
               {/* Sprite sheet path: public/lightbulb-sprite.svg (4 columns x 2 rows). */}
               <img
-                src={spriteSrc}
+                src={analyzeSpriteSrc}
                 alt=""
                 aria-hidden="true"
                 className={s.spritePreload}
-                onLoad={() => setSpriteReady(true)}
-                onError={() => setSpriteReady(false)}
+                onLoad={() => setAnalyzeSpriteReady(true)}
+                onError={() => setAnalyzeSpriteReady(false)}
               />
               <div className={s.animationWrap} aria-hidden="true">
-                {spriteReady ? (
+                {analyzeSpriteReady ? (
                   <div className={s.lightbulbSprite} />
                 ) : (
                   <Spinner size={32} />
@@ -209,7 +211,22 @@ export function NewPromptPage() {
         {step === "assembling" && (
           <FadeIn duration={0.4} direction="up" distance={16}>
             <div className={s.loading}>
-              <Spinner size={32} />
+              {/* Sprite sheet path: public/funnel-sprite.svg (4 columns x 2 rows). */}
+              <img
+                src={assemblingSpriteSrc}
+                alt=""
+                aria-hidden="true"
+                className={s.spritePreload}
+                onLoad={() => setAssemblingSpriteReady(true)}
+                onError={() => setAssemblingSpriteReady(false)}
+              />
+              <div className={s.animationWrap} aria-hidden="true">
+                {assemblingSpriteReady ? (
+                  <div className={s.funnelSprite} />
+                ) : (
+                  <Spinner size={32} />
+                )}
+              </div>
               <p className={s.loadingTitle}>{t("interview.assembling")}</p>
               <p className={s.loadingSub}>{t("interview.assembling_sub")}</p>
             </div>
