@@ -21,6 +21,7 @@ type OnboardingState = {
   tourId: OnboardingTourId | null;
   stepIndex: number;
   reason: StartReason | null;
+  dismissed: Partial<Record<OnboardingTourId, boolean>>;
 };
 
 type OnboardingContextValue = {
@@ -44,6 +45,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     tourId: null,
     stepIndex: 0,
     reason: null,
+    dismissed: {},
   });
 
   const steps = state.tourId ? ONBOARDING_TOURS[state.tourId].steps : [];
@@ -54,11 +56,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }, [state.active, state.stepIndex, steps]);
 
   const start = useCallback((tourId: OnboardingTourId, reason: StartReason) => {
-    setState({ active: true, tourId, stepIndex: 0, reason });
+    setState((prev) => ({ ...prev, active: true, tourId, stepIndex: 0, reason }));
   }, []);
 
   const stop = useCallback(() => {
-    setState((prev) => ({ ...prev, active: false, reason: null, tourId: null }));
+    setState((prev) => ({ ...prev, active: false, reason: null, tourId: null, stepIndex: 0 }));
   }, []);
 
   const next = useCallback(() => {
@@ -77,41 +79,54 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 
   const complete = useCallback(async () => {
     if (!state.tourId) return;
-    const tour = ONBOARDING_TOURS[state.tourId];
-    if (state.tourId === "main") {
+    const tourId = state.tourId;
+    const tour = ONBOARDING_TOURS[tourId];
+
+    // Dismiss immediately to avoid auto-restarting loops in the same session.
+    setState((prev) => ({
+      active: false,
+      tourId: null,
+      stepIndex: 0,
+      reason: null,
+      dismissed: { ...prev.dismissed, [tourId]: true },
+    }));
+
+    // Persist best-effort. If this fails, user can still replay manually.
+    if (tourId === "main") {
       await api.updateProfile({
         onboarding_completed: true,
         onboarding_version: tour.version,
       });
-    } else if (state.tourId === "profile") {
+    } else if (tourId === "profile") {
       await api.updateProfile({
         profile_onboarding_completed: true,
         profile_onboarding_version: tour.version,
       });
     }
-    setState({ active: false, tourId: null, stepIndex: 0, reason: null });
   }, [state.tourId]);
 
   const maybeAutoStartMain = useCallback(
     ({ promptsCount, profile }: { promptsCount: number; profile: TeacherProfile | null }) => {
       if (!profile) return;
       if (state.active) return;
+      if (state.dismissed.main) return;
       if (promptsCount !== 0) return; // "2"
       if (profile.onboarding_completed) return; // "1"
       start("main", "auto");
     },
-    [start, state.active]
+    [start, state.active, state.dismissed.main]
   );
 
   const maybeAutoStartProfile = useCallback(
     ({ profile }: { profile: TeacherProfile | null }) => {
       if (!profile) return;
       if (state.active) return;
+      if (state.dismissed.profile) return;
       if (profile.setup_completed) return;
       if (profile.profile_onboarding_completed) return;
       start("profile", "auto");
     },
-    [start, state.active]
+    [start, state.active, state.dismissed.profile]
   );
 
   const value = useMemo<OnboardingContextValue>(

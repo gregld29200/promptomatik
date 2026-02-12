@@ -17,7 +17,7 @@ function getRect(el: Element): Rect {
 }
 
 export function OnboardingTour() {
-  const { state, step, steps, next, back, stop, complete } = useOnboarding();
+  const { state, step, steps, next, back, complete } = useOnboarding();
   const location = useLocation();
   const navigate = useNavigate();
   const [rect, setRect] = useState<Rect | null>(null);
@@ -120,7 +120,7 @@ export function OnboardingTour() {
 
         <div className={s.controls}>
           <div className={s.controlsLeft}>
-            <Button variant="ghost" size="small" type="button" onClick={stop}>
+            <Button variant="ghost" size="small" type="button" onClick={() => void complete()}>
               {t("onboarding.skip")}
             </Button>
           </div>
