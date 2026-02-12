@@ -13,7 +13,7 @@ import type { Technique } from "@/lib/api";
 import s from "./new-prompt.module.css";
 
 export function NewPromptPage() {
-  const spriteSrc = "/lightbulb-sprite.png";
+  const spriteSrc = "/lightbulb-sprite.svg";
   const navigate = useNavigate();
   const {
     step,
@@ -31,6 +31,7 @@ export function NewPromptPage() {
   const [text, setText] = useState("");
   const [currentQ, setCurrentQ] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [spriteReady, setSpriteReady] = useState(false);
 
   useEffect(() => {
@@ -58,17 +59,25 @@ export function NewPromptPage() {
 
   async function handleSave() {
     if (!result) return;
+    setSaveError(null);
     setSaving(true);
-    const res = await api.createPrompt({
-      name: result.name,
-      blocks: result.blocks,
-      tips: result.tips || [],
-      source_type: result.source_type,
-      tags: result.suggested_tags,
-    });
-    setSaving(false);
-    if (res.data) {
-      navigate(`/prompt/${res.data.prompt.id}`);
+    try {
+      const res = await api.createPrompt({
+        name: result.name,
+        blocks: result.blocks,
+        tips: result.tips || [],
+        source_type: result.source_type,
+        tags: result.suggested_tags,
+      });
+      if (res.data) {
+        navigate(`/prompt/${res.data.prompt.id}`);
+        return;
+      }
+      setSaveError(res.error?.error ?? t("common.error"));
+    } catch {
+      setSaveError(t("common.error"));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -121,7 +130,7 @@ export function NewPromptPage() {
         {step === "analyzing" && (
           <FadeIn duration={0.4} direction="up" distance={16}>
             <div className={s.loading}>
-              {/* Drop the sprite sheet at public/lightbulb-sprite.png (4 columns x 2 rows). */}
+              {/* Sprite sheet path: public/lightbulb-sprite.svg (4 columns x 2 rows). */}
               <img
                 src={spriteSrc}
                 alt=""
@@ -247,6 +256,7 @@ export function NewPromptPage() {
                   {t("interview.start_over")}
                 </Button>
               </div>
+              {saveError && <p className={s.errorText}>{saveError}</p>}
             </div>
           </FadeIn>
         )}

@@ -22,6 +22,7 @@
 
 .header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: var(--space-4);
@@ -31,23 +32,26 @@
 }
 
 .titleArea {
+  flex: 1 1 22rem;
   min-width: 0;
-  flex: 1;
 }
 
 .title {
+  margin: 0;
   font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: var(--weight-bold);
   color: var(--color-navy-900);
   letter-spacing: var(--tracking-tight);
   font-variation-settings: "WONK" 1, "opsz" 32;
+  overflow-wrap: anywhere;
 }
 
 .titleButton {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  max-width: 100%;
   background: none;
   border: none;
   padding: 0;
@@ -83,10 +87,13 @@
 
 .headerActions {
   display: flex;
+  flex: 1 1 28rem;
   gap: var(--space-2);
   align-items: center;
-  flex-shrink: 0;
+  flex-shrink: 1;
   flex-wrap: wrap;
+  margin-left: auto;
+  max-width: 100%;
   justify-content: flex-end;
   padding: var(--space-2);
   border-radius: var(--radius-lg);

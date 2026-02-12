@@ -115,7 +115,7 @@
 .lightbulbSprite {
   width: 100%;
   height: 100%;
-  background-image: url("/lightbulb-sprite.png");
+  background-image: url("/lightbulb-sprite.svg");
   background-repeat: no-repeat;
   background-size: 400% 200%;
   filter: drop-shadow(0 10px 22px rgba(204, 170, 48, 0.35));
