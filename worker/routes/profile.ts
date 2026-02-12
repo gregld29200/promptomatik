@@ -6,7 +6,7 @@ import type { SessionData } from "../lib/session";
 export interface TeacherProfile {
   languages_taught: string[];
   typical_levels: string[];
-  typical_audience: string;
+  typical_audience: string[];
   typical_duration: string;
   teaching_context: string;
   setup_completed: boolean;
@@ -19,7 +19,7 @@ export interface TeacherProfile {
 const EMPTY_PROFILE: TeacherProfile = {
   languages_taught: [],
   typical_levels: [],
-  typical_audience: "",
+  typical_audience: [],
   typical_duration: "",
   teaching_context: "",
   setup_completed: false,
@@ -35,6 +35,32 @@ const profile = new Hono<ProfileEnv>();
 
 profile.use("/*", requireAuth);
 
+function normalizeStringArray(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+  }
+  if (typeof value === "string" && value.trim().length > 0) {
+    return [value.trim()];
+  }
+  return [];
+}
+
+function normalizeProfile(raw: unknown): TeacherProfile {
+  const parsed = (raw && typeof raw === "object" ? raw : {}) as Partial<TeacherProfile> & {
+    typical_audience?: string[] | string;
+  };
+
+  return {
+    ...EMPTY_PROFILE,
+    ...parsed,
+    languages_taught: normalizeStringArray(parsed.languages_taught),
+    typical_levels: normalizeStringArray(parsed.typical_levels),
+    typical_audience: normalizeStringArray(parsed.typical_audience),
+    typical_duration: typeof parsed.typical_duration === "string" ? parsed.typical_duration : "",
+    teaching_context: typeof parsed.teaching_context === "string" ? parsed.teaching_context : "",
+  };
+}
+
 // GET /api/profile — Fetch current user's profile
 profile.get("/", async (c) => {
   const session = c.get("session");
@@ -47,14 +73,14 @@ profile.get("/", async (c) => {
     return c.json({ error: "User not found" }, 404);
   }
 
-  const parsed: TeacherProfile = { ...EMPTY_PROFILE, ...JSON.parse(row.profile) };
+  const parsed = normalizeProfile(JSON.parse(row.profile));
   return c.json({ profile: parsed });
 });
 
 // PUT /api/profile — Update profile (merge, not replace)
 profile.put("/", async (c) => {
   const session = c.get("session");
-  const input = await c.req.json<Partial<TeacherProfile>>();
+  const input = await c.req.json<Partial<TeacherProfile> & { typical_audience?: string[] | string }>();
 
   // Fetch existing profile
   const row = await c.env.DB.prepare("SELECT profile FROM users WHERE id = ?")
@@ -65,13 +91,22 @@ profile.put("/", async (c) => {
     return c.json({ error: "User not found" }, 404);
   }
 
-  const existing: TeacherProfile = { ...EMPTY_PROFILE, ...JSON.parse(row.profile) };
+  const existing = normalizeProfile(JSON.parse(row.profile));
 
   // Merge — only overwrite fields that are present in input
   const merged: TeacherProfile = {
-    languages_taught: input.languages_taught ?? existing.languages_taught,
-    typical_levels: input.typical_levels ?? existing.typical_levels,
-    typical_audience: input.typical_audience ?? existing.typical_audience,
+    languages_taught:
+      input.languages_taught !== undefined
+        ? normalizeStringArray(input.languages_taught)
+        : existing.languages_taught,
+    typical_levels:
+      input.typical_levels !== undefined
+        ? normalizeStringArray(input.typical_levels)
+        : existing.typical_levels,
+    typical_audience:
+      input.typical_audience !== undefined
+        ? normalizeStringArray(input.typical_audience)
+        : existing.typical_audience,
     typical_duration: input.typical_duration ?? existing.typical_duration,
     teaching_context: input.teaching_context ?? existing.teaching_context,
     setup_completed: input.setup_completed ?? existing.setup_completed,

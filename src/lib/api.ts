@@ -87,7 +87,7 @@ export function resetPassword(token: string, password: string) {
 export interface TeacherProfile {
   languages_taught: string[];
   typical_levels: string[];
-  typical_audience: string;
+  typical_audience: string[];
   typical_duration: string;
   teaching_context: string;
   setup_completed: boolean;

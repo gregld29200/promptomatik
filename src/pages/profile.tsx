@@ -38,7 +38,7 @@ export function ProfilePage() {
   // Local form state
   const [languagesTaught, setLanguagesTaught] = useState("");
   const [typicalLevels, setTypicalLevels] = useState<string[]>([]);
-  const [typicalAudience, setTypicalAudience] = useState("");
+  const [typicalAudience, setTypicalAudience] = useState<string[]>([]);
   const [typicalDuration, setTypicalDuration] = useState("");
   const [teachingContext, setTeachingContext] = useState("");
 
@@ -49,7 +49,7 @@ export function ProfilePage() {
         setProfile(p);
         setLanguagesTaught(p.languages_taught.join(", "));
         setTypicalLevels(p.typical_levels);
-        setTypicalAudience(p.typical_audience);
+        setTypicalAudience(Array.isArray(p.typical_audience) ? p.typical_audience : []);
         setTypicalDuration(p.typical_duration);
         setTeachingContext(p.teaching_context);
       }
@@ -65,6 +65,14 @@ export function ProfilePage() {
   function toggleLevel(level: string) {
     setTypicalLevels((prev) =>
       prev.includes(level) ? prev.filter((l) => l !== level) : [...prev, level]
+    );
+  }
+
+  function toggleAudience(audience: string) {
+    setTypicalAudience((prev) =>
+      prev.includes(audience)
+        ? prev.filter((a) => a !== audience)
+        : [...prev, audience]
     );
   }
 
@@ -160,11 +168,9 @@ export function ProfilePage() {
                   <button
                     key={opt}
                     type="button"
-                    className={`${s.chip} ${typicalAudience === opt ? s.chipSelected : ""}`}
-                    onClick={() =>
-                      setTypicalAudience(typicalAudience === opt ? "" : opt)
-                    }
-                    aria-pressed={typicalAudience === opt}
+                    className={`${s.chip} ${typicalAudience.includes(opt) ? s.chipSelected : ""}`}
+                    onClick={() => toggleAudience(opt)}
+                    aria-pressed={typicalAudience.includes(opt)}
                   >
                     {t(`profile.audience_${opt}`)}
                   </button>

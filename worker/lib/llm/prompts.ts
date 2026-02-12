@@ -17,8 +17,8 @@ function profileContext(profile?: TeacherProfile): string {
   if (profile.typical_levels.length > 0) {
     parts.push(`typically teaches levels ${profile.typical_levels.join(", ")}`);
   }
-  if (profile.typical_audience) {
-    parts.push(`to ${profile.typical_audience}`);
+  if (Array.isArray(profile.typical_audience) && profile.typical_audience.length > 0) {
+    parts.push(`for audiences such as ${profile.typical_audience.join(", ")}`);
   }
   if (profile.typical_duration) {
     parts.push(`in sessions of ${profile.typical_duration}`);
@@ -96,7 +96,8 @@ Rules:${profileHint}
 - If there is a clear best default, mark it with "recommended": true and put it FIRST in the list.
 - Set allow_other to true for open-ended fields (topic, audience) and false for constrained fields (level).
 - Set other_placeholder to a helpful hint when allow_other is true.
-- Use multi_select only when multiple answers are genuinely useful (rare for this pre-interview step).
+- Set multi_select to true when options are not mutually exclusive, especially for audience/topic/activity_type.
+- Use multi_select=false when exactly one answer is needed.
 - Questions should feel conversational and supportive, not like a bureaucratic form.
 - Avoid meta or administrative wording ("field", "parameter", "specify context"). Speak like a real assistant.
 - If language is French: use natural teacher-facing French, with phrasing a native speaker would actually use.

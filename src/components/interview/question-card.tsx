@@ -91,6 +91,7 @@ export function QuestionCard({ question, onAnswer }: QuestionCardProps) {
 
       {multi && (
         <div className={s.footer}>
+          <p className={s.multiHint}>{t("interview.multi_select_hint")}</p>
           <Button
             variant="cta"
             size="small"
