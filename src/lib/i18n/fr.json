@@ -254,6 +254,33 @@
     "done_save": {
       "title": "Enregistrez dans votre bibliotheque",
       "body": "Cliquez sur « Enregistrer le prompt » pour le retrouver et le reutiliser."
+    },
+    "profile": {
+      "replay": "Revoir l'onboarding du profil",
+      "languages": {
+        "title": "Langues enseignees",
+        "body": "Ajoutez vos langues les plus frequentes. Cela servira de valeur par defaut pour aller plus vite."
+      },
+      "levels": {
+        "title": "Niveaux habituels",
+        "body": "Selectionnez les niveaux que vous enseignez le plus. L'assistant les utilisera par defaut si la demande est ambiguë."
+      },
+      "audience": {
+        "title": "Public habituel",
+        "body": "Choisissez votre public le plus courant. Cela aide a adapter les activites et les exemples."
+      },
+      "duration": {
+        "title": "Duree de seance habituelle",
+        "body": "Choisissez une duree par defaut pour que les activites generees collent a votre temps de cours."
+      },
+      "context": {
+        "title": "Contexte d'enseignement",
+        "body": "Optionnel : precisez ou/comment vous enseignez (ecole, cours particuliers, en ligne...). Cela aide a poser de meilleures contraintes."
+      },
+      "save": {
+        "title": "Enregistrer votre profil",
+        "body": "Cliquez pour enregistrer. Ensuite, vous aurez moins de questions et de meilleurs choix par defaut."
+      }
     }
   }
 }

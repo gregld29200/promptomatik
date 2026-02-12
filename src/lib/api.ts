@@ -93,6 +93,8 @@ export interface TeacherProfile {
   setup_completed: boolean;
   onboarding_completed: boolean;
   onboarding_version: number;
+  profile_onboarding_completed: boolean;
+  profile_onboarding_version: number;
 }
 
 // ---- Profile endpoints ----

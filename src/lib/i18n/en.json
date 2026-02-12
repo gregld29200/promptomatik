@@ -254,6 +254,33 @@
     "done_save": {
       "title": "Save it to your library",
       "body": "Click “Save prompt” to keep it and reuse it later."
+    },
+    "profile": {
+      "replay": "Replay profile onboarding",
+      "languages": {
+        "title": "Languages you teach",
+        "body": "Add the languages you teach most often. This becomes a default for faster prompt creation."
+      },
+      "levels": {
+        "title": "Typical levels",
+        "body": "Select the levels you teach most. The assistant will use these as defaults when your request is ambiguous."
+      },
+      "audience": {
+        "title": "Typical audience",
+        "body": "Choose your most common audience. This helps tailor activities and examples."
+      },
+      "duration": {
+        "title": "Typical session duration",
+        "body": "Pick a default duration so the generated activities match your real class time."
+      },
+      "context": {
+        "title": "Teaching context",
+        "body": "Optional: add where/how you teach (school, private lessons, online, etc.). It helps the AI set better constraints."
+      },
+      "save": {
+        "title": "Save your profile",
+        "body": "Click to save. From now on, you’ll get fewer questions and better defaults."
+      }
     }
   }
 }

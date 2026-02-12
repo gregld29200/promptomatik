@@ -12,6 +12,8 @@ export interface TeacherProfile {
   setup_completed: boolean;
   onboarding_completed: boolean;
   onboarding_version: number;
+  profile_onboarding_completed: boolean;
+  profile_onboarding_version: number;
 }
 
 const EMPTY_PROFILE: TeacherProfile = {
@@ -23,6 +25,8 @@ const EMPTY_PROFILE: TeacherProfile = {
   setup_completed: false,
   onboarding_completed: false,
   onboarding_version: 0,
+  profile_onboarding_completed: false,
+  profile_onboarding_version: 0,
 };
 
 type ProfileEnv = { Bindings: Env; Variables: { session: SessionData } };
@@ -73,6 +77,10 @@ profile.put("/", async (c) => {
     setup_completed: input.setup_completed ?? existing.setup_completed,
     onboarding_completed: input.onboarding_completed ?? existing.onboarding_completed,
     onboarding_version: input.onboarding_version ?? existing.onboarding_version,
+    profile_onboarding_completed:
+      input.profile_onboarding_completed ?? existing.profile_onboarding_completed,
+    profile_onboarding_version:
+      input.profile_onboarding_version ?? existing.profile_onboarding_version,
   };
 
   await c.env.DB.prepare(

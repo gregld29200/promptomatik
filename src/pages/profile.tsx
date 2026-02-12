@@ -33,6 +33,7 @@ export function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [profile, setProfile] = useState<TeacherProfile | null>(null);
 
   // Local form state
   const [languagesTaught, setLanguagesTaught] = useState("");
@@ -45,6 +46,7 @@ export function ProfilePage() {
     api.getProfile().then((res) => {
       if (res.data) {
         const p = res.data.profile;
+        setProfile(p);
         setLanguagesTaught(p.languages_taught.join(", "));
         setTypicalLevels(p.typical_levels);
         setTypicalAudience(p.typical_audience);
@@ -54,6 +56,11 @@ export function ProfilePage() {
       setLoading(false);
     });
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    onboarding.maybeAutoStartProfile({ profile });
+  }, [loading, profile, onboarding]);
 
   function toggleLevel(level: string) {
     setTypicalLevels((prev) =>
@@ -118,6 +125,7 @@ export function ProfilePage() {
                 value={languagesTaught}
                 onChange={(e) => setLanguagesTaught(e.target.value)}
                 placeholder={t("profile.languages_taught_hint")}
+                data-onboard="profile-languages"
               />
               <p className={s.fieldHint}>{t("profile.languages_taught_hint")}</p>
             </div>
@@ -127,7 +135,7 @@ export function ProfilePage() {
               <span id="levels-label" className={s.fieldLabel}>
                 {t("profile.typical_levels")}
               </span>
-              <div className={s.chipGroup}>
+              <div className={s.chipGroup} data-onboard="profile-levels">
                 {LEVELS.map((level) => (
                   <button
                     key={level}
@@ -147,7 +155,7 @@ export function ProfilePage() {
               <span id="audience-label" className={s.fieldLabel}>
                 {t("profile.typical_audience")}
               </span>
-              <div className={s.chipGroup}>
+              <div className={s.chipGroup} data-onboard="profile-audience">
                 {AUDIENCE_OPTIONS.map((opt) => (
                   <button
                     key={opt}
@@ -169,7 +177,7 @@ export function ProfilePage() {
               <span id="duration-label" className={s.fieldLabel}>
                 {t("profile.typical_duration")}
               </span>
-              <div className={s.chipGroup}>
+              <div className={s.chipGroup} data-onboard="profile-duration">
                 {DURATION_OPTIONS.map((opt) => (
                   <button
                     key={opt}
@@ -196,6 +204,7 @@ export function ProfilePage() {
                 value={teachingContext}
                 onChange={(e) => setTeachingContext(e.target.value)}
                 placeholder={t("profile.teaching_context_hint")}
+                data-onboard="profile-context"
               />
             </div>
 
@@ -206,9 +215,10 @@ export function ProfilePage() {
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => onboarding.start("manual")}
+                onClick={() => onboarding.start("profile", "manual")}
+                data-onboard="profile-save"
               >
-                {t("onboarding.replay")}
+                {t("onboarding.profile.replay")}
               </Button>
               <Button type="button" variant="ghost" onClick={() => navigate("/dashboard")}>
                 {t("common.back")}

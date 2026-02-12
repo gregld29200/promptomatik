@@ -72,7 +72,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!loaded) return;
-    onboarding.maybeAutoStart({ promptsCount: prompts.length, profile });
+    onboarding.maybeAutoStartMain({ promptsCount: prompts.length, profile });
   }, [loaded, prompts.length, profile, onboarding]);
 
   const allTags = useMemo(() => {
