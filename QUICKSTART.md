@@ -1,10 +1,10 @@
-# Quickstart: Building Promptomatic with Compound Engineering
+# Quickstart: Building Promptomatik with Compound Engineering
 
 ## Setup
 
 1. **Create the repo:**
    ```bash
-   mkdir promptomatic && cd promptomatic
+   mkdir promptomatik && cd promptomatik
    git init
    ```
 

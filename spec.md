@@ -1,8 +1,8 @@
-# Promptomatic — Spec
+# Promptomatik — Spec
 
 **A bilingual prompt-builder web app for language teachers, powered by the 6 Effective Prompting Techniques.**
 
-Promptomatic is the companion app for TeachInspire Module 2. It helps language teachers and instructional designers craft high-quality, structured prompts for LLMs — without spending more time on the prompt than they save on lesson prep. Teachers describe what they need in natural language, the app runs a smart adaptive interview, and outputs a structured prompt built on Anthropic's 6 prompting techniques. The prompt can be studied, edited, saved, and reused.
+Promptomatik is the companion app for TeachInspire Module 2. It helps language teachers and instructional designers craft high-quality, structured prompts for LLMs — without spending more time on the prompt than they save on lesson prep. Teachers describe what they need in natural language, the app runs a smart adaptive interview, and outputs a structured prompt built on Anthropic's 6 prompting techniques. The prompt can be studied, edited, saved, and reused.
 
 ---
 
@@ -28,15 +28,15 @@ Promptomatic is the companion app for TeachInspire Module 2. It helps language t
 - Uses the app live during Module 2 video recordings
 
 ### Anti-persona: The casual user
-- Someone who just wants ChatGPT to "write me a lesson" — Promptomatic is not for zero-effort prompting. It's for teachers who want to understand and control what they're asking the AI to do.
+- Someone who just wants ChatGPT to "write me a lesson" — Promptomatik is not for zero-effort prompting. It's for teachers who want to understand and control what they're asking the AI to do.
 
 ---
 
 ## Core Philosophy
 
-> **The problem:** Teachers gain time by using AI for lesson prep, but lose time crafting effective prompts. Promptomatic eliminates that tradeoff.
+> **The problem:** Teachers gain time by using AI for lesson prep, but lose time crafting effective prompts. Promptomatik eliminates that tradeoff.
 
-> **The approach:** The app doesn't automate lesson creation — it automates *prompt quality*. Teachers still use their own LLM (AI Studio, ChatGPT, Claude) and their own workflow (Gladia for transcription, TTS for audio). Promptomatic ensures the prompt they paste in is structured, complete, and optimized.
+> **The approach:** The app doesn't automate lesson creation — it automates *prompt quality*. Teachers still use their own LLM (AI Studio, ChatGPT, Claude) and their own workflow (Gladia for transcription, TTS for audio). Promptomatik ensures the prompt they paste in is structured, complete, and optimized.
 
 > **The pedagogical layer:** The app is both a productivity tool (User Mode) and a learning tool (Study Mode). Teachers who want to understand prompting can see exactly how each technique is applied. Teachers who just want results can skip straight to copy-paste.
 
@@ -44,7 +44,7 @@ Promptomatic is the companion app for TeachInspire Module 2. It helps language t
 
 ## The 6 Prompting Techniques (Core Domain)
 
-Every prompt Promptomatic generates is built from these building blocks, derived from Anthropic's "6 Effective Prompting Techniques" handout (the foundation document for Module 2):
+Every prompt Promptomatik generates is built from these building blocks, derived from Anthropic's "6 Effective Prompting Techniques" handout (the foundation document for Module 2):
 
 1. **Provide Context** — Scope, geography, timeframe, audience, level, goals
 2. **Show Examples** — What "good" looks like; sample inputs/outputs
@@ -53,7 +53,7 @@ Every prompt Promptomatic generates is built from these building blocks, derived
 5. **Ask It to Think First** — Reasoning/reflection instructions before answering
 6. **Define the AI's Role** — Persona, tone, expertise, audience awareness
 
-Plus the meta-technique: **Ask the AI for help with prompting** — which is essentially what Promptomatic *is*.
+Plus the meta-technique: **Ask the AI for help with prompting** — which is essentially what Promptomatik *is*.
 
 Not every prompt uses all 6 techniques. A simple vocab list might only need Context + Constraints + Role. A complex lesson plan might use all 6. The app decides which techniques to include based on the interview.
 
@@ -121,7 +121,7 @@ Teacher opens block editor (from User Mode or Study Mode)
 
 ```
 Teacher used the prompt in their LLM, got mediocre results
-    → Returns to Promptomatic, opens the saved prompt
+    → Returns to Promptomatik, opens the saved prompt
     → Clicks "Result wasn't good?"
     → App asks 2 questions:
         1. "What was wrong?" (too hard / too long / too generic / off-topic / wrong level / other)
@@ -272,7 +272,7 @@ created_at: datetime
 - **Cache/Sessions:** Cloudflare KV
 - **LLM Provider:** OpenRouter (primary, targeting GLM 4.7/5 and similar cheap powerful models)
 - **Email:** Resend (invitations, password reset)
-- **Domain:** promptomatic.com
+- **Domain:** promptomatik.com
 
 > ⚠️ OPEN QUESTION: Frontend framework choice. SvelteKit is lightweight and fast on Cloudflare Pages. Astro with React islands is another option. Or plain React with Vite. Decision should be made based on developer comfort and block editor library availability.
 

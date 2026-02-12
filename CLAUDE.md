@@ -1,10 +1,10 @@
-# Promptomatic
+# Promptomatik
 
 ## Project Summary
 
-Promptomatic is a bilingual (FR/EN) prompt-builder web app for language teachers. It's the companion app for TeachInspire Module 2. Teachers describe what they need in natural language, the app runs a smart adaptive interview, and outputs a structured prompt built on Anthropic's 6 prompting techniques. The prompt can be studied (Study Mode), edited (block editor), saved, and reused.
+Promptomatik is a bilingual (FR/EN) prompt-builder web app for language teachers. It's the companion app for TeachInspire Module 2. Teachers describe what they need in natural language, the app runs a smart adaptive interview, and outputs a structured prompt built on Anthropic's 6 prompting techniques. The prompt can be studied (Study Mode), edited (block editor), saved, and reused.
 
-**Domain:** promptomatic.com
+**Domain:** promptomatik.com
 **Owner:** Greg (TeachInspire)
 **Status:** Greenfield — building from scratch
 

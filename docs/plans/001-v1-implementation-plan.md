@@ -1,4 +1,4 @@
-# Plan: Promptomatic v1 — Implementation
+# Plan: Promptomatik v1 — Implementation
 
 **Status:** Ready for `/workflows:plan` deepening
 **Source:** `docs/brainstorms/001-promptomatic-v1.md` + `spec.md`
@@ -15,7 +15,7 @@
 - [ ] Set up KV namespace for sessions
 - [ ] Configure Resend for transactional email
 - [ ] Set up i18n with fr.json and en.json base files
-- [ ] Deploy skeleton to promptomatic.com
+- [ ] Deploy skeleton to promptomatik.com
 
 ### 1.2 Auth & Invitations
 - [ ] D1 tables: users, invitations
@@ -147,7 +147,7 @@
 - [ ] Empty states (no prompts yet, no templates match filter)
 
 ### 5.4 Deploy & Launch
-- [ ] Final deploy to promptomatic.com
+- [ ] Final deploy to promptomatik.com
 - [ ] Admin: send first batch of invitations
 - [ ] Greg: seed community templates
 - [ ] Greg: record Module 2 videos using live app
@@ -159,7 +159,7 @@
 
 | Dependency | Owner | Status |
 |---|---|---|
-| promptomatic.com DNS → Cloudflare | Greg | Pending |
+| promptomatik.com DNS → Cloudflare | Greg | Pending |
 | Cloudflare account with D1 + KV | Greg | Pending |
 | OpenRouter API key + credits | Greg | Pending |
 | Resend account + domain verification | Greg | Pending |

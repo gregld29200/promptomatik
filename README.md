@@ -1,67 +1,58 @@
-# Promptomatic
+# Promptomatik
 
-> Craft perfect prompts in minutes, not hours.
+> Craft better prompts in minutes, not hours.
 
-A bilingual (FR/EN) prompt-builder for language teachers, powered by the 6 Effective Prompting Techniques. Companion app for [TeachInspire](https://teachinspire.me) Module 2.
-
-## What it does
-
-1. **Describe** what you need in natural language
-2. **Refine** through a smart adaptive interview (3-6 questions)
-3. **Get** a structured prompt built on proven techniques
-4. **Study** how each part works (Study Mode) or just **copy** and go (User Mode)
-5. **Save** and reuse your best prompts
+Bilingual (FR/EN) prompt-builder for language teachers, companion app for [TeachInspire](https://teachinspire.me) Module 2.
 
 ## Stack
 
-- Cloudflare Pages + D1 + KV
+- React 19 + Vite 7
+- Cloudflare Workers (SPA assets + Hono API in `worker/`)
+- D1 (SQL) + KV (sessions)
 - OpenRouter (LLM)
-- Resend (email)
-- Bilingual: FR / EN
+- Resend (email invitations/password reset)
 
-## Getting Started
+## Local Setup
 
 ```bash
-# Install dependencies
 npm install
-
-# Set up environment
-cp .env.example .env
-# Fill in: OPENROUTER_API_KEY, RESEND_API_KEY, D1 bindings
-
-# Dev server
+cp .env.example .dev.vars
+# fill OPENROUTER_API_KEY, RESEND_API_KEY, APP_SECRET, APP_URL
+npm run db:migrate
 npm run dev
+```
 
-# Deploy
+## Deploy Setup (Cloudflare + Resend)
+
+1. Set Cloudflare account context:
+```bash
+export CLOUDFLARE_ACCOUNT_ID=<your_account_id>
+```
+2. Create or reuse resources:
+```bash
+npx wrangler d1 create promptomatik-db
+npx wrangler kv namespace create SESSIONS
+npx wrangler kv namespace create SESSIONS --preview
+```
+3. Paste D1/KV IDs into `wrangler.jsonc`.
+4. Set production secrets:
+```bash
+npx wrangler secret put OPENROUTER_API_KEY
+npx wrangler secret put RESEND_API_KEY
+npx wrangler secret put APP_SECRET
+```
+5. Verify Resend domain `promptomatik.com` and sender `noreply@promptomatik.com`.
+6. Deploy:
+```bash
 npm run deploy
 ```
 
-## Project Structure
+## Custom Domain
 
-```
-promptomatic/
-├── CLAUDE.md              # Agent instructions & project context
-├── spec.md                # Full project specification
-├── docs/
-│   ├── brainstorms/       # Discovery & ideation
-│   ├── plans/             # Implementation plans
-│   └── solutions/         # Compound learnings
-├── todos/                 # Tracked work items
-├── src/                   # Application source
-└── functions/             # Cloudflare Pages Functions (API)
-```
-
-## Compound Engineering
-
-This project uses the [compound engineering](https://every.to/guides/compound-engineering) workflow:
-
-```
-/workflows:plan    → Plan a feature
-/workflows:work    → Implement the plan
-/workflows:review  → Multi-agent code review
-/workflows:compound → Document learnings
-```
+- Canonical app URL: `https://promptomatik.com`
+- Worker `vars.APP_URL` in `wrangler.jsonc` is set to this value.
+- In Cloudflare dashboard, attach `promptomatik.com` to the Worker and keep the DNS record proxied.
 
 ## License
 
-Private — TeachInspire © 2025
+Private - TeachInspire (c) 2026

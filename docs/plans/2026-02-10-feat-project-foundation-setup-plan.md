@@ -10,7 +10,7 @@ React + Vite on Cloudflare Workers, D1 database schema, KV sessions, TeachInspir
 
 ## Overview
 
-Set up the complete Promptomatic project foundation: a React 19 + Vite 6 SPA deployed on Cloudflare Workers (via the Cloudflare Vite Plugin), with Hono API routing, D1 database schema for all v1 tables, KV-based session management, and a design system built on the TeachInspire brand kit (Fraunces + DM Sans, navy/cream/terracotta/gold, sharp rectangular buttons) with ReactBits for animation components.
+Set up the complete Promptomatik project foundation: a React 19 + Vite 6 SPA deployed on Cloudflare Workers (via the Cloudflare Vite Plugin), with Hono API routing, D1 database schema for all v1 tables, KV-based session management, and a design system built on the TeachInspire brand kit (Fraunces + DM Sans, navy/cream/terracotta/gold, sharp rectangular buttons) with ReactBits for animation components.
 
 **Critical architecture note:** Cloudflare now recommends **Workers + Vite Plugin** over the legacy Pages Functions approach. This means:
 - API routes live in `worker/index.ts` (single entry point with Hono router) — **not** in a `/functions/` directory
@@ -893,7 +893,7 @@ Copy selected components for animations (not core UI). Install via jsrepo CLI:
 # Initialize ReactBits (CSS variant — we're not using Tailwind)
 npx jsrepo init https://reactbits.dev/default/
 
-# Useful components for Promptomatic:
+# Useful components for Promptomatik:
 npx jsrepo add TextAnimations/BlurText         # Smooth text reveals on page load
 npx jsrepo add TextAnimations/SplitText         # Technique label animations in Study Mode
 npx jsrepo add Animations/FadeContent           # Page transitions
@@ -1077,7 +1077,7 @@ After this phase, update `CLAUDE.md` to reflect:
 | Dependency | Owner | Status |
 |------------|-------|--------|
 | Cloudflare account with Workers, D1, KV access | Greg | Needed |
-| `promptomatic.com` domain → Cloudflare DNS | Greg | Needed for production deploy |
+| `promptomatik.com` domain → Cloudflare DNS | Greg | Needed for production deploy |
 | OpenRouter API key | Greg | Needed for Phase 2 (interview engine) |
 | Resend API key + domain verification | Greg | Needed for Phase 1.2 (auth invitations) |
 | Node.js 20+ installed locally | Dev | Required |

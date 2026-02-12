@@ -1,4 +1,4 @@
-# Brainstorm: Promptomatic v1
+# Brainstorm: Promptomatik v1
 
 **Date:** 2025-02-10
 **Participants:** Greg (project owner), Claude (AI)
@@ -8,7 +8,7 @@
 
 ## Problem Statement
 
-Language teachers gain time by using AI for lesson prep but lose time crafting effective prompts. The time spent prompting can cancel out the time saved — defeating the purpose. Promptomatic eliminates this tradeoff by automating prompt quality, not lesson creation.
+Language teachers gain time by using AI for lesson prep but lose time crafting effective prompts. The time spent prompting can cancel out the time saved — defeating the purpose. Promptomatik eliminates this tradeoff by automating prompt quality, not lesson creation.
 
 ## Key Decisions Made
 
@@ -66,7 +66,7 @@ Language teachers gain time by using AI for lesson prep but lose time crafting e
 - Cloudflare Pages + D1 + KV (fresh project, no legacy)
 - OpenRouter for LLM (targeting GLM 4.7/5 — cheap + powerful)
 - Resend for email
-- Domain: promptomatic.com
+- Domain: promptomatik.com
 
 ## Feature Prioritization
 
