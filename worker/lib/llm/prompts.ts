@@ -7,7 +7,7 @@ import type { TeacherProfile } from "../../routes/profile";
 
 const langInstruction = (lang: string) =>
   lang === "fr"
-    ? `IMPORTANT: All your output text (questions, summaries, content, annotations) MUST be in idiomatic French — natural, fluent, as a native French speaker would write. Never translate literally from English.`
+    ? `IMPORTANT: Think in French first. All your output text (questions, summaries, content, annotations) MUST be in clear, idiomatic French used by real teachers. Never translate literally from English. Avoid awkward calques, anglicisms, and robotic phrasing. Use professional vouvoiement ("vous", "vos"), not tutoiement.`
     : `All your output text must be in clear, natural English.`;
 
 function profileContext(profile?: TeacherProfile): string {
@@ -48,8 +48,21 @@ Extract the following fields from the teacher's text. Set a field to null if it'
 - duration: How long the activity should take
 - source_type: "from_source" if the teacher mentions working from an existing text/document/resource, otherwise "from_scratch"
 
+Clarification strategy (critical):
+- Do not ask for everything that is missing. Ask only what will materially improve output quality.
+- Before marking a field as missing, check whether it can be reasonably inferred from:
+  1) the teacher's wording,
+  2) common pedagogical defaults for the requested activity,
+  3) teacher profile defaults provided in context.
+- Include a field in missing_fields only if ALL are true:
+  1) it is unclear or ambiguous,
+  2) it has high impact on the generated prompt quality,
+  3) it cannot be safely inferred from context/defaults.
+- Keep missing_fields focused (typically 1-3 fields).
+- Do NOT include "duration" when it is low-impact for the requested task.
+
 Also provide:
-- missing_fields: An array of field names that are null or unclear and would improve the prompt. Only include fields that are genuinely important for this type of request. Do NOT include "duration" if the activity type doesn't need it.
+- missing_fields: An array of high-leverage field names that truly need clarification.
 - summary: A one-sentence ${lang === "fr" ? "French" : "English"} summary of what the teacher wants.
 
 Respond with a single JSON object matching this exact structure:
@@ -70,12 +83,14 @@ export function interviewQuestionsPrompt(lang: string, profile?: TeacherProfile)
     ? `\n- When generating options for level, put the teacher's typical levels (${profile.typical_levels.join(", ")}) first in the list.`
     : "";
 
-  return `You are a helpful assistant that generates follow-up questions for a language teaching prompt builder. You will receive the teacher's original intent analysis with some missing fields. Generate 3-6 targeted questions to fill the gaps.
+  return `You are a helpful assistant that generates follow-up questions for a language teaching prompt builder. You will receive the teacher's original intent analysis with some missing fields. Generate 2-5 high-leverage questions to fill only the most useful gaps.
 
 ${langInstruction(lang)}
 
 Rules:${profileHint}
 - Only ask about the missing fields provided. Do NOT ask about fields that are already filled.
+- Each question must resolve a concrete decision that will noticeably change the final prompt quality.
+- Prefer fewer, better questions over many generic questions.
 - Each question should have 3-6 clickable option suggestions that are contextually relevant.
 - Each option MUST be an object: { "label": string, "value": string, "recommended"?: boolean }.
 - If there is a clear best default, mark it with "recommended": true and put it FIRST in the list.
@@ -83,6 +98,8 @@ Rules:${profileHint}
 - Set other_placeholder to a helpful hint when allow_other is true.
 - Use multi_select only when multiple answers are genuinely useful (rare for this pre-interview step).
 - Questions should feel conversational and supportive, not like a bureaucratic form.
+- Avoid meta or administrative wording ("field", "parameter", "specify context"). Speak like a real assistant.
+- If language is French: use natural teacher-facing French, with phrasing a native speaker would actually use.
 - Generate a unique id for each question (e.g., "q1", "q2").
 - The "field" value should match the field name from the intent analysis (level, topic, activity_type, audience, duration).
 
@@ -180,11 +197,14 @@ ask_user behavior:
 - Only return ask_user when you cannot produce a high-quality prompt without clarifying. Prefer using teacher profile defaults when reasonable.
 - Ask 1-3 questions maximum per call.
 - Each question MUST be actionable and specific. No vague "tell me more".
+- Ask only high-impact clarifications that will significantly change the final prompt output.
+- Prefer 1-2 sharp questions over 3 weak ones.
 - Each option MUST be an object: { "label": string, "value": string, "recommended"?: boolean }.
 - If there is a clear best default, mark it with "recommended": true and put it FIRST in the list.
 - Set allow_other true only when the teacher might need to type something (e.g., topic, special constraints).
 - Set other_placeholder when allow_other is true.
 - Use multi_select when multiple selections are useful (e.g., multiple skills to practice). The UI will return the answer as a SINGLE STRING where selections are joined by ", ".
+- If language is French: write questions in natural, idiomatic French and avoid literal translations.
 
 Respond with exactly ONE of the following JSON objects.
 

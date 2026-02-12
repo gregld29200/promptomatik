@@ -46,8 +46,8 @@ Optional model vars in `wrangler.jsonc`:
 ```jsonc
 "vars": {
   "APP_URL": "https://promptomatik.com",
-  "OPENROUTER_MODEL": "z-ai/glm-5",
-  "OPENROUTER_FALLBACK_MODEL": "minimax/minimax-m2.5"
+  "OPENROUTER_MODEL": "minimax/minimax-m2.5",
+  "OPENROUTER_FALLBACK_MODEL": "z-ai/glm-5"
 }
 ```
 5. Verify Resend domain `promptomatik.com` and sender `noreply@promptomatik.com`.
