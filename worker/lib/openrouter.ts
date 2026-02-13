@@ -4,8 +4,8 @@
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "z-ai/glm-5";
-const FALLBACK_MODEL = "minimax/minimax-m2.5";
+const DEFAULT_MODEL = "minimax/minimax-m2.5";
+const FALLBACK_MODEL = "z-ai/glm-5";
 // Keep total request time within Cloudflare edge limits.
 const ATTEMPT_TIMEOUT_MS = 55_000;
 const TOTAL_TIMEOUT_MS = 95_000;
