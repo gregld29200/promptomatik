@@ -2,6 +2,37 @@
   margin-bottom: var(--space-8);
 }
 
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.replayLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--transition-fast);
+}
+
+.replayLink:hover {
+  color: var(--color-navy-600);
+}
+
+.replayLink svg {
+  flex-shrink: 0;
+}
+
 .title {
   font-family: var(--font-display);
   font-size: var(--text-2xl);

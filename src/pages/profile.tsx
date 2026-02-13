@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Shell } from "@/components/layout/shell";
 import { Button, Card, Input, Spinner } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
+import { RotateCcw } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { useOnboarding } from "@/lib/onboarding/onboarding-context";
 import * as api from "@/lib/api";
@@ -115,7 +116,19 @@ export function ProfilePage() {
     <Shell>
       <FadeIn delay={0.1} duration={0.4} direction="up" distance={12}>
         <div className={s.header}>
-          <h1 className={s.title}>{t("profile.title")}</h1>
+          <div className={s.headerRow}>
+            <h1 className={s.title}>{t("profile.title")}</h1>
+            <button
+              type="button"
+              className={s.replayLink}
+              onClick={() => onboarding.start("profile", "manual")}
+              title={t("onboarding.profile.replay")}
+              aria-label={t("onboarding.profile.replay")}
+            >
+              <RotateCcw size={14} />
+              {t("onboarding.profile.replay_short")}
+            </button>
+          </div>
           <p className={s.subtitle}>{t("profile.subtitle")}</p>
         </div>
       </FadeIn>
@@ -217,21 +230,6 @@ export function ProfilePage() {
             <div className={s.footer}>
               <Button type="submit" variant="cta" disabled={saving}>
                 {saving ? t("common.saving") : t("profile.save")}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => onboarding.start("profile", "manual")}
-                data-onboard="profile-save"
-              >
-                {t("onboarding.profile.replay")}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => onboarding.start("main", "manual")}
-              >
-                {t("onboarding.main.replay")}
               </Button>
               <Button type="button" variant="ghost" onClick={() => navigate("/dashboard")}>
                 {t("common.back")}

@@ -237,7 +237,8 @@
     "finish": "Terminer",
     "replay": "Revoir l'onboarding",
     "main": {
-      "replay": "Revoir l'onboarding des prompts"
+      "replay": "Revoir l'onboarding des prompts",
+      "replay_short": "Revoir le tour"
     },
     "dashboard_new_prompt": {
       "title": "Creez votre premier prompt",
@@ -261,6 +262,7 @@
     },
     "profile": {
       "replay": "Revoir l'onboarding du profil",
+      "replay_short": "Revoir le tour",
       "languages": {
         "title": "Langues enseignees",
         "body": "Ajoutez vos langues les plus frequentes. Cela servira de valeur par defaut pour aller plus vite."

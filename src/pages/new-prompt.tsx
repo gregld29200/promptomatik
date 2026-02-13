@@ -6,7 +6,9 @@ import { FadeIn } from "@/reactbits/fade-in";
 import BlurText from "@/reactbits/blur-text";
 import { QuestionCard } from "@/components/interview/question-card";
 import { useInterview } from "@/lib/hooks/use-interview";
+import { useOnboarding } from "@/lib/onboarding/onboarding-context";
 import { Tips } from "@/components/prompt/tips";
+import { RotateCcw } from "lucide-react";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import type { Technique } from "@/lib/api";
@@ -33,6 +35,7 @@ export function NewPromptPage() {
   const [currentQ, setCurrentQ] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const onboarding = useOnboarding();
   const [analyzeSpriteReady, setAnalyzeSpriteReady] = useState(false);
   const [assemblingSpriteReady, setAssemblingSpriteReady] = useState(false);
 
@@ -124,6 +127,16 @@ export function NewPromptPage() {
                   {t("interview.submit")}
                 </Button>
               </form>
+              <button
+                type="button"
+                className={s.replayLink}
+                onClick={() => onboarding.start("main", "manual")}
+                title={t("onboarding.main.replay")}
+                aria-label={t("onboarding.main.replay")}
+              >
+                <RotateCcw size={14} />
+                {t("onboarding.main.replay_short")}
+              </button>
             </div>
           </FadeIn>
         )}

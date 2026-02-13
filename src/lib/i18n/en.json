@@ -237,7 +237,8 @@
     "finish": "Finish",
     "replay": "Replay onboarding",
     "main": {
-      "replay": "Replay prompts onboarding"
+      "replay": "Replay prompts onboarding",
+      "replay_short": "Replay tour"
     },
     "dashboard_new_prompt": {
       "title": "Create your first prompt",
@@ -261,6 +262,7 @@
     },
     "profile": {
       "replay": "Replay profile onboarding",
+      "replay_short": "Replay tour",
       "languages": {
         "title": "Languages you teach",
         "body": "Add the languages you teach most often. This becomes a default for faster prompt creation."
