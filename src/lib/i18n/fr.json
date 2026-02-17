@@ -33,6 +33,8 @@
     "reset_password": "Definir le nouveau mot de passe",
     "reset_success": "Votre mot de passe a ete mis a jour. Vous pouvez maintenant vous connecter.",
     "reset_invalid": "Ce lien de connexion est invalide ou expire.",
+    "reset_used": "Ce lien de connexion a deja ete utilise. Demandez-en un nouveau.",
+    "reset_expired": "Ce lien de connexion a expire. Demandez-en un nouveau.",
     "back_to_login": "Retour a la connexion",
     "invalid_credentials": "E-mail ou mot de passe incorrect",
     "invite_expired": "Cette invitation a expire. Contactez votre formateur pour en obtenir une nouvelle.",

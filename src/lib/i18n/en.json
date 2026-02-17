@@ -33,6 +33,8 @@
     "reset_password": "Set new password",
     "reset_success": "Your password has been updated. You can now log in.",
     "reset_invalid": "This login link is invalid or expired.",
+    "reset_used": "This login link has already been used. Request a new one.",
+    "reset_expired": "This login link has expired. Request a new one.",
     "back_to_login": "Back to login",
     "invalid_credentials": "Invalid email or password",
     "invite_expired": "This invitation has expired. Contact your trainer for a new one.",

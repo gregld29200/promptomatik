@@ -153,21 +153,36 @@ auth.post("/forgot-password", async (c) => {
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   const appBaseUrl = c.env.APP_URL ?? new URL(c.req.url).origin;
 
-  await c.env.DB.batch([
-    c.env.DB.prepare(
-      "UPDATE password_resets SET used_at = ? WHERE user_id = ? AND used_at IS NULL"
-    ).bind(now, user.id),
-    c.env.DB.prepare(
-      "INSERT INTO password_resets (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)"
-    ).bind(resetId, user.id, token, expiresAt, now),
-  ]);
+  await c.env.DB.prepare(
+    "INSERT INTO password_resets (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)"
+  ).bind(resetId, user.id, token, expiresAt, now).run();
 
-  await sendPasswordResetEmail(c.env.RESEND_API_KEY, {
+  const emailResult = await sendPasswordResetEmail(c.env.RESEND_API_KEY, {
     to: user.email,
     token,
     lang: user.language_preference ?? "fr",
     appBaseUrl,
   });
+
+  if (!emailResult.success) {
+    // Keep prior reset links valid if delivery fails for this newly-created link.
+    await c.env.DB.prepare(
+      "UPDATE password_resets SET used_at = ? WHERE id = ? AND used_at IS NULL"
+    ).bind(new Date().toISOString(), resetId).run();
+
+    console.error("forgot-password email send failed", {
+      userId: user.id,
+      email: user.email,
+      resetId,
+      error: emailResult.error ?? "unknown",
+    });
+
+    return c.json({ success: true });
+  }
+
+  await c.env.DB.prepare(
+    "UPDATE password_resets SET used_at = ? WHERE user_id = ? AND id != ? AND used_at IS NULL"
+  ).bind(new Date().toISOString(), user.id, resetId).run();
 
   return c.json({ success: true });
 });
@@ -199,25 +214,52 @@ auth.post("/reset-password", async (c) => {
       used_at: string | null;
     }>();
 
-  if (!reset || reset.used_at) {
-    return c.json({ error: "Invalid or used reset token" }, 400);
+  if (!reset) {
+    return c.json({ error: "Invalid reset token", code: "RESET_TOKEN_INVALID" }, 400);
   }
 
-  if (new Date(reset.expires_at) < new Date()) {
-    return c.json({ error: "Reset token has expired" }, 400);
+  if (reset.used_at) {
+    return c.json({ error: "Reset token has already been used", code: "RESET_TOKEN_USED" }, 400);
+  }
+
+  if (Date.parse(reset.expires_at) <= Date.now()) {
+    return c.json({ error: "Reset token has expired", code: "RESET_TOKEN_EXPIRED" }, 400);
   }
 
   const passwordHash = await hashPassword(password);
   const now = new Date().toISOString();
 
-  await c.env.DB.batch([
-    c.env.DB.prepare(
-      "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?"
-    ).bind(passwordHash, now, reset.user_id),
-    c.env.DB.prepare(
-      "UPDATE password_resets SET used_at = ? WHERE id = ?"
-    ).bind(now, reset.id),
-  ]);
+  const claimResult = await c.env.DB.prepare(
+    `UPDATE password_resets
+     SET used_at = ?
+     WHERE id = ?
+       AND used_at IS NULL
+       AND unixepoch(expires_at) > unixepoch(?)`
+  ).bind(now, reset.id, now).run();
+
+  if ((claimResult.meta.changes ?? 0) !== 1) {
+    const latestState = await c.env.DB.prepare(
+      "SELECT expires_at, used_at FROM password_resets WHERE id = ?"
+    ).bind(reset.id).first<{ expires_at: string; used_at: string | null }>();
+
+    if (!latestState) {
+      return c.json({ error: "Invalid reset token", code: "RESET_TOKEN_INVALID" }, 400);
+    }
+
+    if (latestState.used_at) {
+      return c.json({ error: "Reset token has already been used", code: "RESET_TOKEN_USED" }, 400);
+    }
+
+    if (Date.parse(latestState.expires_at) <= Date.now()) {
+      return c.json({ error: "Reset token has expired", code: "RESET_TOKEN_EXPIRED" }, 400);
+    }
+
+    return c.json({ error: "Invalid reset token", code: "RESET_TOKEN_INVALID" }, 400);
+  }
+
+  await c.env.DB.prepare(
+    "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?"
+  ).bind(passwordHash, now, reset.user_id).run();
 
   return c.json({ success: true });
 });

@@ -6,6 +6,7 @@
 export interface ApiError {
   error: string;
   status: number;
+  code?: string;
 }
 
 type ApiResult<T> = { data: T; error: null } | { data: null; error: ApiError };
@@ -22,9 +23,10 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: "Request failed" }));
+    const errorBody = body as { error?: string; code?: string };
     return {
       data: null,
-      error: { error: (body as { error?: string }).error ?? "Request failed", status: res.status },
+      error: { error: errorBody.error ?? "Request failed", status: res.status, code: errorBody.code },
     };
   }
 

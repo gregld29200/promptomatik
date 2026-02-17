@@ -50,7 +50,13 @@ export function ResetPasswordPage() {
     setSubmitting(true);
     const res = await api.resetPassword(token, password);
     if (res.error) {
-      setError(t("auth.reset_invalid"));
+      if (res.error.code === "RESET_TOKEN_EXPIRED") {
+        setError(t("auth.reset_expired"));
+      } else if (res.error.code === "RESET_TOKEN_USED") {
+        setError(t("auth.reset_used"));
+      } else {
+        setError(t("auth.reset_invalid"));
+      }
     } else {
       setDone(true);
     }
