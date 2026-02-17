@@ -235,59 +235,64 @@
   "onboarding": {
     "next": "Suivant",
     "back": "Retour",
-    "skip": "Passer",
+    "skip": "Passer ce tour",
+    "skip_all": "Ignorer tous les tours",
     "finish": "Terminer",
+    "demo_title": "Mode démonstration",
+    "demo_note_next": "L'écran est assombri pour guider l'étape. Lisez puis cliquez sur « Suivant ».",
+    "demo_note_click": "L'écran est assombri pour guider l'étape. Cliquez l'élément surligné ou utilisez les boutons.",
+    "step_counter": "Étape {{current}} sur {{total}}",
     "replay": "Revoir l'onboarding",
     "main": {
       "replay": "Revoir l'onboarding des prompts",
       "replay_short": "Revoir le tour"
     },
     "dashboard_new_prompt": {
-      "title": "Creez votre premier prompt",
-      "body": "Cliquez sur « Nouveau prompt » pour commencer a construire un prompt structure."
+      "title": "Créez votre premier prompt",
+      "body": "Cliquez sur « Nouveau prompt » pour commencer à construire un prompt structuré."
     },
     "new_request_text": {
-      "title": "Decrivez votre besoin",
-      "body": "Ecrivez votre demande en langage naturel. L'assistant la transforme en prompt structure."
+      "title": "Décrivez votre besoin",
+      "body": "Écrivez votre demande en langage naturel. L'assistant la transforme en prompt structuré."
     },
     "new_submit_request": {
       "title": "Analyser la demande",
-      "body": "Cliquez pour analyser. S'il manque une info importante, l'app posera une question plutot que de produire un prompt mediocre."
+      "body": "Cliquez pour analyser. S'il manque une info importante, l'app posera une question plutôt que de produire un prompt médiocre."
     },
     "questions_pick": {
-      "title": "Repondez aux questions rapides",
-      "body": "Choisissez une option (ou saisissez votre reponse si « Other » apparait). Cela adapte le prompt a votre classe."
+      "title": "Répondez aux questions rapides",
+      "body": "Choisissez une option (ou saisissez votre réponse si « Other » apparaît). Cela adapte le prompt à votre classe."
     },
     "done_save": {
-      "title": "Enregistrez dans votre bibliotheque",
-      "body": "Cliquez sur « Enregistrer le prompt » pour le retrouver et le reutiliser."
+      "title": "Enregistrez dans votre bibliothèque",
+      "body": "Cliquez sur « Enregistrer le prompt » pour le retrouver et le réutiliser."
     },
     "profile": {
       "replay": "Revoir l'onboarding du profil",
       "replay_short": "Revoir le tour",
       "languages": {
-        "title": "Langues enseignees",
-        "body": "Ajoutez vos langues les plus frequentes. Cela servira de valeur par defaut pour aller plus vite."
+        "title": "Langues enseignées",
+        "body": "Ajoutez vos langues les plus fréquentes. Cela servira de valeur par défaut pour aller plus vite."
       },
       "levels": {
         "title": "Niveaux habituels",
-        "body": "Selectionnez les niveaux que vous enseignez le plus. L'assistant les utilisera par defaut si la demande est ambiguë."
+        "body": "Sélectionnez les niveaux que vous enseignez le plus. L'assistant les utilisera par défaut si la demande est ambiguë."
       },
       "audience": {
         "title": "Public habituel",
-        "body": "Choisissez votre public le plus courant. Cela aide a adapter les activites et les exemples."
+        "body": "Choisissez votre public le plus courant. Cela aide à adapter les activités et les exemples."
       },
       "duration": {
-        "title": "Duree de seance habituelle",
-        "body": "Choisissez une duree par defaut pour que les activites generees collent a votre temps de cours."
+        "title": "Durée de séance habituelle",
+        "body": "Choisissez une durée par défaut pour que les activités générées collent à votre temps de cours."
       },
       "context": {
         "title": "Contexte d'enseignement",
-        "body": "Optionnel : precisez ou/comment vous enseignez (ecole, cours particuliers, en ligne...). Cela aide a poser de meilleures contraintes."
+        "body": "Optionnel : précisez où/comment vous enseignez (école, cours particuliers, en ligne...). Cela aide à poser de meilleures contraintes."
       },
       "save": {
         "title": "Enregistrer votre profil",
-        "body": "Cliquez pour enregistrer. Ensuite, vous aurez moins de questions et de meilleurs choix par defaut."
+        "body": "Cliquez pour enregistrer. Ensuite, vous aurez moins de questions et de meilleurs choix par défaut."
       }
     }
   }

@@ -17,12 +17,13 @@ function getRect(el: Element): Rect {
 }
 
 export function OnboardingTour() {
-  const { state, step, steps, next, back, complete } = useOnboarding();
+  const { state, step, steps, next, back, complete, completeAll } = useOnboarding();
   const location = useLocation();
   const navigate = useNavigate();
   const [rect, setRect] = useState<Rect | null>(null);
 
   const isLast = step ? steps.indexOf(step) === steps.length - 1 : false;
+  const stepNumber = step ? steps.indexOf(step) + 1 : 0;
 
   // Keep route aligned with current step.
   useEffect(() => {
@@ -115,12 +116,25 @@ export function OnboardingTour() {
       <div className={s.highlight} style={highlightStyle} />
 
       <div className={s.tooltip} style={{ left: tooltipPos.left, top: tooltipPos.top }}>
+        <p className={s.demoTitle}>{t("onboarding.demo_title")}</p>
+        <p className={s.demoNote}>
+          {t(step.advanceOn === "click" ? "onboarding.demo_note_click" : "onboarding.demo_note_next")}
+        </p>
         <p className={s.title}>{t(step.titleKey)}</p>
         <p className={s.body}>{t(step.bodyKey)}</p>
+        <p className={s.progress}>
+          {t("onboarding.step_counter", { current: String(stepNumber), total: String(steps.length) })}
+        </p>
 
         <div className={s.controls}>
           <div className={s.controlsLeft}>
-            <Button variant="ghost" size="small" type="button" onClick={() => void complete()}>
+            <Button
+              variant="ghost"
+              size="small"
+              type="button"
+              className={s.skipButton}
+              onClick={() => void complete()}
+            >
               {t("onboarding.skip")}
             </Button>
           </div>
@@ -129,6 +143,7 @@ export function OnboardingTour() {
               variant="secondary"
               size="small"
               type="button"
+              className={s.backButton}
               onClick={back}
               disabled={steps.indexOf(step) === 0}
             >
@@ -143,6 +158,17 @@ export function OnboardingTour() {
               {isLast ? t("onboarding.finish") : t("onboarding.next")}
             </Button>
           </div>
+        </div>
+        <div className={s.controlsFooter}>
+          <Button
+            variant="ghost"
+            size="small"
+            type="button"
+            className={s.skipAllButton}
+            onClick={() => void completeAll()}
+          >
+            {t("onboarding.skip_all")}
+          </Button>
         </div>
       </div>
     </div>

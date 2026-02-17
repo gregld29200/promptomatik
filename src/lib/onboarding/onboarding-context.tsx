@@ -33,6 +33,7 @@ type OnboardingContextValue = {
   next: () => void;
   back: () => void;
   complete: () => Promise<void>;
+  completeAll: () => Promise<void>;
   maybeAutoStartMain: (args: { promptsCount: number; profile: TeacherProfile | null }) => void;
   maybeAutoStartProfile: (args: { profile: TeacherProfile | null }) => void;
 };
@@ -105,6 +106,23 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     }
   }, [state.tourId]);
 
+  const completeAll = useCallback(async () => {
+    setState((prev) => ({
+      active: false,
+      tourId: null,
+      stepIndex: 0,
+      reason: null,
+      dismissed: { ...prev.dismissed, main: true, profile: true },
+    }));
+
+    await api.updateProfile({
+      onboarding_completed: true,
+      onboarding_version: ONBOARDING_TOURS.main.version,
+      profile_onboarding_completed: true,
+      profile_onboarding_version: ONBOARDING_TOURS.profile.version,
+    });
+  }, []);
+
   const maybeAutoStartMain = useCallback(
     ({ promptsCount, profile }: { promptsCount: number; profile: TeacherProfile | null }) => {
       if (!profile) return;
@@ -139,10 +157,23 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       next,
       back,
       complete,
+      completeAll,
       maybeAutoStartMain,
       maybeAutoStartProfile,
     }),
-    [state, step, steps, start, stop, next, back, complete, maybeAutoStartMain, maybeAutoStartProfile]
+    [
+      state,
+      step,
+      steps,
+      start,
+      stop,
+      next,
+      back,
+      complete,
+      completeAll,
+      maybeAutoStartMain,
+      maybeAutoStartProfile,
+    ]
   );
 
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;

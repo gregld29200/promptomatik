@@ -235,8 +235,13 @@
   "onboarding": {
     "next": "Next",
     "back": "Back",
-    "skip": "Skip",
+    "skip": "Skip this tour",
+    "skip_all": "Skip all tours",
     "finish": "Finish",
+    "demo_title": "Guided demo",
+    "demo_note_next": "The screen is dimmed to guide this step. Read and click “Next”.",
+    "demo_note_click": "The screen is dimmed to guide this step. Click the highlighted element or use the buttons.",
+    "step_counter": "Step {{current}} of {{total}}",
     "replay": "Replay onboarding",
     "main": {
       "replay": "Replay prompts onboarding",
