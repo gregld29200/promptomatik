@@ -6,9 +6,10 @@
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "minimax/minimax-m2.5";
 const FALLBACK_MODEL = "z-ai/glm-5";
-// Keep total request time within Cloudflare edge limits.
-const ATTEMPT_TIMEOUT_MS = 55_000;
-const TOTAL_TIMEOUT_MS = 95_000;
+// Keep total request time bounded and fail over quickly when a model stalls.
+const ATTEMPT_TIMEOUT_MS = 35_000;
+const TOTAL_TIMEOUT_MS = 70_000;
+const MODEL_ATTEMPTS = 2;
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -64,6 +65,31 @@ export async function chatCompletion<T>(
     if (status !== 400 && status !== 422) return false;
     const b = bodyText.toLowerCase();
     return b.includes("response_format") || b.includes("json_object") || b.includes("json schema") || b.includes("json_schema");
+  };
+
+  const parseHttpStatusFromError = (error: string): number | null => {
+    const match = error.match(/AI request failed \((\d{3})\):/);
+    if (!match) return null;
+    const parsed = Number(match[1]);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const isRetryableError = (error: string): boolean => {
+    if (
+      error === "AI request timed out. Please try again." ||
+      error === "Empty response from AI." ||
+      error === "AI returned malformed JSON." ||
+      error === "AI response hit token limit before returning JSON." ||
+      error === "The AI service is temporarily unavailable. Please try again." ||
+      error === "Rate limit reached. Please wait a moment and try again." ||
+      error === "Unexpected error communicating with AI."
+    ) {
+      return true;
+    }
+
+    const status = parseHttpStatusFromError(error);
+    if (status === null) return false;
+    return [408, 409, 425, 429, 500, 502, 503, 504, 520, 522, 524].includes(status);
   };
 
   const callModel = async (model: string, timeoutMs: number): Promise<LLMResult<T>> => {
@@ -150,28 +176,30 @@ export async function chatCompletion<T>(
   const startedAt = Date.now();
 
   for (let i = 0; i < modelChain.length; i += 1) {
-    const elapsedMs = Date.now() - startedAt;
-    const remainingMs = TOTAL_TIMEOUT_MS - elapsedMs;
-    if (remainingMs <= 1_000) {
-      return { data: null, error: "AI request timed out. Please try again." };
-    }
+    for (let attempt = 0; attempt < MODEL_ATTEMPTS; attempt += 1) {
+      const elapsedMs = Date.now() - startedAt;
+      const remainingMs = TOTAL_TIMEOUT_MS - elapsedMs;
+      if (remainingMs <= 1_000) {
+        return { data: null, error: "AI request timed out. Please try again." };
+      }
 
-    const attemptTimeoutMs = Math.min(ATTEMPT_TIMEOUT_MS, remainingMs);
-    const result = await callModel(modelChain[i], attemptTimeoutMs);
-    if (!result.error) return result;
+      const attemptTimeoutMs = Math.min(ATTEMPT_TIMEOUT_MS, remainingMs);
+      const result = await callModel(modelChain[i], attemptTimeoutMs);
+      if (!result.error) return result;
 
-    const shouldTryFallback =
-      i === 0 &&
-      modelChain.length > 1 &&
-      (
-        result.error === "AI request timed out. Please try again." ||
-        result.error === "Empty response from AI." ||
-        result.error === "AI returned malformed JSON." ||
-        result.error === "AI response hit token limit before returning JSON." ||
-        result.error === "The AI service is temporarily unavailable. Please try again."
-      );
+      const isLastModelAttempt = attempt === MODEL_ATTEMPTS - 1;
+      const hasFallbackModel = i === 0 && modelChain.length > 1;
 
-    if (!shouldTryFallback) {
+      if (!isLastModelAttempt && isRetryableError(result.error)) {
+        // Brief backoff for transient provider/network issues before retrying same model.
+        await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+        continue;
+      }
+
+      if (hasFallbackModel && isRetryableError(result.error)) {
+        break;
+      }
+
       return result;
     }
   }

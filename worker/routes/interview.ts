@@ -202,7 +202,7 @@ Assemble a complete, ready-to-use teaching prompt using the appropriate techniqu
       { role: "user", content: userMessage },
     ],
     temperature: 0.5,
-    max_tokens: 4096,
+    max_tokens: 3072,
   }, models);
 
   if (result.error) {
@@ -268,7 +268,7 @@ Revise the prompt to fix this issue. Only change what needs changing.`;
       { role: "user", content: userMessage },
     ],
     temperature: 0.4,
-    max_tokens: 4096,
+    max_tokens: 3072,
   }, models);
 
   if (result.error) {
