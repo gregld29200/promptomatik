@@ -7,8 +7,26 @@ import type { TeacherProfile } from "../../routes/profile";
 
 const langInstruction = (lang: string) =>
   lang === "fr"
-    ? `IMPORTANT: Think in French first. All your output text (questions, summaries, content, annotations) MUST be in clear, idiomatic French used by real teachers. Never translate literally from English. Avoid awkward calques, anglicisms, and robotic phrasing. Use professional vouvoiement ("vous", "vos"), not tutoiement.`
-    : `All your output text must be in clear, natural English.`;
+    ? `IMPORTANT: Think in French first.
+LANGUAGE LOCK (MANDATORY):
+- Target output language is French only.
+- Every free-text value MUST be in clear, idiomatic French used by real teachers (questions, summaries, prompt content, annotations, tips, tags, reasons).
+- Do not mix English into generated prose.
+- Allowed exceptions only: proper nouns, official product/model names, CEFR labels (A1-C2), and short verbatim quotes from teacher input.
+- Keep JSON keys/schema exactly as requested, but all natural-language values must follow the language lock.
+- If teacher input is mixed-language, still write generated text in French; keep other-language text only when explicitly quoting the teacher.
+- Use professional vouvoiement ("vous", "vos"), not tutoiement.
+- Before responding, self-check and rewrite any non-French generated phrasing.
+`
+    : `LANGUAGE LOCK (MANDATORY):
+- Target output language is English only.
+- Every free-text value MUST be clear, natural English (questions, summaries, prompt content, annotations, tips, tags, reasons).
+- Do not mix French into generated prose.
+- Allowed exceptions only: proper nouns, official product/model names, CEFR labels (A1-C2), and short verbatim quotes from teacher input.
+- Keep JSON keys/schema exactly as requested, but all natural-language values must follow the language lock.
+- If teacher input is mixed-language, still write generated text in English; keep other-language text only when explicitly quoting the teacher.
+- Before responding, self-check and rewrite any non-English generated phrasing.
+`;
 
 function profileContext(profile?: TeacherProfile): string {
   if (!profile || !profile.setup_completed) return "";
