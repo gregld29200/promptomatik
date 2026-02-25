@@ -116,10 +116,12 @@ export function OnboardingTour() {
       <div className={s.highlight} style={highlightStyle} />
 
       <div className={s.tooltip} style={{ left: tooltipPos.left, top: tooltipPos.top }}>
-        <p className={s.demoTitle}>{t("onboarding.demo_title")}</p>
-        <p className={s.demoNote}>
-          {t(step.advanceOn === "click" ? "onboarding.demo_note_click" : "onboarding.demo_note_next")}
-        </p>
+        <div className={s.demoHeader}>
+          <p className={s.demoTitle}>{t("onboarding.demo_title")}</p>
+          <p className={s.demoNote}>
+            {t(step.advanceOn === "click" ? "onboarding.demo_note_click" : "onboarding.demo_note_next")}
+          </p>
+        </div>
         <p className={s.title}>{t(step.titleKey)}</p>
         <p className={s.body}>{t(step.bodyKey)}</p>
         <p className={s.progress}>

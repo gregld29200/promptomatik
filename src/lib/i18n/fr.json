@@ -238,9 +238,9 @@
     "skip": "Passer ce tour",
     "skip_all": "Ignorer tous les tours",
     "finish": "Terminer",
-    "demo_title": "Mode démonstration",
-    "demo_note_next": "L'écran est assombri pour guider l'étape. Lisez puis cliquez sur « Suivant ».",
-    "demo_note_click": "L'écran est assombri pour guider l'étape. Cliquez l'élément surligné ou utilisez les boutons.",
+    "demo_title": "🎯 Visite guidée interactive",
+    "demo_note_next": "Ceci est un tour de découverte — pas un vrai exercice. Lisez puis cliquez « Suivant ». Vous pouvez le passer et y revenir plus tard.",
+    "demo_note_click": "Ceci est un tour de découverte — pas un vrai exercice. Cliquez l'élément surligné ou utilisez les boutons. Vous pouvez le passer et y revenir plus tard.",
     "step_counter": "Étape {{current}} sur {{total}}",
     "replay": "Revoir l'onboarding",
     "main": {

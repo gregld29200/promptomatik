@@ -61,7 +61,7 @@
     "invite_email_label": "Email address",
     "send_invite": "Send invitation",
     "invite_sent": "Invitation sent and email delivered successfully.",
-    "invite_created_no_email": "Invitation created. Email could not be sent — use the link below.",
+    "invite_created_no_email": "Invitation created. Email could not be sent - use the link below.",
     "no_invitations": "No invitations yet.",
     "no_users": "No users.",
     "copy_link": "Copy login link",
@@ -105,7 +105,7 @@
   },
   "profile": {
     "title": "My teaching profile",
-    "subtitle": "Your defaults speed up prompt creation — fewer questions, faster results.",
+    "subtitle": "Your defaults speed up prompt creation - fewer questions, faster results.",
     "nav_label": "Profile",
     "languages_taught": "Languages you teach",
     "languages_taught_hint": "e.g. French, English, Spanish",
@@ -238,9 +238,9 @@
     "skip": "Skip this tour",
     "skip_all": "Skip all tours",
     "finish": "Finish",
-    "demo_title": "Guided demo",
-    "demo_note_next": "The screen is dimmed to guide this step. Read and click “Next”.",
-    "demo_note_click": "The screen is dimmed to guide this step. Click the highlighted element or use the buttons.",
+    "demo_title": "🎯 Interactive guided tour",
+    "demo_note_next": "This is a discovery tour — not a real exercise. Read and click 'Next'. You can skip it and come back later.",
+    "demo_note_click": "This is a discovery tour — not a real exercise. Click the highlighted element or use the buttons. You can skip it and come back later.",
     "step_counter": "Step {{current}} of {{total}}",
     "replay": "Replay onboarding",
     "main": {
@@ -249,7 +249,7 @@
     },
     "dashboard_new_prompt": {
       "title": "Create your first prompt",
-      "body": "Click “New prompt” to start building a structured teaching prompt."
+      "body": "Click 'New prompt' to start building a structured teaching prompt."
     },
     "new_request_text": {
       "title": "Describe what you need",
@@ -257,15 +257,15 @@
     },
     "new_submit_request": {
       "title": "Analyze your request",
-      "body": "Click to analyze. If something important is missing, you’ll get a quick question instead of a bad prompt."
+      "body": "Click to analyze. If something important is missing, you'll get a quick question instead of a bad prompt."
     },
     "questions_pick": {
       "title": "Answer the quick questions",
-      "body": "Choose an option (or type your own if “Other” appears). This helps tailor the prompt to your class."
+      "body": "Choose an option (or type your own if 'Other' appears). This helps tailor the prompt to your class."
     },
     "done_save": {
       "title": "Save it to your library",
-      "body": "Click “Save prompt” to keep it and reuse it later."
+      "body": "Click 'Save prompt' to keep it and reuse it later."
     },
     "profile": {
       "replay": "Replay profile onboarding",
@@ -292,7 +292,7 @@
       },
       "save": {
         "title": "Save your profile",
-        "body": "Click to save. From now on, you’ll get fewer questions and better defaults."
+        "body": "Click to save. From now on, you'll get fewer questions and better defaults."
       }
     }
   }
