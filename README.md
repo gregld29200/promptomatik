@@ -78,7 +78,7 @@ Backend endpoints (Cloudflare Worker, Hono):
 - Cloudflare Workers (serves SPA assets and `/api/*` via Hono in `worker/`)
 - D1 (SQLite) for users, prompts, templates, invitations, password resets
 - KV for sessions (cookie `promptomatik_session`, TTL 7 days)
-- OpenRouter for LLM calls (models configurable via `OPENROUTER_MODEL` + fallback)
+- OpenRouter for LLM calls (configured via `OPENROUTER_MODEL` + fallback)
 - Resend for invitation + password reset emails
 
 ## Local Development

@@ -91,9 +91,8 @@ export function LoginPage() {
               </form>
             </FadeIn>
             <FadeIn delay={0.7} duration={0.4} direction="none">
-              <div className={s.divider}>{t("auth.invite_only")}</div>
               <p className={s.footer}>
-                {t("auth.contact_admin")}
+                <Link to="/signup">{t("signup.from_login")}</Link>
               </p>
             </FadeIn>
           </Card>

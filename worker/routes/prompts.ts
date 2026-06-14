@@ -1,11 +1,31 @@
 import { Hono } from "hono";
 import type { Env } from "../env";
-import { requireAuth } from "../lib/auth-middleware";
+import { requireAuth, requireParticipant } from "../lib/auth-middleware";
 import type { SessionData } from "../lib/session";
+import { normalizeLanguage } from "../lib/language";
+import { getUserTier } from "../lib/tier";
 
 const prompts = new Hono<{ Bindings: Env; Variables: { session: SessionData } }>();
 
 prompts.use("/*", requireAuth);
+
+const FREE_LIBRARY_LIMIT = 3;
+
+// Free-tier library cap — counts saved prompts (templates cloned into the
+// library count too; published templates don't).
+async function isLibraryCapped(db: D1Database, session: SessionData): Promise<boolean> {
+  if (session.role === "admin") return false;
+  const tier = await getUserTier(db, session.userId);
+  if (tier === "participant") return false;
+
+  const row = await db.prepare(
+    "SELECT COUNT(*) AS saved FROM prompts WHERE user_id = ? AND is_template = 0"
+  )
+    .bind(session.userId)
+    .first<{ saved: number }>();
+
+  return (row?.saved ?? 0) >= FREE_LIBRARY_LIMIT;
+}
 
 interface PromptRow {
   id: string;
@@ -59,8 +79,13 @@ prompts.post("/", async (c) => {
     return c.json({ error: "Blocks are required." }, 400);
   }
 
+  if (await isLibraryCapped(c.env.DB, session)) {
+    return c.json({ error: "library_limit", limit: FREE_LIBRARY_LIMIT }, 403);
+  }
+
   const id = crypto.randomUUID();
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+  const language = normalizeLanguage(body.language || session.languagePreference);
 
   await c.env.DB.prepare(
     `INSERT INTO prompts (id, user_id, name, language, tags, blocks, tips, source_type, created_at, updated_at)
@@ -70,7 +95,7 @@ prompts.post("/", async (c) => {
       id,
       session.userId,
       body.name || "",
-      body.language || session.languagePreference || "fr",
+      language,
       JSON.stringify(body.tags || []),
       JSON.stringify(body.blocks),
       JSON.stringify(body.tips || []),
@@ -86,7 +111,7 @@ prompts.post("/", async (c) => {
         id,
         user_id: session.userId,
         name: body.name || "",
-        language: body.language || session.languagePreference || "fr",
+        language,
         tags: body.tags || [],
         blocks: body.blocks,
         tips: body.tips || [],
@@ -158,6 +183,15 @@ prompts.put("/:id", async (c) => {
     tips?: string[];
   }>();
 
+  // Block editing (blocks/tips) is a participant feature — free users may
+  // still rename and re-tag their prompts.
+  if ((body.blocks !== undefined || body.tips !== undefined) && session.role !== "admin") {
+    const tier = await getUserTier(c.env.DB, session.userId);
+    if (tier !== "participant") {
+      return c.json({ error: "tier_required", required: "participant" }, 403);
+    }
+  }
+
   // Verify ownership
   const existing = await c.env.DB.prepare(
     "SELECT id FROM prompts WHERE id = ? AND user_id = ?"
@@ -216,7 +250,7 @@ prompts.put("/:id", async (c) => {
 });
 
 // POST /api/prompts/:id/submit-template — Submit prompt for community review
-prompts.post("/:id/submit-template", async (c) => {
+prompts.post("/:id/submit-template", requireParticipant, async (c) => {
   const session = c.get("session");
   const promptId = c.req.param("id");
 
@@ -282,6 +316,10 @@ prompts.delete("/:id", async (c) => {
 prompts.post("/:id/duplicate", async (c) => {
   const session = c.get("session");
   const promptId = c.req.param("id");
+
+  if (await isLibraryCapped(c.env.DB, session)) {
+    return c.json({ error: "library_limit", limit: FREE_LIBRARY_LIMIT }, 403);
+  }
 
   const row = await c.env.DB.prepare(
     "SELECT * FROM prompts WHERE id = ? AND user_id = ?"

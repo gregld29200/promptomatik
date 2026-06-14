@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Spinner, Textarea } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
 import { RefinementReview } from "./refinement-review";
-import { t } from "@/lib/i18n";
+import { t, type Language } from "@/lib/i18n";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import * as api from "@/lib/api";
 import type { PromptBlock, RefinedPrompt } from "@/lib/api";
@@ -10,7 +10,7 @@ import s from "./refinement-flow.module.css";
 
 interface RefinementFlowProps {
   promptId: string;
-  language: string;
+  language: Language;
   onAccept: (blocks: PromptBlock[], tips: string[]) => void;
   onDiscard: () => void;
 }
@@ -59,7 +59,20 @@ export function RefinementFlow({
       return;
     }
 
-    setRefined(res.data.refined);
+    const jobResult = await api.waitForInterviewJobResult<RefinedPrompt>(res.data.job.id);
+    if (jobResult.error) {
+      setError(jobResult.error.error);
+      setStep("form");
+      return;
+    }
+
+    if (!jobResult.data.result) {
+      setError(t("common.error"));
+      setStep("form");
+      return;
+    }
+
+    setRefined(jobResult.data.result);
     setStep("review");
   }
 

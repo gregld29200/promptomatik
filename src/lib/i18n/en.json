@@ -14,8 +14,11 @@
     "close": "Close",
     "saved": "Saved",
     "saving": "Saving...",
+    "show_more": "Show more",
+    "show_less": "Show less",
     "lang_fr": "FR",
     "lang_en": "EN",
+    "lang_es": "ES",
     "menu": "Menu"
   },
   "auth": {
@@ -87,7 +90,15 @@
     "submission_rejected": "Submission rejected.",
     "published_templates": "Published templates",
     "prompt_id_label": "Prompt ID",
-    "publish": "Publish"
+    "publish": "Publish",
+    "tier": "Tier",
+    "tier_free": "Free",
+    "tier_participant": "Participant",
+    "kind": "Origin",
+    "kind_admin": "Admin invite",
+    "kind_self": "Public signup",
+    "promote_participant": "Make participant",
+    "demote_free": "Make free"
   },
   "dashboard": {
     "new_prompt": "New prompt",
@@ -295,5 +306,37 @@
         "body": "Click to save. From now on, you'll get fewer questions and better defaults."
       }
     }
+  },
+  "upgrade": {
+    "title": "Available for training participants",
+    "feature_templates": "The template library is part of the TeachInspire training. Browse ready-to-use prompts created and validated by trainers.",
+    "feature_profile": "The teacher profile remembers your context (languages, levels, audience) to personalize every prompt automatically. It's part of the TeachInspire training.",
+    "feature_refine": "Guided refinement improves your prompts based on the results you get. It's part of the TeachInspire training.",
+    "feature_edit": "Edit Mode (block editor) is part of the TeachInspire training. You can view your prompts in User and Study modes.",
+    "feature_submit": "Sharing templates with the community is reserved for training participants.",
+    "library_limit": "Your free library is full: {{used}}/{{limit}} prompts saved. Participants save without limits.",
+    "cta": "Discover the TeachInspire training",
+    "nav_locked": "Available for training participants"
+  },
+  "quota": {
+    "chip": "Generations today: {{used}}/{{limit}}",
+    "exhausted_title": "You've used today's {{limit}} generations",
+    "exhausted_body": "Your quota resets in {{hours}}h. Training participants generate without limits.",
+    "exhausted_cta_note": "Meanwhile, your saved prompts remain available in your library."
+  },
+  "signup": {
+    "title": "Get your free access",
+    "subtitle": "Receive a confirmation link by email and start building structured prompts for your lessons.",
+    "email_label": "Your email",
+    "language_label": "Language",
+    "consent": "You'll receive the confirmation link and occasional resources on teaching with AI. Unsubscribe anytime.",
+    "submit": "Send me my access link",
+    "success_title": "Check your inbox",
+    "success_body": "If this address is valid, a confirmation link is on its way. It expires in 7 days.",
+    "rate_limited": "Too many attempts. Try again in an hour.",
+    "invalid_email": "Invalid email address.",
+    "login_link": "Already have an account? Log in",
+    "from_login": "No account? Get free access",
+    "expired_invite": "This link has expired. Request a new access link."
   }
 }

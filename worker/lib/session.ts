@@ -1,10 +1,11 @@
 import type { Env } from "../env";
+import type { Language } from "./language";
 
 export interface SessionData {
   userId: string;
   email: string;
   role: "teacher" | "admin";
-  languagePreference: "fr" | "en";
+  languagePreference: Language;
   createdAt: number;
 }
 
@@ -55,7 +56,24 @@ export function clearSessionCookie(): string {
   return `${COOKIE_NAME}=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
 }
 
+export async function updateSession(
+  env: Env,
+  request: Request,
+  data: SessionData
+): Promise<void> {
+  const sessionId = getSessionId(request);
+  if (!sessionId) return;
+  await env.SESSIONS.put(`session:${sessionId}`, JSON.stringify(data), {
+    expirationTtl: SESSION_TTL,
+  });
+}
+
 function parseCookie(header: string, name: string): string | null {
   const match = header.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
   return match ? match[1] : null;
+}
+
+function getSessionId(request: Request): string | null {
+  const cookie = request.headers.get("Cookie") ?? "";
+  return parseCookie(cookie, COOKIE_NAME);
 }

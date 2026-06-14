@@ -10,6 +10,8 @@ import { BlockEditor } from "@/components/prompt/block-editor";
 import { CopyButton } from "@/components/prompt/copy-button";
 import { Tips } from "@/components/prompt/tips";
 import { RefinementFlow } from "@/components/prompt/refinement-flow";
+import { UpgradeGate } from "@/components/upgrade-gate";
+import { FREE_LIBRARY_LIMIT } from "@/lib/config";
 import { t, getLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth/auth-context";
 import { Copy, Trash2, X, Pencil } from "lucide-react";
@@ -18,7 +20,7 @@ import type { Prompt, PromptBlock } from "@/lib/api";
 import s from "./prompt-view.module.css";
 
 export function PromptViewPage() {
-  const { user } = useAuth();
+  const { user, isParticipant } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -32,6 +34,7 @@ export function PromptViewPage() {
   const [submittingTemplate, setSubmittingTemplate] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [templateActionLoading, setTemplateActionLoading] = useState<"publish" | "unpublish" | null>(null);
+  const [gateMessage, setGateMessage] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -121,11 +124,26 @@ export function PromptViewPage() {
   async function handleDuplicate() {
     if (!id) return;
     const res = await api.duplicatePrompt(id);
-    if (res.data) navigate(`/prompt/${res.data.prompt.id}`);
+    if (res.data) {
+      navigate(`/prompt/${res.data.prompt.id}`);
+      return;
+    }
+    if (res.error?.error === "library_limit") {
+      setGateMessage(
+        t("upgrade.library_limit", {
+          used: String(FREE_LIBRARY_LIMIT),
+          limit: String(FREE_LIBRARY_LIMIT),
+        })
+      );
+    }
   }
 
   async function handleSubmitTemplate() {
     if (!id) return;
+    if (!isParticipant) {
+      setGateMessage(t("upgrade.feature_submit"));
+      return;
+    }
     setSubmittingTemplate(true);
     setSubmitMessage(null);
 
@@ -270,7 +288,18 @@ export function PromptViewPage() {
                   <span>{t("prompt.delete")}</span>
                 </Button>
                 <CopyButton text={copyText} />
-                <ModeToggle mode={mode} onChange={setMode} />
+                <ModeToggle
+                  mode={mode}
+                  onChange={(next) => {
+                    // Edit Mode (block editor) is participant-only — the tab
+                    // stays visible so free users discover the feature.
+                    if (next === "edit" && !isParticipant) {
+                      setGateMessage(t("upgrade.feature_edit"));
+                      return;
+                    }
+                    setMode(next);
+                  }}
+                />
               </div>
             )}
           </div>
@@ -334,6 +363,10 @@ export function PromptViewPage() {
             )}
           </div>
 
+          {gateMessage && (
+            <UpgradeGate message={gateMessage} onDismiss={() => setGateMessage(null)} />
+          )}
+
           <div className={s.footer}>
             <div className={s.footerLeft}>
               <Button variant="ghost" onClick={() => navigate("/dashboard")}>
@@ -354,7 +387,11 @@ export function PromptViewPage() {
                 <Button
                   variant="ghost"
                   className={s.refineBtn}
-                  onClick={() => setRefining(true)}
+                  onClick={() =>
+                    isParticipant
+                      ? setRefining(true)
+                      : setGateMessage(t("upgrade.feature_refine"))
+                  }
                 >
                   {t("prompt.result_not_good")}
                 </Button>

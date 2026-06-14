@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import type { Env } from "../env";
-import { requireAuth } from "../lib/auth-middleware";
+import { requireAuth, requireParticipant } from "../lib/auth-middleware";
 import type { SessionData } from "../lib/session";
 
 const templates = new Hono<{ Bindings: Env; Variables: { session: SessionData } }>();
 
-templates.use("/*", requireAuth);
+templates.use("/*", requireAuth, requireParticipant);
 
 interface PromptRow {
   id: string;

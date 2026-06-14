@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Promptomatik - Documentation technique</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,600..800,40,1&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fdfcf9;
+      --surface: #ffffff;
+      --surface-soft: #f9f7f3;
+      --surface-ink: #0b1726;
+      --border: rgba(11, 23, 38, 0.11);
+      --border-strong: rgba(11, 23, 38, 0.2);
+      --text: #0b1726;
+      --text-dim: #5272a4;
+      --cream: #f4f1eb;
+      --navy: #132038;
+      --gold: #b5901f;
+      --gold-soft: rgba(181, 144, 31, 0.12);
+      --terra: #bf4e36;
+      --terra-soft: rgba(191, 78, 54, 0.11);
+      --blue: #345588;
+      --blue-soft: rgba(52, 85, 136, 0.11);
+      --green: #4f7f52;
+      --green-soft: rgba(79, 127, 82, 0.11);
+      --font-display: "Fraunces", Georgia, serif;
+      --font-body: "DM Sans", system-ui, sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: var(--font-body);
+      background:
+        radial-gradient(900px 500px at 8% 0%, var(--gold-soft), transparent 55%),
+        radial-gradient(900px 520px at 95% 18%, var(--terra-soft), transparent 52%),
+        linear-gradient(180deg, #fdfcf9 0%, #f4f1eb 100%);
+      overflow-wrap: break-word;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.45;
+      background-image:
+        linear-gradient(rgba(11, 23, 38, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(11, 23, 38, 0.03) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 85%);
+    }
+    a { color: inherit; text-decoration: none; }
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      color: var(--navy);
+      background: rgba(52, 85, 136, 0.08);
+      border: 1px solid rgba(52, 85, 136, 0.1);
+      border-radius: 5px;
+      padding: 1px 5px;
+    }
+    .wrap {
+      position: relative;
+      max-width: 1420px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      gap: 42px;
+      padding: 36px 34px 64px;
+    }
+    .toc {
+      position: sticky;
+      top: 22px;
+      align-self: start;
+      max-height: calc(100dvh - 44px);
+      overflow-y: auto;
+      padding: 10px 0;
+      z-index: 4;
+    }
+    .toc-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 8px;
+    }
+    .toc a {
+      display: block;
+      font-size: 12px;
+      line-height: 1.35;
+      color: var(--text-dim);
+      border-left: 2px solid transparent;
+      border-radius: 6px;
+      padding: 7px 9px;
+      margin-bottom: 2px;
+    }
+    .toc a:hover, .toc a.active {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.68);
+      border-left-color: var(--terra);
+    }
+    .main { min-width: 0; }
+    .hero {
+      background: color-mix(in srgb, var(--surface) 88%, var(--gold) 12%);
+      border: 1px solid color-mix(in srgb, var(--border) 50%, var(--gold) 50%);
+      border-radius: 8px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(11, 23, 38, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -90px;
+      top: -110px;
+      width: 280px;
+      height: 280px;
+      border: 1px solid rgba(181, 144, 31, 0.28);
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(181,144,31,0.18), transparent 68%);
+    }
+    .eyebrow, .label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--terra);
+    }
+    h1, h2, h3 {
+      font-family: var(--font-display);
+      font-variation-settings: "WONK" 1, "SOFT" 40;
+      line-height: 1.05;
+      letter-spacing: 0;
+      margin: 0;
+    }
+    h1 { font-size: clamp(42px, 7vw, 92px); max-width: 900px; margin-top: 12px; }
+    h2 { font-size: clamp(28px, 4vw, 46px); margin-bottom: 16px; }
+    h3 { font-size: 22px; margin-bottom: 8px; }
+    p { line-height: 1.68; margin: 0; }
+    .subtitle {
+      max-width: 840px;
+      color: var(--navy);
+      font-size: 18px;
+      margin-top: 18px;
+      position: relative;
+      z-index: 1;
+    }
+    .meta-row, .chips, .pipeline, .card-grid, .two-col, .three-col { display: grid; gap: 14px; }
+    .meta-row { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 26px; }
+    .metric, .card, .section, details {
+      background: rgba(255, 255, 255, 0.84);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .metric { padding: 16px; position: relative; z-index: 1; }
+    .metric strong { display: block; font-family: var(--font-display); font-size: 30px; line-height: 1; }
+    .metric span, .muted { color: var(--text-dim); font-size: 13px; line-height: 1.5; }
+    .section {
+      margin-top: 24px;
+      padding: 26px;
+      scroll-margin-top: 24px;
+      animation: fadeUp 0.42s ease both;
+      animation-delay: calc(var(--i, 0) * 0.04s);
+    }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .intro { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; align-items: start; }
+    .card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .three-col { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card { padding: 18px; min-width: 0; }
+    .card.accent { border-left: 4px solid var(--terra); }
+    .card.blue { border-left: 4px solid var(--blue); }
+    .card.gold { border-left: 4px solid var(--gold); }
+    .card.green { border-left: 4px solid var(--green); }
+    .card p, li { font-size: 14px; color: var(--navy); }
+    .chips { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .chip {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 10px 12px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--surface-soft);
+      color: var(--navy);
+    }
+    .pipeline {
+      grid-template-columns: repeat(6, minmax(128px, 1fr));
+      align-items: stretch;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .step {
+      position: relative;
+      min-width: 128px;
+      padding: 14px;
+      background: var(--surface-soft);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .step::after {
+      content: ">";
+      position: absolute;
+      right: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-weight: 600;
+    }
+    .step:last-child::after { display: none; }
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--terra);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    ul { list-style: none; padding: 0; margin: 10px 0 0; }
+    li { position: relative; padding-left: 16px; margin: 7px 0; }
+    li::before { content: "›"; position: absolute; left: 0; color: var(--terra); font-weight: 700; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; min-width: 780px; font-size: 13px; }
+    th {
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      background: var(--cream);
+      padding: 12px;
+      border-bottom: 1px solid var(--border-strong);
+    }
+    td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.55; }
+    tr:last-child td { border-bottom: 0; }
+    details { margin-top: 14px; overflow: hidden; }
+    summary {
+      cursor: pointer;
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--navy);
+      background: var(--surface-soft);
+    }
+    .details-body { padding: 18px; border-top: 1px solid var(--border); }
+    .schema { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .entity { background: var(--surface-soft); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+    .entity .name { font-family: var(--font-mono); font-weight: 700; color: var(--terra); margin-bottom: 6px; }
+    .note {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-left: 4px solid var(--gold);
+      background: rgba(181, 144, 31, 0.09);
+      border-radius: 0 8px 8px 0;
+      color: var(--navy);
+    }
+    @media (max-width: 1000px) {
+      .wrap { grid-template-columns: 1fr; padding: 0 18px 42px; gap: 0; }
+      .toc {
+        display: flex;
+        position: sticky;
+        top: 0;
+        margin: 0 -18px 20px;
+        padding: 10px 18px;
+        gap: 4px;
+        overflow-x: auto;
+        background: rgba(253, 252, 249, 0.94);
+        border-bottom: 1px solid var(--border);
+        backdrop-filter: blur(12px);
+      }
+      .toc-title { display: none; }
+      .toc a { flex: 0 0 auto; border-left: 0; border-bottom: 2px solid transparent; }
+      .toc a.active { border-bottom-color: var(--terra); }
+      .hero { margin-top: 18px; padding: 24px; }
+      .intro, .two-col, .three-col, .schema, .card-grid, .meta-row { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: repeat(6, 150px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav class="toc" id="toc">
+      <div class="toc-title">Sommaire</div>
+      <a href="#resume">Résumé</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#interfaces">Interfaces</a>
+      <a href="#flux">Flux métier</a>
+      <a href="#api">API Worker</a>
+      <a href="#donnees">Données</a>
+      <a href="#llm">Pipeline LLM</a>
+      <a href="#securite">Sécurité</a>
+      <a href="#ops">Exploitation</a>
+    </nav>
+
+    <main class="main">
+      <header class="hero">
+        <div class="eyebrow">Promptomatik - vue développeur</div>
+        <h1>Fonctionnement technique de la plateforme</h1>
+        <p class="subtitle">
+          Document de référence pour comprendre les interfaces, routes, endpoints, modèles de données et flux asynchrones de Promptomatik. Lecture du code local effectuée le 12 juin 2026.
+        </p>
+        <div class="meta-row">
+          <div class="metric"><strong>React 19</strong><span>SPA Vite avec React Router 7</span></div>
+          <div class="metric"><strong>Worker</strong><span>API Hono sur Cloudflare</span></div>
+          <div class="metric"><strong>D1 + KV</strong><span>SQLite edge + sessions 7 jours</span></div>
+          <div class="metric"><strong>FR EN ES</strong><span>i18n côté UI et LLM</span></div>
+        </div>
+      </header>
+
+      <section class="section" id="resume" style="--i:1">
+        <div class="label">01 - Résumé système</div>
+        <div class="intro">
+          <div>
+            <h2>Ce que fait la plateforme</h2>
+            <p>
+              Promptomatik aide des enseignants de langues à fabriquer des prompts pédagogiques structurés. L’utilisateur décrit un besoin, l’application lance une interview adaptative, assemble un prompt par blocs de techniques, puis permet de le sauvegarder, l’étudier, le modifier, le raffiner et le transformer en template.
+            </p>
+            <div class="note">
+              Le produit ne génère pas directement les supports de cours. Il génère le prompt final que l’enseignant colle ensuite dans ChatGPT, Claude, Gemini, AI Studio ou un autre LLM.
+            </div>
+          </div>
+          <div class="card accent">
+            <h3>Domaine central</h3>
+            <p>Un prompt est stocké comme une suite ordonnée de blocs.</p>
+            <div class="chips" style="margin-top:14px"><span class="chip">role</span><span class="chip">context</span><span class="chip">examples</span><span class="chip">constraints</span><span class="chip">steps</span><span class="chip">think_first</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="architecture" style="--i:2">
+        <div class="label">02 - Architecture</div>
+        <h2>Vue d’ensemble</h2>
+        <div class="pipeline">
+          <div class="step"><div class="step-num">Client</div><h3>SPA React</h3><p>Routes protégées, i18n, onboarding, UI des prompts.</p></div>
+          <div class="step"><div class="step-num">API</div><h3>Hono Worker</h3><p>Routes <code>/api/*</code>, auth, CRUD, admin, jobs.</p></div>
+          <div class="step"><div class="step-num">Session</div><h3>KV</h3><p>Cookie HttpOnly <code>promptomatik_session</code>.</p></div>
+          <div class="step"><div class="step-num">Data</div><h3>D1</h3><p>Users, prompts, templates, invitations, jobs.</p></div>
+          <div class="step"><div class="step-num">Async</div><h3>Queue</h3><p>Traitement des jobs LLM hors requête HTTP.</p></div>
+          <div class="step"><div class="step-num">IA</div><h3>OpenRouter</h3><p>JSON mode, fallback modèle, timeouts bornés.</p></div>
+        </div>
+        <div class="card-grid" style="margin-top:18px">
+          <div class="card blue"><h3>Frontend</h3><p><code>src/App.tsx</code> déclare les routes. <code>Shell</code> gère navigation, langue, logout et menu mobile.</p></div>
+          <div class="card gold"><h3>Backend</h3><p><code>worker/index.ts</code> monte les routeurs Hono et expose aussi le consumer queue.</p></div>
+          <div class="card green"><h3>Cloudflare</h3><p><code>wrangler.jsonc</code> configure assets SPA, D1, KV, queue, modèles OpenRouter et domaine.</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="interfaces" style="--i:3">
+        <div class="label">03 - Interfaces utilisateur</div>
+        <h2>Routes front disponibles</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Route</th><th>Interface</th><th>Fonctions clés</th></tr></thead>
+            <tbody>
+              <tr><td><code>/dashboard</code></td><td>Bibliothèque personnelle</td><td>Recherche, filtres tags, cartes prompt, duplication, suppression, nudge profil, lancement onboarding.</td></tr>
+              <tr><td><code>/new</code></td><td>Création guidée</td><td>Textarea initiale, analyse IA, questions cliquables, assemblage, aperçu des blocs, tips, sauvegarde.</td></tr>
+              <tr><td><code>/prompt/:id</code></td><td>Détail prompt</td><td>Modes User/Study/Edit, copie, tags éditables, nom éditable, auto-save blocs, duplication, suppression, raffinement, soumission template.</td></tr>
+              <tr><td><code>/templates</code></td><td>Bibliothèque templates</td><td>Filtre official/community, recherche, cartes, auteurs, badges techniques, bouton Use.</td></tr>
+              <tr><td><code>/templates/:id</code></td><td>Détail template</td><td>Lecture User/Study, copie, tips, clone dans la bibliothèque utilisateur.</td></tr>
+              <tr><td><code>/profile</code></td><td>Profil enseignant</td><td>Langues enseignées, niveaux CECRL, audience, durée, contexte, onboarding profil.</td></tr>
+              <tr><td><code>/admin</code></td><td>Administration</td><td>Invitations, users actifs/inactifs, publication templates, modération communautaire.</td></tr>
+              <tr><td><code>/login</code>, <code>/register</code>, <code>/forgot-password</code>, <code>/reset-password</code></td><td>Auth</td><td>Connexion, inscription par invitation, demande et usage du token reset.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="flux" style="--i:4">
+        <div class="label">04 - Flux métier</div>
+        <h2>Parcours principaux</h2>
+        <div class="two-col">
+          <div class="card accent"><h3>Création d’un prompt</h3><ul><li>Minimum 20 caractères côté UI.</li><li><code>analyze</code> extrait intention et champs manquants.</li><li><code>questions</code> produit 2 à 5 questions ciblées.</li><li><code>assemble</code> retourne soit un prompt, soit de nouvelles questions.</li><li>La sauvegarde crée une ligne <code>prompts</code>.</li></ul></div>
+          <div class="card blue"><h3>Vue et édition</h3><ul><li>User Mode concatène les contenus des blocs.</li><li>Study Mode ajoute badge technique et annotation.</li><li>Edit Mode permet contenu, ordre, ajout et suppression de blocs.</li><li>L’auto-save déclenche <code>PUT /api/prompts/:id</code> après 800 ms.</li></ul></div>
+          <div class="card gold"><h3>Raffinement</h3><ul><li>L’utilisateur choisit un problème et peut coller un extrait de sortie.</li><li>Le job <code>refine</code> relit les blocs actuels.</li><li>La revue montre added/modified/removed et les raisons.</li><li>Accept remplace blocs et tips du prompt.</li></ul></div>
+          <div class="card green"><h3>Templates</h3><ul><li>Les templates sont des prompts avec <code>is_template=1</code>.</li><li>Le public ne voit que <code>template_status='approved'</code>.</li><li>Use clone le template vers l’utilisateur et garde <code>template_id</code>.</li><li>Les enseignants peuvent soumettre en communauté.</li></ul></div>
+        </div>
+      </section>
+
+      <section class="section" id="api" style="--i:5">
+        <div class="label">05 - API Worker</div>
+        <h2>Endpoints exposés</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Groupe</th><th>Endpoints</th><th>Rôle</th></tr></thead>
+            <tbody>
+              <tr><td>Health</td><td><code>GET /api/health</code></td><td>Statut simple et timestamp.</td></tr>
+              <tr><td>Auth</td><td><code>POST /login</code>, <code>/register</code>, <code>/forgot-password</code>, <code>/reset-password</code>, <code>GET /me</code>, <code>PUT /language</code>, <code>POST /logout</code></td><td>Identité, session KV, langue utilisateur, reset mot de passe.</td></tr>
+              <tr><td>Interview</td><td><code>POST /api/interview/analyze</code>, <code>/questions</code>, <code>/assemble</code>, <code>/refine</code></td><td>Création de jobs asynchrones LLM.</td></tr>
+              <tr><td>Jobs</td><td><code>GET /api/jobs/:id</code></td><td>Polling des jobs appartenant à l’utilisateur courant.</td></tr>
+              <tr><td>Prompts</td><td><code>GET/POST /api/prompts</code>, <code>GET/PUT/DELETE /:id</code>, <code>POST /:id/duplicate</code>, <code>POST /:id/submit-template</code></td><td>CRUD personnel, duplication, soumission communautaire.</td></tr>
+              <tr><td>Templates</td><td><code>GET /api/templates</code>, <code>GET /:id</code>, <code>POST /:id/use</code></td><td>Lecture templates approuvés et clone utilisateur.</td></tr>
+              <tr><td>Profile</td><td><code>GET/PUT /api/profile</code></td><td>Lecture et merge du profil enseignant JSON.</td></tr>
+              <tr><td>Admin</td><td><code>/api/admin/invitations</code>, <code>/users</code>, <code>/templates</code>, <code>/templates/submissions</code></td><td>Rôle admin requis: invitations, activation users, publication et modération.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="donnees" style="--i:6">
+        <div class="label">06 - Modèle de données</div>
+        <h2>D1, JSON et relations</h2>
+        <div class="schema">
+          <div class="entity"><div class="name">users</div><p>Email unique, hash mot de passe, rôle, langue préférée, profil JSON, <code>is_active</code>.</p></div>
+          <div class="entity"><div class="name">prompts</div><p>Nom, langue, tags JSON, blocs JSON, tips JSON, source_type, statut template, lien template original.</p></div>
+          <div class="entity"><div class="name">interview_jobs</div><p>Kind <code>analyze/questions/assemble/refine</code>, status, payload request/result, erreurs, timestamps.</p></div>
+          <div class="entity"><div class="name">invitations</div><p>Email invité, token unique, admin invitant, statut pending/accepted/expired, expiration 7 jours.</p></div>
+          <div class="entity"><div class="name">password_resets</div><p>Token reset unique, user_id, expiration 1 heure, <code>used_at</code> pour usage unique.</p></div>
+          <div class="entity"><div class="name">refinements</div><p>Table prévue pour tracer issue_type, description, sample_output et revised_prompt_id.</p></div>
+        </div>
+        <div class="note">Les anciennes colonnes <code>model_recommendation</code> existent encore dans le schéma initial, mais la migration actuelle remplace l’usage produit par <code>tips</code>.</div>
+      </section>
+
+      <section class="section" id="llm" style="--i:7">
+        <div class="label">07 - Pipeline LLM</div>
+        <h2>Interview asynchrone</h2>
+        <div class="pipeline">
+          <div class="step"><div class="step-num">01</div><h3>Analyse</h3><p>Extraction niveau, sujet, activité, audience, durée, source_type, missing_fields.</p></div>
+          <div class="step"><div class="step-num">02</div><h3>Questions</h3><p>Options cliquables, multi-select, other, recommandé, normalisation de schéma.</p></div>
+          <div class="step"><div class="step-num">03</div><h3>Assemblage</h3><p>Retour <code>kind='prompt'</code> ou <code>kind='ask_user'</code>.</p></div>
+          <div class="step"><div class="step-num">04</div><h3>Raffinement</h3><p>Révision ciblée des blocs existants selon le problème signalé.</p></div>
+          <div class="step"><div class="step-num">05</div><h3>Polling</h3><p>Le front attend completion via <code>waitForInterviewJobResult</code>.</p></div>
+          <div class="step"><div class="step-num">06</div><h3>Persist</h3><p>Le résultat accepté met à jour <code>prompts.blocks</code> et <code>tips</code>.</p></div>
+        </div>
+        <div class="three-col" style="margin-top:18px">
+          <div class="card blue"><h3>Modèles</h3><p>Par défaut <code>anthropic/claude-sonnet-4.6</code>, fallback <code>moonshotai/kimi-k2.5</code>, configurables via Wrangler.</p></div>
+          <div class="card gold"><h3>Robustesse</h3><p>Timeouts par étape, retries modèle, fallback, parsing JSON avec retrait des fences et extraction d’objet.</p></div>
+          <div class="card green"><h3>Langue</h3><p>Language lock strict FR/EN/ES, contexte profil injecté uniquement si <code>setup_completed</code>.</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="securite" style="--i:8">
+        <div class="label">08 - Sécurité et permissions</div>
+        <h2>Contrôles en place</h2>
+        <div class="card-grid">
+          <div class="card accent"><h3>Sessions</h3><p>KV avec TTL 7 jours, cookie <code>HttpOnly</code>, <code>Secure</code>, <code>SameSite=Strict</code>.</p></div>
+          <div class="card blue"><h3>Ownership</h3><p>Les routes prompts et jobs filtrent par <code>user_id</code>; les templates publics passent par le statut approuvé.</p></div>
+          <div class="card gold"><h3>Admin</h3><p><code>requireAdmin</code> protège toutes les routes <code>/api/admin/*</code> et l’UI redirige les non-admins.</p></div>
+          <div class="card green"><h3>Comptes</h3><p>Un utilisateur désactivé ne peut plus se connecter; l’admin ne peut pas se désactiver lui-même.</p></div>
+          <div class="card accent"><h3>Secrets</h3><p><code>OPENROUTER_API_KEY</code>, <code>RESEND_API_KEY</code> et <code>APP_SECRET</code> restent des secrets Worker.</p></div>
+          <div class="card blue"><h3>Reset</h3><p>Les tokens expirent en 1 heure, sont consommés avec verrouillage SQL, et les anciens tokens sont invalidés.</p></div>
+        </div>
+      </section>
+
+      <section class="section" id="ops" style="--i:9">
+        <div class="label">09 - Dev, déploiement, fichiers</div>
+        <h2>Repères d’exploitation</h2>
+        <div class="two-col">
+          <div class="card gold"><h3>Scripts npm</h3><ul><li><code>npm run dev</code> lance Vite avec plugin Cloudflare.</li><li><code>npm run build</code> exécute <code>tsc -b</code> puis <code>vite build</code>.</li><li><code>npm run db:migrate</code> applique les migrations D1 locales.</li><li><code>npm run deploy</code> build puis <code>wrangler deploy</code>.</li></ul></div>
+          <div class="card green"><h3>Configuration Worker</h3><ul><li>Assets SPA avec <code>not_found_handling=single-page-application</code>.</li><li><code>run_worker_first</code> sur <code>/api/*</code>.</li><li>Queue consumer: batch 1, max retries 3, retry delay 5.</li><li>Compatibility date: <code>2026-02-10</code>.</li></ul></div>
+        </div>
+        <details>
+          <summary>Carte des fichiers principaux</summary>
+          <div class="details-body">
+            <p><code>src/App.tsx</code>: routes et protection. <code>src/lib/api.ts</code>: client API, timeouts, polling jobs. <code>src/lib/hooks/use-interview.ts</code>: machine d’état de l’interview. <code>worker/index.ts</code>: Hono et queue. <code>worker/lib/interview-jobs.ts</code>: jobs LLM. <code>worker/lib/llm/prompts.ts</code>: system prompts. <code>migrations/*.sql</code>: schéma D1. <code>src/styles/tokens.css</code>: design tokens.</p>
+          </div>
+        </details>
+        <div class="note">Aucun script <code>lint</code> ou <code>test</code> explicite n’est déclaré dans <code>package.json</code> au moment de cette lecture; le gate vérifiable localement est donc principalement <code>npm run build</code>.</div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const toc = document.getElementById("toc");
+      const links = Array.from(toc.querySelectorAll("a"));
+      const sections = links.map((link) => ({ link, el: document.getElementById(link.getAttribute("href").slice(1)) })).filter((item) => item.el);
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          links.forEach((link) => link.classList.remove("active"));
+          const match = sections.find((item) => item.el === entry.target);
+          if (match) match.link.classList.add("active");
+        });
+      }, { rootMargin: "-12% 0px -78% 0px" });
+      sections.forEach((item) => observer.observe(item.el));
+    })();
+  </script>
+</body>
+</html>

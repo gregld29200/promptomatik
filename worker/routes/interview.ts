@@ -1,22 +1,23 @@
 import { Hono } from "hono";
 import type { Env } from "../env";
-import { requireAuth } from "../lib/auth-middleware";
+import { requireAuth, requireParticipant } from "../lib/auth-middleware";
 import type { SessionData } from "../lib/session";
-import { chatCompletion } from "../lib/openrouter";
 import {
-  intentAnalysisPrompt,
-  interviewQuestionsPrompt,
-  promptAssemblyPrompt,
-  promptRefinementPrompt,
-} from "../lib/llm/prompts";
+  createInterviewJob,
+  enqueueInterviewJob,
+  failInterviewJob,
+} from "../lib/interview-jobs";
+import { normalizeLanguage } from "../lib/language";
+import { getUserTier, type Tier } from "../lib/tier";
+import {
+  DAILY_INTERVIEW_LIMIT,
+  getInterviewQuotaUsed,
+  incrementInterviewQuota,
+  nextUtcMidnightIso,
+} from "../lib/quota";
 import type {
   IntentAnalysis,
-  InterviewQuestion,
-  AssembledPrompt,
-  AssembleResult,
-  RefinedPrompt,
 } from "../lib/llm/types";
-import type { TeacherProfile } from "./profile";
 
 type InterviewEnv = { Bindings: Env; Variables: { session: SessionData } };
 
@@ -24,69 +25,11 @@ const interview = new Hono<InterviewEnv>();
 
 interview.use("/*", requireAuth);
 
-function normalizeModelName(name?: string): string | undefined {
-  const trimmed = name?.trim();
-  return trimmed && trimmed.length > 0 ? trimmed : undefined;
-}
-
-function llmModels(env: Env): { primaryModel?: string; fallbackModel?: string } {
-  return {
-    // Allows model tuning via Wrangler vars / .dev.vars without code changes.
-    primaryModel: normalizeModelName(env.OPENROUTER_MODEL),
-    fallbackModel: normalizeModelName(env.OPENROUTER_FALLBACK_MODEL),
-  };
-}
-
-function normalizeQuestion(q: InterviewQuestion): InterviewQuestion {
-  const anyQ = q as unknown as {
-    options?: unknown;
-    allow_other?: unknown;
-    other_placeholder?: unknown;
-    multi_select?: unknown;
-    allow_freetext?: unknown;
-  };
-
-  const options = Array.isArray(anyQ.options) ? anyQ.options : [];
-  const normalizedOptions = options
-    .map((opt) => {
-      if (typeof opt === "string") {
-        return { label: opt, value: opt };
-      }
-      if (opt && typeof opt === "object") {
-        const o = opt as { label?: unknown; value?: unknown; recommended?: unknown };
-        const label = typeof o.label === "string" ? o.label : typeof o.value === "string" ? o.value : "";
-        const value = typeof o.value === "string" ? o.value : typeof o.label === "string" ? o.label : "";
-        const recommended = typeof o.recommended === "boolean" ? o.recommended : undefined;
-        return { label, value, ...(recommended !== undefined ? { recommended } : {}) };
-      }
-      return { label: "", value: "" };
-    })
-    .filter((o) => o.label && o.value);
-
-  return {
-    ...q,
-    options: normalizedOptions,
-    multi_select: typeof anyQ.multi_select === "boolean" ? anyQ.multi_select : q.multi_select,
-    allow_other: typeof anyQ.allow_other === "boolean"
-      ? anyQ.allow_other
-      : typeof anyQ.allow_freetext === "boolean"
-        ? (anyQ.allow_freetext as boolean)
-        : q.allow_other,
-    other_placeholder: typeof anyQ.other_placeholder === "string" ? anyQ.other_placeholder : q.other_placeholder,
-  };
-}
-
-function normalizeQuestions(questions: InterviewQuestion[]): InterviewQuestion[] {
-  return Array.isArray(questions) ? questions.map(normalizeQuestion) : [];
-}
-
-async function fetchProfile(db: D1Database, userId: string): Promise<TeacherProfile | undefined> {
-  const row = await db.prepare("SELECT profile FROM users WHERE id = ?")
-    .bind(userId)
-    .first<{ profile: string }>();
-  if (!row) return undefined;
-  const parsed = JSON.parse(row.profile) as TeacherProfile;
-  return parsed.setup_completed ? parsed : undefined;
+// Resolved at enqueue time and stored in the job payload — the queue
+// consumer must not re-query tier at consume time.
+async function resolveTier(db: D1Database, session: SessionData): Promise<Tier> {
+  if (session.role === "admin") return "participant";
+  return getUserTier(db, session.userId);
 }
 
 // POST /api/interview/analyze — Parse free text into structured intent
@@ -100,24 +43,42 @@ interview.post("/analyze", async (c) => {
     return c.json({ error: "Please describe what you need in a bit more detail." }, 400);
   }
 
-  const lang = language === "en" ? "en" : "fr";
+  const lang = normalizeLanguage(language);
   const session = c.get("session");
-  const profile = await fetchProfile(c.env.DB, session.userId);
-  const models = llmModels(c.env);
+  const tier = await resolveTier(c.env.DB, session);
 
-  const result = await chatCompletion<IntentAnalysis>(c.env.OPENROUTER_API_KEY, {
-    messages: [
-      { role: "system", content: intentAnalysisPrompt(lang, profile) },
-      { role: "user", content: text.trim() },
-    ],
-    temperature: 0.3,
-  }, models);
-
-  if (result.error) {
-    return c.json({ error: result.error }, 502);
+  // Quota is enforced here only — questions/assemble belong to an interview
+  // already admitted; blocking later would waste the LLM calls already paid for.
+  if (tier !== "participant") {
+    const used = await getInterviewQuotaUsed(c.env, session.userId);
+    if (used >= DAILY_INTERVIEW_LIMIT) {
+      return c.json(
+        {
+          error: "daily_quota",
+          limit: DAILY_INTERVIEW_LIMIT,
+          resets_at: nextUtcMidnightIso(),
+        },
+        429
+      );
+    }
+    await incrementInterviewQuota(c.env, session.userId);
   }
 
-  return c.json({ intent: result.data });
+  const job = await createInterviewJob(c.env.DB, session.userId, "analyze", {
+    text: text.trim(),
+    language: lang,
+    tier,
+  });
+
+  try {
+    await enqueueInterviewJob(c.env, job.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to queue intent analysis.";
+    await failInterviewJob(c.env.DB, job.id, message);
+    return c.json({ error: message }, 502);
+  }
+
+  return c.json({ job }, 202);
 });
 
 // POST /api/interview/questions — Generate adaptive follow-up questions
@@ -136,35 +97,24 @@ interview.post("/questions", async (c) => {
     return c.json({ questions: [] });
   }
 
-  const lang = language === "en" ? "en" : "fr";
+  const lang = normalizeLanguage(language);
   const session = c.get("session");
-  const profile = await fetchProfile(c.env.DB, session.userId);
-  const models = llmModels(c.env);
+  const tier = await resolveTier(c.env.DB, session);
+  const job = await createInterviewJob(c.env.DB, session.userId, "questions", {
+    intent,
+    language: lang,
+    tier,
+  });
 
-  const userMessage = `Here is the intent analysis:
-${JSON.stringify(intent, null, 2)}
-
-Missing fields to ask about: ${intent.missing_fields.join(", ")}
-
-Generate questions ONLY for the missing fields listed above.`;
-
-  const result = await chatCompletion<{ questions: InterviewQuestion[] }>(
-    c.env.OPENROUTER_API_KEY,
-    {
-      messages: [
-        { role: "system", content: interviewQuestionsPrompt(lang, profile) },
-        { role: "user", content: userMessage },
-      ],
-      temperature: 0.6,
-    },
-    models
-  );
-
-  if (result.error) {
-    return c.json({ error: result.error }, 502);
+  try {
+    await enqueueInterviewJob(c.env, job.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to queue question generation.";
+    await failInterviewJob(c.env.DB, job.id, message);
+    return c.json({ error: message }, 502);
   }
 
-  return c.json({ questions: normalizeQuestions(result.data!.questions) });
+  return c.json({ job }, 202);
 });
 
 // POST /api/interview/assemble — Generate the final structured prompt
@@ -180,48 +130,30 @@ interview.post("/assemble", async (c) => {
     return c.json({ error: "Intent and original text are required." }, 400);
   }
 
-  const lang = language === "en" ? "en" : "fr";
+  const lang = normalizeLanguage(language);
   const session = c.get("session");
-  const profile = await fetchProfile(c.env.DB, session.userId);
-  const models = llmModels(c.env);
+  const tier = await resolveTier(c.env.DB, session);
+  const job = await createInterviewJob(c.env.DB, session.userId, "assemble", {
+    intent,
+    answers: answers ?? {},
+    original_text,
+    language: lang,
+    tier,
+  });
 
-  const userMessage = `Original teacher request:
-"${original_text}"
-
-Intent analysis:
-${JSON.stringify(intent, null, 2)}
-
-Teacher's answers to follow-up questions:
-${JSON.stringify(answers ?? {}, null, 2)}
-
-Assemble a complete, ready-to-use teaching prompt using the appropriate techniques.`;
-
-  const result = await chatCompletion<AssembleResult>(c.env.OPENROUTER_API_KEY, {
-    messages: [
-      { role: "system", content: promptAssemblyPrompt(lang, profile) },
-      { role: "user", content: userMessage },
-    ],
-    temperature: 0.5,
-    max_tokens: 3072,
-  }, models);
-
-  if (result.error) {
-    return c.json({ error: result.error }, 502);
+  try {
+    await enqueueInterviewJob(c.env, job.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to queue prompt generation.";
+    await failInterviewJob(c.env.DB, job.id, message);
+    return c.json({ error: message }, 502);
   }
 
-  const data = result.data;
-  if (!data) return c.json({ error: "Empty response from AI." }, 502);
-  if (data.kind === "ask_user") {
-    return c.json({ ...data, questions: normalizeQuestions(data.questions) });
-  }
-  if (data.kind === "prompt") {
-    return c.json(data);
-  }
-  return c.json({ kind: "prompt", prompt: data as unknown as AssembledPrompt });
+  return c.json({ job }, 202);
 });
 
 // POST /api/interview/refine — Refine an existing prompt based on teacher feedback
-interview.post("/refine", async (c) => {
+interview.post("/refine", requireParticipant, async (c) => {
   const { promptId, issueType, issueDescription, outputSample, language } =
     await c.req.json<{
       promptId: string;
@@ -236,46 +168,38 @@ interview.post("/refine", async (c) => {
   }
 
   const session = c.get("session");
-  const lang = language === "en" ? "en" : "fr";
+  const lang = normalizeLanguage(language);
 
-  // Fetch prompt (verify ownership)
-  const row = await c.env.DB.prepare(
-    "SELECT blocks FROM prompts WHERE id = ? AND user_id = ?"
+  const existingPrompt = await c.env.DB.prepare(
+    "SELECT id FROM prompts WHERE id = ? AND user_id = ?"
   )
     .bind(promptId, session.userId)
-    .first<{ blocks: string }>();
+    .first<{ id: string }>();
 
-  if (!row) {
+  if (!existingPrompt) {
     return c.json({ error: "Prompt not found." }, 404);
   }
 
-  const currentBlocks = JSON.parse(row.blocks);
-  const profile = await fetchProfile(c.env.DB, session.userId);
-  const models = llmModels(c.env);
+  // refine is participant-gated, but resolve anyway so the payload stays uniform
+  const tier = await resolveTier(c.env.DB, session);
+  const job = await createInterviewJob(c.env.DB, session.userId, "refine", {
+    promptId,
+    issueType,
+    issueDescription: issueDescription || undefined,
+    outputSample: outputSample || undefined,
+    language: lang,
+    tier,
+  });
 
-  const userMessage = `Current prompt blocks:
-${JSON.stringify(currentBlocks, null, 2)}
-
-Issue type: ${issueType}
-${issueDescription ? `Issue description: ${issueDescription}` : ""}
-${outputSample ? `AI output sample:\n${outputSample}` : ""}
-
-Revise the prompt to fix this issue. Only change what needs changing.`;
-
-  const result = await chatCompletion<RefinedPrompt>(c.env.OPENROUTER_API_KEY, {
-    messages: [
-      { role: "system", content: promptRefinementPrompt(lang, profile) },
-      { role: "user", content: userMessage },
-    ],
-    temperature: 0.4,
-    max_tokens: 3072,
-  }, models);
-
-  if (result.error) {
-    return c.json({ error: result.error }, 502);
+  try {
+    await enqueueInterviewJob(c.env, job.id);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to queue prompt refinement.";
+    await failInterviewJob(c.env.DB, job.id, message);
+    return c.json({ error: message }, 502);
   }
 
-  return c.json({ refined: result.data });
+  return c.json({ job }, 202);
 });
 
 export { interview };

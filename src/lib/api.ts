@@ -3,6 +3,8 @@
  * Returns { data, error } instead of throwing — keeps error handling explicit.
  */
 
+import type { Language } from "@/lib/i18n";
+
 export interface ApiError {
   error: string;
   status: number;
@@ -11,15 +13,53 @@ export interface ApiError {
 
 type ApiResult<T> = { data: T; error: null } | { data: null; error: ApiError };
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  config: { timeoutMs?: number } = {}
 ): Promise<ApiResult<T>> {
-  const res = await fetch(path, {
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...options.headers },
-    ...options,
-  });
+  const controller = new AbortController();
+  const timeoutMs = config.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...options.headers },
+      ...options,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    clearTimeout(timer);
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return {
+        data: null,
+        error: {
+          error: "Request timed out. Please try again.",
+          status: 408,
+          code: "request_timeout",
+        },
+      };
+    }
+
+    return {
+      data: null,
+      error: {
+        error: "Network error. Please try again.",
+        status: 0,
+        code: "network_error",
+      },
+    };
+  }
+
+  clearTimeout(timer);
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: "Request failed" }));
@@ -36,11 +76,20 @@ async function request<T>(
 
 // ---- Auth types ----
 
+export type Tier = "free" | "participant";
+
 export interface User {
   id: string;
   email: string;
   name: string;
   role: "teacher" | "admin";
+  languagePreference: Language;
+  tier: Tier;
+}
+
+export interface Quota {
+  used: number;
+  limit: number;
 }
 
 interface LoginResponse {
@@ -49,6 +98,7 @@ interface LoginResponse {
 
 interface MeResponse {
   user: User;
+  quota: Quota | null;
 }
 
 // ---- Auth endpoints ----
@@ -68,6 +118,20 @@ export function logout() {
 
 export function me() {
   return request<MeResponse>("/api/auth/me");
+}
+
+export function updateLanguagePreference(language: Language) {
+  return request<{ user: User }>("/api/auth/language", {
+    method: "PUT",
+    body: JSON.stringify({ language }),
+  });
+}
+
+export function signup(email: string, language: Language) {
+  return request<{ ok: boolean }>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({ email, language }),
+  });
 }
 
 export function forgotPassword(email: string) {
@@ -164,11 +228,26 @@ export type AssembleResult =
   | { kind: "prompt"; prompt: AssembledPrompt }
   | { kind: "ask_user"; questions: InterviewQuestion[] };
 
+export type InterviewJobKind = "analyze" | "questions" | "assemble" | "refine";
+export type InterviewJobStatus = "queued" | "processing" | "completed" | "failed";
+
+export interface InterviewJob<T = unknown> {
+  id: string;
+  kind: InterviewJobKind;
+  status: InterviewJobStatus;
+  result: T | null;
+  error: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Prompt {
   id: string;
   user_id: string;
   name: string;
-  language: string;
+  language: Language;
   tags: string[];
   blocks: PromptBlock[];
   tips: string[];
@@ -183,15 +262,15 @@ export interface Prompt {
 
 // ---- Interview endpoints ----
 
-export function analyzeIntent(text: string, language: string) {
-  return request<{ intent: IntentAnalysis }>("/api/interview/analyze", {
+export function analyzeIntent(text: string, language: Language) {
+  return request<{ job: InterviewJob }>("/api/interview/analyze", {
     method: "POST",
     body: JSON.stringify({ text, language }),
   });
 }
 
-export function getQuestions(intent: IntentAnalysis, language: string) {
-  return request<{ questions: InterviewQuestion[] }>("/api/interview/questions", {
+export function getQuestions(intent: IntentAnalysis, language: Language) {
+  return request<{ job: InterviewJob }>("/api/interview/questions", {
     method: "POST",
     body: JSON.stringify({ intent, language }),
   });
@@ -201,9 +280,9 @@ export function assemblePrompt(
   intent: IntentAnalysis,
   answers: Record<string, string>,
   originalText: string,
-  language: string
+  language: Language
 ) {
-  return request<AssembleResult>("/api/interview/assemble", {
+  return request<{ job: InterviewJob }>("/api/interview/assemble", {
     method: "POST",
     body: JSON.stringify({
       intent,
@@ -235,9 +314,9 @@ export function refinePrompt(
   issueType: string,
   issueDescription: string | null,
   outputSample: string | null,
-  language: string
+  language: Language
 ) {
-  return request<{ refined: RefinedPrompt }>("/api/interview/refine", {
+  return request<{ job: InterviewJob }>("/api/interview/refine", {
     method: "POST",
     body: JSON.stringify({
       promptId,
@@ -249,11 +328,62 @@ export function refinePrompt(
   });
 }
 
+export function getInterviewJob<T>(jobId: string) {
+  return request<{ job: InterviewJob<T> }>(`/api/jobs/${jobId}`, {}, { timeoutMs: 10_000 });
+}
+
+export async function waitForInterviewJobResult<T>(
+  jobId: string,
+  options: { timeoutMs?: number; pollIntervalMs?: number } = {}
+): Promise<ApiResult<InterviewJob<T>>> {
+  const timeoutMs = options.timeoutMs ?? 380_000;
+  const pollIntervalMs = options.pollIntervalMs ?? 1_500;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const res = await getInterviewJob<T>(jobId);
+    if (res.error) {
+      if (res.error.code === "request_timeout" || res.error.code === "network_error") {
+        await sleep(pollIntervalMs);
+        continue;
+      }
+      return res;
+    }
+
+    const job = res.data.job;
+    if (job.status === "completed") {
+      return { data: job, error: null };
+    }
+
+    if (job.status === "failed") {
+      return {
+        data: null,
+        error: {
+          error: job.error ?? "Background processing failed.",
+          status: 502,
+          code: "job_failed",
+        },
+      };
+    }
+
+    await sleep(pollIntervalMs);
+  }
+
+  return {
+    data: null,
+    error: {
+      error: "This request is taking too long. Please try again.",
+      status: 408,
+      code: "job_timeout",
+    },
+  };
+}
+
 // ---- Prompt CRUD endpoints ----
 
 export function createPrompt(data: {
   name: string;
-  language?: string;
+  language?: Language;
   tags?: string[];
   blocks: PromptBlock[];
   tips?: string[];
@@ -400,6 +530,8 @@ export interface Invitation {
   email: string;
   token: string;
   status: string;
+  tier: Tier;
+  kind: "admin" | "self";
   expires_at: string;
   created_at: string;
 }
@@ -409,17 +541,25 @@ export interface AdminUser {
   email: string;
   name: string;
   role: string;
+  tier: Tier;
   is_active: number;
   created_at: string;
 }
 
 // ---- Admin endpoints ----
 
-export function sendInvitation(email: string) {
+export function sendInvitation(email: string, tier: Tier = "participant") {
   return request<{ invitation: Invitation; email_sent: boolean }>(
     "/api/admin/invitations",
-    { method: "POST", body: JSON.stringify({ email }) }
+    { method: "POST", body: JSON.stringify({ email, tier }) }
   );
+}
+
+export function setUserTier(id: string, tier: Tier) {
+  return request<{ success: boolean }>(`/api/admin/users/${id}/tier`, {
+    method: "POST",
+    body: JSON.stringify({ tier }),
+  });
 }
 
 export function getInvitations() {

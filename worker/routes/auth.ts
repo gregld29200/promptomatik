@@ -1,16 +1,40 @@
 import { Hono } from "hono";
 import type { Env } from "../env";
 import { hashPassword, verifyPassword } from "../lib/password";
-import { sendPasswordResetEmail } from "../lib/email";
+import { sendPasswordResetEmail, sendSignupConfirmationEmail } from "../lib/email";
 import {
   createSession,
   destroySession,
   sessionCookie,
   clearSessionCookie,
+  updateSession,
 } from "../lib/session";
 import { requireAuth } from "../lib/auth-middleware";
+import { DEFAULT_LANGUAGE, isLanguage, normalizeLanguage, type Language } from "../lib/language";
+import { normalizeTier, type Tier } from "../lib/tier";
+import { DAILY_INTERVIEW_LIMIT, getInterviewQuotaUsed } from "../lib/quota";
 
 const auth = new Hono<{ Bindings: Env }>();
+
+interface UserRow {
+  id: string;
+  email: string;
+  name: string;
+  role: "teacher" | "admin";
+  language_preference: Language;
+  tier: Tier;
+}
+
+function userResponse(user: UserRow) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    languagePreference: normalizeLanguage(user.language_preference),
+    tier: normalizeTier(user.tier),
+  };
+}
 
 auth.post("/login", async (c) => {
   const { email, password } = await c.req.json<{
@@ -23,7 +47,7 @@ auth.post("/login", async (c) => {
   }
 
   const user = await c.env.DB.prepare(
-    "SELECT id, email, name, password_hash, role, language_preference, is_active FROM users WHERE email = ?"
+    "SELECT id, email, name, password_hash, role, language_preference, tier, is_active FROM users WHERE email = ?"
   )
     .bind(email.toLowerCase().trim())
     .first<{
@@ -32,7 +56,8 @@ auth.post("/login", async (c) => {
       name: string;
       password_hash: string;
       role: "teacher" | "admin";
-      language_preference: "fr" | "en";
+      language_preference: Language;
+      tier: Tier;
       is_active: number;
     }>();
 
@@ -44,19 +69,105 @@ auth.post("/login", async (c) => {
     return c.json({ error: "Account deactivated" }, 403);
   }
 
+  const languagePreference = normalizeLanguage(user.language_preference);
   const sessionId = await createSession(c.env, {
     userId: user.id,
     email: user.email,
     role: user.role,
-    languagePreference: user.language_preference,
+    languagePreference,
     createdAt: Date.now(),
   });
 
   return c.json(
-    { user: { id: user.id, email: user.email, name: user.name, role: user.role } },
+    {
+      user: userResponse({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        language_preference: languagePreference,
+        tier: user.tier,
+      }),
+    },
     200,
     { "Set-Cookie": sessionCookie(sessionId) }
   );
+});
+
+const SIGNUP_RATE_LIMIT = 5; // attempts per hour per IP
+const SIGNUP_RATE_TTL_SECONDS = 3600;
+const SIGNUP_INVITE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Public self-serve signup: creates a free-tier invitation and emails the
+// confirmation link. Always answers { ok: true } once past validation and
+// rate limiting — no account enumeration.
+auth.post("/signup", async (c) => {
+  const body = await c.req.json<{ email?: string; language?: string }>().catch(() => ({} as { email?: string; language?: string }));
+  const normalizedEmail = (body.email ?? "").toLowerCase().trim();
+  const lang = normalizeLanguage(body.language);
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return c.json({ error: "invalid_email" }, 400);
+  }
+
+  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+  const rateKey = `ratelimit:signup:${ip}`;
+  const attempts = Number.parseInt((await c.env.SESSIONS.get(rateKey)) ?? "0", 10) || 0;
+  if (attempts >= SIGNUP_RATE_LIMIT) {
+    return c.json({ error: "rate_limited" }, 429);
+  }
+  await c.env.SESSIONS.put(rateKey, String(attempts + 1), {
+    expirationTtl: SIGNUP_RATE_TTL_SECONDS,
+  });
+
+  const existingUser = await c.env.DB.prepare("SELECT id FROM users WHERE email = ?")
+    .bind(normalizedEmail)
+    .first<{ id: string }>();
+  if (existingUser) {
+    return c.json({ ok: true });
+  }
+
+  const appBaseUrl = c.env.APP_URL ?? new URL(c.req.url).origin;
+  const expiresAt = new Date(Date.now() + SIGNUP_INVITE_EXPIRY_MS).toISOString();
+
+  const pending = await c.env.DB.prepare(
+    "SELECT id FROM invitations WHERE email = ? AND kind = 'self' AND status = 'pending'"
+  )
+    .bind(normalizedEmail)
+    .first<{ id: string }>();
+
+  // Re-request (including after expiry): rotate the token and extend the
+  // expiry on the existing row, then resend.
+  const token = crypto.randomUUID();
+  if (pending) {
+    await c.env.DB.prepare(
+      "UPDATE invitations SET token = ?, expires_at = ?, language = ? WHERE id = ?"
+    )
+      .bind(token, expiresAt, lang, pending.id)
+      .run();
+  } else {
+    await c.env.DB.prepare(
+      `INSERT INTO invitations (id, email, token, invited_by, status, tier, kind, language, expires_at, created_at)
+       VALUES (?, ?, ?, NULL, 'pending', 'free', 'self', ?, ?, ?)`
+    )
+      .bind(crypto.randomUUID(), normalizedEmail, token, lang, expiresAt, new Date().toISOString())
+      .run();
+  }
+
+  const emailResult = await sendSignupConfirmationEmail(c.env.RESEND_API_KEY, {
+    to: normalizedEmail,
+    token,
+    lang,
+    appBaseUrl,
+  });
+  if (!emailResult.success) {
+    console.error("signup confirmation email failed", {
+      email: normalizedEmail,
+      error: emailResult.error ?? "unknown",
+    });
+  }
+
+  return c.json({ ok: true });
 });
 
 auth.post("/register", async (c) => {
@@ -75,7 +186,10 @@ auth.post("/register", async (c) => {
   }
 
   const invitation = await c.env.DB.prepare(
-    "SELECT id, email, status, expires_at FROM invitations WHERE token = ?"
+    `SELECT i.id, i.email, i.status, i.expires_at, i.tier, i.kind, i.language, u.language_preference AS inviter_language_preference
+     FROM invitations i
+     LEFT JOIN users u ON u.id = i.invited_by
+     WHERE i.token = ?`
   )
     .bind(token)
     .first<{
@@ -83,6 +197,10 @@ auth.post("/register", async (c) => {
       email: string;
       status: string;
       expires_at: string;
+      tier: string;
+      kind: string;
+      language: string;
+      inviter_language_preference: Language | null;
     }>();
 
   if (!invitation) {
@@ -94,31 +212,74 @@ auth.post("/register", async (c) => {
   }
 
   if (new Date(invitation.expires_at) < new Date()) {
-    return c.json({ error: "Invitation expired" }, 400);
+    // The _SELF variant lets the front offer "request a new link" → /signup
+    return c.json(
+      {
+        error: "Invitation expired",
+        code: invitation.kind === "self" ? "INVITE_EXPIRED_SELF" : "INVITE_EXPIRED",
+      },
+      400
+    );
   }
 
   const userId = crypto.randomUUID();
   const passwordHash = await hashPassword(password);
+  // Self signups carry the language chosen on the form; admin invitations
+  // inherit the inviter's preference (existing behavior).
+  const languagePreference = invitation.kind === "self"
+    ? normalizeLanguage(invitation.language)
+    : normalizeLanguage(invitation.inviter_language_preference ?? DEFAULT_LANGUAGE);
+  const tier = normalizeTier(invitation.tier);
 
   await c.env.DB.batch([
     c.env.DB.prepare(
-      "INSERT INTO users (id, email, name, password_hash, role, language_preference) VALUES (?, ?, ?, ?, 'teacher', 'fr')"
-    ).bind(userId, invitation.email.toLowerCase().trim(), name.trim(), passwordHash),
+      "INSERT INTO users (id, email, name, password_hash, role, language_preference, tier) VALUES (?, ?, ?, ?, 'teacher', ?, ?)"
+    ).bind(userId, invitation.email.toLowerCase().trim(), name.trim(), passwordHash, languagePreference, tier),
     c.env.DB.prepare(
       "UPDATE invitations SET status = 'accepted' WHERE id = ?"
     ).bind(invitation.id),
   ]);
 
+  // Marketing webhook — fire-and-forget, must never block activation.
+  if (invitation.kind === "self" && c.env.MARKETING_WEBHOOK_URL) {
+    const webhookUrl = c.env.MARKETING_WEBHOOK_URL;
+    c.executionCtx.waitUntil(
+      fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: invitation.email.toLowerCase().trim(),
+          language: languagePreference,
+          source: "promptomatik_free",
+          created_at: new Date().toISOString(),
+        }),
+      }).catch((err) => {
+        console.error("marketing webhook failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      })
+    );
+  }
+
   const sessionId = await createSession(c.env, {
     userId,
     email: invitation.email,
     role: "teacher",
-    languagePreference: "fr",
+    languagePreference,
     createdAt: Date.now(),
   });
 
   return c.json(
-    { user: { id: userId, email: invitation.email, name: name.trim(), role: "teacher" } },
+    {
+      user: userResponse({
+        id: userId,
+        email: invitation.email,
+        name: name.trim(),
+        role: "teacher",
+        language_preference: languagePreference,
+        tier,
+      }),
+    },
     201,
     { "Set-Cookie": sessionCookie(sessionId) }
   );
@@ -139,10 +300,9 @@ auth.post("/forgot-password", async (c) => {
     .first<{
       id: string;
       email: string;
-      language_preference: "fr" | "en";
+      language_preference: Language;
     }>();
 
-  // Always return success to avoid account enumeration
   if (!user) {
     return c.json({ success: true });
   }
@@ -160,12 +320,11 @@ auth.post("/forgot-password", async (c) => {
   const emailResult = await sendPasswordResetEmail(c.env.RESEND_API_KEY, {
     to: user.email,
     token,
-    lang: user.language_preference ?? "fr",
+    lang: normalizeLanguage(user.language_preference),
     appBaseUrl,
   });
 
   if (!emailResult.success) {
-    // Keep prior reset links valid if delivery fails for this newly-created link.
     await c.env.DB.prepare(
       "UPDATE password_resets SET used_at = ? WHERE id = ? AND used_at IS NULL"
     ).bind(new Date().toISOString(), resetId).run();
@@ -267,16 +426,61 @@ auth.post("/reset-password", async (c) => {
 auth.get("/me", requireAuth, async (c) => {
   const session = c.get("session");
   const user = await c.env.DB.prepare(
-    "SELECT id, email, name, role FROM users WHERE id = ?"
+    "SELECT id, email, name, role, language_preference, tier FROM users WHERE id = ?"
   )
     .bind(session.userId)
-    .first<{ id: string; email: string; name: string; role: string }>();
+    .first<UserRow>();
 
   if (!user) {
     return c.json({ error: "User not found" }, 404);
   }
 
-  return c.json({ user });
+  const isFreeTier = normalizeTier(user.tier) === "free" && user.role !== "admin";
+  const quota = isFreeTier
+    ? {
+        used: await getInterviewQuotaUsed(c.env, user.id),
+        limit: DAILY_INTERVIEW_LIMIT,
+      }
+    : null;
+
+  return c.json({ user: userResponse(user), quota });
+});
+
+auth.put("/language", requireAuth, async (c) => {
+  const session = c.get("session");
+  const body = await c.req.json<{ language?: string }>();
+  if (!isLanguage(body.language)) {
+    return c.json({ error: "Invalid language" }, 400);
+  }
+  const language = body.language;
+
+  const existingUser = await c.env.DB.prepare(
+    "SELECT id, email, name, role, language_preference, tier FROM users WHERE id = ?"
+  )
+    .bind(session.userId)
+    .first<UserRow>();
+
+  if (!existingUser) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  await c.env.DB.prepare(
+    "UPDATE users SET language_preference = ?, updated_at = datetime('now') WHERE id = ?"
+  )
+    .bind(language, session.userId)
+    .run();
+
+  await updateSession(c.env, c.req.raw, {
+    ...session,
+    languagePreference: language,
+  });
+
+  return c.json({
+    user: userResponse({
+      ...existingUser,
+      language_preference: language,
+    }),
+  });
 });
 
 auth.post("/logout", requireAuth, async (c) => {

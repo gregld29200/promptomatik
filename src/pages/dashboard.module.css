@@ -188,11 +188,51 @@
 }
 
 /* ─── Filter chips ─── */
+.filterChipsSection {
+  position: relative;
+  margin-bottom: var(--space-6);
+}
+
 .filterChips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-bottom: var(--space-6);
+}
+
+.filterChipsCollapsed {
+  overflow: hidden;
+}
+
+.filterChipsFade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1.75rem;
+  height: 3.25rem;
+  background: linear-gradient(
+    180deg,
+    rgba(246, 241, 231, 0) 0%,
+    rgba(246, 241, 231, 0.82) 56%,
+    rgba(246, 241, 231, 1) 100%
+  );
+  pointer-events: none;
+}
+
+.filterChipsToggle {
+  margin-top: var(--space-2);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-navy-700);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+}
+
+.filterChipsToggle:hover {
+  color: var(--color-navy-900);
 }
 
 .filterChip {

@@ -1,7 +1,13 @@
 import { getLanguage } from "@/lib/i18n";
 
 export function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat(getLanguage() === "fr" ? "fr-FR" : "en-US", {
+  const locale = {
+    fr: "fr-FR",
+    en: "en-US",
+    es: "es-ES",
+  }[getLanguage()];
+
+  return new Intl.DateTimeFormat(locale, {
     year: "numeric",
     month: "short",
     day: "numeric",

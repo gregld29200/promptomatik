@@ -1,15 +1,24 @@
+import { type Language } from "./language";
+
 interface InvitationEmailParams {
   to: string;
   inviterName: string;
   token: string;
-  lang: "fr" | "en";
+  lang: Language;
   appBaseUrl?: string;
 }
 
 interface PasswordResetEmailParams {
   to: string;
   token: string;
-  lang: "fr" | "en";
+  lang: Language;
+  appBaseUrl?: string;
+}
+
+interface SignupConfirmationEmailParams {
+  to: string;
+  token: string;
+  lang: Language;
   appBaseUrl?: string;
 }
 
@@ -20,14 +29,22 @@ interface EmailResult {
 
 const APP_BASE_URL = "https://promptomatik.com";
 
-const invitationSubjects: Record<"fr" | "en", string> = {
+const invitationSubjects: Record<Language, string> = {
   fr: "Vous etes invite(e) sur Promptomatik",
   en: "You're invited to Promptomatik",
+  es: "Estas invitado(a) a Promptomatik",
 };
 
-const resetSubjects: Record<"fr" | "en", string> = {
+const resetSubjects: Record<Language, string> = {
   fr: "Reinitialisation de mot de passe Promptomatik",
   en: "Promptomatik password reset",
+  es: "Restablecimiento de contrasena de Promptomatik",
+};
+
+const signupSubjects: Record<Language, string> = {
+  fr: "Confirmez votre acces gratuit a Promptomatik",
+  en: "Confirm your free Promptomatik access",
+  es: "Confirma tu acceso gratuito a Promptomatik",
 };
 
 function buildHtml(params: InvitationEmailParams): string {
@@ -49,6 +66,25 @@ function buildHtml(params: InvitationEmailParams): string {
     </a>
   </p>
   <p style="font-size: 13px; color: #666;">Ce lien expire dans 7 jours.</p>
+</body>
+</html>`.trim();
+  }
+
+  if (params.lang === "es") {
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
+  <p>${params.inviterName} te ha invitado a unirte a <strong>Promptomatik</strong>, la herramienta de creacion de prompts para docentes.</p>
+  <p>Usa este enlace de acceso para crear tu contrasena.</p>
+  <p>
+    <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
+      Abrir enlace de acceso
+    </a>
+  </p>
+  <p style="font-size: 13px; color: #666;">Este enlace caduca en 7 dias.</p>
 </body>
 </html>`.trim();
   }
@@ -93,6 +129,24 @@ function buildResetHtml(params: PasswordResetEmailParams): string {
 </html>`.trim();
   }
 
+  if (params.lang === "es") {
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
+  <p>Has solicitado restablecer tu contrasena.</p>
+  <p>
+    <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
+      Restablecer mi contrasena
+    </a>
+  </p>
+  <p style="font-size: 13px; color: #666;">Este enlace caduca en 1 hora.</p>
+</body>
+</html>`.trim();
+  }
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -106,6 +160,63 @@ function buildResetHtml(params: PasswordResetEmailParams): string {
     </a>
   </p>
   <p style="font-size: 13px; color: #666;">This link expires in 1 hour.</p>
+</body>
+</html>`.trim();
+}
+
+function buildSignupHtml(params: SignupConfirmationEmailParams): string {
+  const baseUrl = params.appBaseUrl || APP_BASE_URL;
+  const link = `${baseUrl}/register?token=${params.token}`;
+
+  if (params.lang === "fr") {
+    return `
+<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
+  <p>Bienvenue ! Confirmez votre adresse email pour activer votre acces gratuit a <strong>Promptomatik</strong>, l'outil de creation de prompts pour enseignants.</p>
+  <p>
+    <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
+      Activer mon acces gratuit
+    </a>
+  </p>
+  <p style="font-size: 13px; color: #666;">Ce lien expire dans 7 jours. Si vous n'avez pas demande cet acces, ignorez cet email.</p>
+</body>
+</html>`.trim();
+  }
+
+  if (params.lang === "es") {
+    return `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
+  <p>Bienvenido(a)! Confirma tu direccion de email para activar tu acceso gratuito a <strong>Promptomatik</strong>, la herramienta de creacion de prompts para docentes.</p>
+  <p>
+    <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
+      Activar mi acceso gratuito
+    </a>
+  </p>
+  <p style="font-size: 13px; color: #666;">Este enlace caduca en 7 dias. Si no solicitaste este acceso, ignora este email.</p>
+</body>
+</html>`.trim();
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"></head>
+<body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
+  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
+  <p>Welcome! Confirm your email address to activate your free access to <strong>Promptomatik</strong>, the prompt-building tool for teachers.</p>
+  <p>
+    <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
+      Activate my free access
+    </a>
+  </p>
+  <p style="font-size: 13px; color: #666;">This link expires in 7 days. If you didn't request this access, you can ignore this email.</p>
 </body>
 </html>`.trim();
 }
@@ -151,6 +262,25 @@ export async function sendInvitationEmail(
       params.to,
       invitationSubjects[params.lang],
       buildHtml(params)
+    );
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Email send failed",
+    };
+  }
+}
+
+export async function sendSignupConfirmationEmail(
+  apiKey: string,
+  params: SignupConfirmationEmailParams
+): Promise<EmailResult> {
+  try {
+    return await sendEmail(
+      apiKey,
+      params.to,
+      signupSubjects[params.lang],
+      buildSignupHtml(params)
     );
   } catch (err) {
     return {

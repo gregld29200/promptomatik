@@ -4,8 +4,9 @@
  */
 
 import type { TeacherProfile } from "../../routes/profile";
+import { languageName, type Language } from "../language";
 
-const langInstruction = (lang: string) =>
+const langInstruction = (lang: Language) =>
   lang === "fr"
     ? `IMPORTANT: Think in French first.
 LANGUAGE LOCK (MANDATORY):
@@ -17,6 +18,18 @@ LANGUAGE LOCK (MANDATORY):
 - If teacher input is mixed-language, still write generated text in French; keep other-language text only when explicitly quoting the teacher.
 - Use professional vouvoiement ("vous", "vos"), not tutoiement.
 - Before responding, self-check and rewrite any non-French generated phrasing.
+`
+    : lang === "es"
+      ? `IMPORTANTE: Piensa primero en espanol.
+LANGUAGE LOCK (MANDATORY):
+- Target output language is Spanish only.
+- Every free-text value MUST be in clear, natural Spanish used by real teachers (questions, summaries, prompt content, annotations, tips, tags, reasons).
+- Do not mix English or French into generated prose.
+- Allowed exceptions only: proper nouns, official product/model names, CEFR labels (A1-C2), and short verbatim quotes from teacher input.
+- Keep JSON keys/schema exactly as requested, but all natural-language values must follow the language lock.
+- If teacher input is mixed-language, still write generated text in Spanish; keep other-language text only when explicitly quoting the teacher.
+- Use neutral, professional Spanish suitable for teachers across regions.
+- Before responding, self-check and rewrite any non-Spanish generated phrasing.
 `
     : `LANGUAGE LOCK (MANDATORY):
 - Target output language is English only.
@@ -53,7 +66,7 @@ function profileContext(profile?: TeacherProfile): string {
   return `\n\nTeacher context: This teacher ${parts.join(", ")}. Use these defaults for any field the teacher doesn't explicitly specify in their request. If the teacher mentions a specific value, always prefer that over the defaults.`;
 }
 
-export function intentAnalysisPrompt(lang: string, profile?: TeacherProfile): string {
+export function intentAnalysisPrompt(lang: Language, profile?: TeacherProfile): string {
   return `You are an expert at analyzing language teaching requests. A teacher has described what they need in free text. Your job is to extract structured information and identify what's missing.
 
 ${langInstruction(lang)}${profileContext(profile)}
@@ -81,7 +94,7 @@ Clarification strategy (critical):
 
 Also provide:
 - missing_fields: An array of high-leverage field names that truly need clarification.
-- summary: A one-sentence ${lang === "fr" ? "French" : "English"} summary of what the teacher wants.
+- summary: A one-sentence ${languageName(lang)} summary of what the teacher wants.
 
 Respond with a single JSON object matching this exact structure:
 {
@@ -96,7 +109,7 @@ Respond with a single JSON object matching this exact structure:
 }`;
 }
 
-export function interviewQuestionsPrompt(lang: string, profile?: TeacherProfile): string {
+export function interviewQuestionsPrompt(lang: Language, profile?: TeacherProfile): string {
   const profileHint = profile?.setup_completed && profile.typical_levels.length > 0
     ? `\n- When generating options for level, put the teacher's typical levels (${profile.typical_levels.join(", ")}) first in the list.`
     : "";
@@ -118,7 +131,7 @@ Rules:${profileHint}
 - Use multi_select=false when exactly one answer is needed.
 - Questions should feel conversational and supportive, not like a bureaucratic form.
 - Avoid meta or administrative wording ("field", "parameter", "specify context"). Speak like a real assistant.
-- If language is French: use natural teacher-facing French, with phrasing a native speaker would actually use.
+- If language is French or Spanish: use natural teacher-facing phrasing a native speaker would actually use.
 - Generate a unique id for each question (e.g., "q1", "q2").
 - The "field" value should match the field name from the intent analysis (level, topic, activity_type, audience, duration).
 
@@ -141,7 +154,7 @@ Respond with a single JSON object:
 }`;
 }
 
-export function promptRefinementPrompt(lang: string, profile?: TeacherProfile): string {
+export function promptRefinementPrompt(lang: Language, profile?: TeacherProfile): string {
   return `You are an expert prompt engineer specializing in education. A teacher has used a structured teaching prompt but the result was not satisfactory. Your task is to refine the prompt to fix the reported issue.
 
 ${langInstruction(lang)}${profileContext(profile)}
@@ -159,7 +172,7 @@ Rules:
 - For each changed block, write a NEW annotation explaining the improvement (not the original annotation). Unchanged blocks keep their original annotation.
 - The "changes" array must describe every modification: what technique was affected, whether it was "modified", "added", or "removed", and a 1-sentence reason.
 - Maintain the same "order" numbering convention (sequential from 1).
-- Generate 2-3 short, practical pedagogical tips specific to using this refined prompt effectively. Tips should be actionable advice a teacher can immediately apply (e.g., "Run this prompt twice and compare the outputs to pick the best one", "Add a sample student text to get more targeted feedback"). Write tips in ${lang === "fr" ? "French" : "English"}.
+- Generate 2-3 short, practical pedagogical tips specific to using this refined prompt effectively. Tips should be actionable advice a teacher can immediately apply (e.g., "Run this prompt twice and compare the outputs to pick the best one", "Add a sample student text to get more targeted feedback"). Write tips in ${languageName(lang)}.
 
 Respond with a single JSON object:
 {
@@ -182,7 +195,7 @@ Respond with a single JSON object:
 }`;
 }
 
-export function promptAssemblyPrompt(lang: string, profile?: TeacherProfile): string {
+export function promptAssemblyPrompt(lang: Language, profile?: TeacherProfile): string {
   return `You are an expert prompt engineer specializing in education.
 
 Your task is to either:
@@ -205,12 +218,12 @@ Rules:
 - Use 3-6 techniques depending on complexity. Simple requests need fewer.
 - "Role" and "Context" are almost always needed. "Think First" is for complex analytical tasks.
 - Each block's "content" is the actual prompt text for that technique.
-- Each block's "annotation" is a 1-2 sentence explanation of WHY this technique helps here (for Study Mode). Write annotations in ${lang === "fr" ? "French" : "English"}.
+- Each block's "annotation" is a 1-2 sentence explanation of WHY this technique helps here (for Study Mode). Write annotations in ${languageName(lang)}.
 - The prompt content should be specific, actionable, and adapted to the teacher's exact needs.
 - "order" should reflect the logical sequence (Role first, then Context, etc.)
-- Generate a short, descriptive name for this prompt in ${lang === "fr" ? "French" : "English"}.
+- Generate a short, descriptive name for this prompt in ${languageName(lang)}.
 - Suggest 2-4 tags that categorize this prompt.
-- Generate 2-3 short, practical pedagogical tips specific to using this prompt effectively. Tips should be actionable advice a teacher can immediately apply (e.g., "Run this prompt twice and compare the outputs to pick the best one", "Add a sample student text to get more targeted feedback", "Try adjusting the level to see how the output adapts"). Write tips in ${lang === "fr" ? "French" : "English"}.
+- Generate 2-3 short, practical pedagogical tips specific to using this prompt effectively. Tips should be actionable advice a teacher can immediately apply (e.g., "Run this prompt twice and compare the outputs to pick the best one", "Add a sample student text to get more targeted feedback", "Try adjusting the level to see how the output adapts"). Write tips in ${languageName(lang)}.
 
 ask_user behavior:
 - Only return ask_user when you cannot produce a high-quality prompt without clarifying. Prefer using teacher profile defaults when reasonable.
@@ -223,7 +236,7 @@ ask_user behavior:
 - Set allow_other true only when the teacher might need to type something (e.g., topic, special constraints).
 - Set other_placeholder when allow_other is true.
 - Use multi_select when multiple selections are useful (e.g., multiple skills to practice). The UI will return the answer as a SINGLE STRING where selections are joined by ", ".
-- If language is French: write questions in natural, idiomatic French and avoid literal translations.
+- If language is French or Spanish: write questions in natural, idiomatic language and avoid literal translations.
 
 Respond with exactly ONE of the following JSON objects.
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { motion } from "motion/react";
 import { Shell } from "@/components/layout/shell";
@@ -7,6 +7,9 @@ import { FadeIn } from "@/reactbits/fade-in";
 import BlurText from "@/reactbits/blur-text";
 import { useAuth } from "@/lib/auth/auth-context";
 import { useOnboarding } from "@/lib/onboarding/onboarding-context";
+import { UpgradeGate } from "@/components/upgrade-gate";
+import { QuotaChip } from "@/components/quota-chip";
+import { FREE_LIBRARY_LIMIT } from "@/lib/config";
 import { t } from "@/lib/i18n";
 import { formatDate } from "@/lib/format-date";
 import { FileText, Search, Copy, Trash2, Sparkles, ArrowUpRight } from "lucide-react";
@@ -45,17 +48,47 @@ const CARDS = {
   spring: { type: "spring" as const, stiffness: 330, damping: 26 },
 } as const;
 
+interface RowMetrics {
+  top: number;
+  bottom: number;
+}
+
+function measureRows(container: HTMLDivElement): RowMetrics[] {
+  const children = Array.from(container.children) as HTMLElement[];
+  const rows: RowMetrics[] = [];
+
+  for (const child of children) {
+    const top = child.offsetTop;
+    const bottom = top + child.offsetHeight;
+    const lastRow = rows[rows.length - 1];
+
+    if (!lastRow || Math.abs(lastRow.top - top) > 1) {
+      rows.push({ top, bottom });
+      continue;
+    }
+
+    lastRow.bottom = Math.max(lastRow.bottom, bottom);
+  }
+
+  return rows;
+}
+
 export function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isParticipant } = useAuth();
   const onboarding = useOnboarding();
   const navigate = useNavigate();
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [showProfileNudge, setShowProfileNudge] = useState(false);
+  const [gateMessage, setGateMessage] = useState<string | null>(null);
   const [profile, setProfile] = useState<api.TeacherProfile | null>(null);
   const [search, setSearch] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [libraryStage, setLibraryStage] = useState(0);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [filtersCollapsedHeight, setFiltersCollapsedHeight] = useState<number | null>(null);
+  const [filtersExpandable, setFiltersExpandable] = useState(false);
+  const filterChipsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.getPrompts().then((res) => {
@@ -113,6 +146,13 @@ export function DashboardPage() {
     const res = await api.duplicatePrompt(promptId);
     if (res.data) {
       setPrompts((prev) => [res.data!.prompt, ...prev]);
+    } else if (res.error?.error === "library_limit") {
+      setGateMessage(
+        t("upgrade.library_limit", {
+          used: String(FREE_LIBRARY_LIMIT),
+          limit: String(FREE_LIBRARY_LIMIT),
+        })
+      );
     }
   }
 
@@ -151,9 +191,40 @@ export function DashboardPage() {
     TIMING.cardsAppear,
   ]);
 
+  useEffect(() => {
+    const element = filterChipsRef.current;
+    if (!element || allTags.length === 0) return;
+
+    const updateLayout = () => {
+      const rows = measureRows(element);
+
+      if (rows.length <= 2) {
+        setFiltersExpandable(false);
+        setFiltersCollapsedHeight(null);
+        return;
+      }
+
+      setFiltersExpandable(true);
+      setFiltersCollapsedHeight(rows[1].bottom);
+    };
+
+    updateLayout();
+
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [allTags]);
+
+  useEffect(() => {
+    if (!filtersExpandable && filtersExpanded) {
+      setFiltersExpanded(false);
+    }
+  }, [filtersExpandable, filtersExpanded]);
+
   return (
     <Shell>
-      {showProfileNudge && (
+      {showProfileNudge && isParticipant && (
         <FadeIn delay={0.2} duration={0.4} direction="down" distance={8}>
           <div className={s.nudgeBanner}>
             <span>{t("profile.setup_banner")}</span>
@@ -185,6 +256,7 @@ export function DashboardPage() {
           <FadeIn delay={0.3} duration={0.4} direction="up" distance={10}>
             <p className={s.greetingSub}>{t("dashboard.subtitle")}</p>
           </FadeIn>
+          <QuotaChip />
         </div>
         <FadeIn delay={0.4} duration={0.4} direction="right" distance={16}>
           <Button
@@ -197,6 +269,10 @@ export function DashboardPage() {
           </Button>
         </FadeIn>
       </div>
+
+      {gateMessage && (
+        <UpgradeGate message={gateMessage} onDismiss={() => setGateMessage(null)} />
+      )}
 
       <FadeIn delay={0.45} duration={0.6} direction="none">
         <div className={s.headerDivider}>
@@ -245,7 +321,7 @@ export function DashboardPage() {
 
           {allTags.length > 0 && (
             <motion.div
-              className={s.filterChips}
+              className={s.filterChipsSection}
               initial={false}
               animate={{
                 opacity: libraryStage >= 2 ? 1 : 0,
@@ -253,16 +329,38 @@ export function DashboardPage() {
               }}
               transition={SEARCH.spring}
             >
-              {allTags.map((tag) => (
+              <div
+                ref={filterChipsRef}
+                className={`${s.filterChips} ${filtersExpandable && !filtersExpanded ? s.filterChipsCollapsed : ""}`}
+                style={
+                  filtersExpandable && !filtersExpanded && filtersCollapsedHeight
+                    ? { maxHeight: `${filtersCollapsedHeight}px` }
+                    : undefined
+                }
+              >
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`${s.filterChip} ${selectedTags.includes(tag) ? s.filterChipActive : ""}`}
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              {filtersExpandable && !filtersExpanded && (
+                <div className={s.filterChipsFade} aria-hidden="true" />
+              )}
+              {filtersExpandable && (
                 <button
-                  key={tag}
                   type="button"
-                  className={`${s.filterChip} ${selectedTags.includes(tag) ? s.filterChipActive : ""}`}
-                  onClick={() => toggleTag(tag)}
+                  className={s.filterChipsToggle}
+                  onClick={() => setFiltersExpanded((current) => !current)}
                 >
-                  {tag}
+                  {filtersExpanded ? t("common.show_less") : t("common.show_more")}
                 </button>
-              ))}
+              )}
             </motion.div>
           )}
 

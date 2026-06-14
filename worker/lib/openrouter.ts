@@ -1,15 +1,15 @@
 /**
- * Typed OpenRouter client.
- * POST to OpenAI-compatible endpoint with JSON mode.
+ * Typed LLM client.
+ * POST to an OpenAI-compatible endpoint with JSON mode.
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "minimax/minimax-m2.5";
-const FALLBACK_MODEL = "z-ai/glm-5";
+const DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
+const FALLBACK_MODEL = "moonshotai/kimi-k2.5";
 // Keep total request time bounded and fail over quickly when a model stalls.
-const ATTEMPT_TIMEOUT_MS = 35_000;
-const TOTAL_TIMEOUT_MS = 70_000;
-const MODEL_ATTEMPTS = 2;
+const DEFAULT_ATTEMPT_TIMEOUT_MS = 15_000;
+const DEFAULT_TOTAL_TIMEOUT_MS = 30_000;
+const DEFAULT_MODEL_ATTEMPTS = 1;
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -28,18 +28,76 @@ interface ChatModelsConfig {
   fallbackModel?: string;
 }
 
+interface ChatExecutionConfig {
+  attemptTimeoutMs?: number;
+  totalTimeoutMs?: number;
+  modelAttempts?: number;
+  logContext?: {
+    operation?: string;
+    jobId?: string;
+    jobKind?: string;
+  };
+}
+
+export interface LLMCallMeta {
+  provider: "openrouter";
+  model: string | null;
+  usedFallbackModel: boolean;
+  attempts: number;
+  totalDurationMs: number;
+}
+
 export type LLMResult<T> =
+  | { data: T; error: null; meta: LLMCallMeta }
+  | { data: null; error: string; meta: LLMCallMeta };
+
+type RawLLMResult<T> =
   | { data: T; error: null }
   | { data: null; error: string };
 
 export async function chatCompletion<T>(
   apiKey: string,
   req: ChatRequest,
-  models: ChatModelsConfig = {}
+  models: ChatModelsConfig = {},
+  execution: ChatExecutionConfig = {}
 ): Promise<LLMResult<T>> {
+  const requestStartedAt = Date.now();
+  const primaryModel = req.model ?? models.primaryModel ?? DEFAULT_MODEL;
+  const fallbackModel = models.fallbackModel ?? FALLBACK_MODEL;
+  const attemptTimeoutMs = execution.attemptTimeoutMs ?? DEFAULT_ATTEMPT_TIMEOUT_MS;
+  const totalTimeoutMs = execution.totalTimeoutMs ?? DEFAULT_TOTAL_TIMEOUT_MS;
+  const modelAttempts = execution.modelAttempts ?? DEFAULT_MODEL_ATTEMPTS;
+  const modelChain = primaryModel === fallbackModel
+    ? [primaryModel]
+    : [primaryModel, fallbackModel];
+  const startedAt = Date.now();
+  let attemptsUsed = 0;
+
+  const resultMeta = (model: string | null, usedFallbackModel: boolean): LLMCallMeta => ({
+    provider: "openrouter",
+    model,
+    usedFallbackModel,
+    attempts: attemptsUsed,
+    totalDurationMs: Date.now() - requestStartedAt,
+  });
+
   if (!apiKey || apiKey.trim().length === 0) {
-    return { data: null, error: "Missing OpenRouter API key." };
+    return {
+      data: null,
+      error: "Missing LLM API key.",
+      meta: resultMeta(null, false),
+    };
   }
+
+  const logEvent = (event: string, details: Record<string, unknown>) => {
+    console.info(event, {
+      provider: "openrouter",
+      operation: execution.logContext?.operation ?? "chatCompletion",
+      jobId: execution.logContext?.jobId,
+      jobKind: execution.logContext?.jobKind,
+      ...details,
+    });
+  };
 
   const parseJsonObject = (raw: string): T => {
     const trimmed = raw.trim();
@@ -92,7 +150,21 @@ export async function chatCompletion<T>(
     return [408, 409, 425, 429, 500, 502, 503, 504, 520, 522, 524].includes(status);
   };
 
-  const callModel = async (model: string, timeoutMs: number): Promise<LLMResult<T>> => {
+  const isModelAvailabilityError = (error: string): boolean => {
+    const normalized = error.toLowerCase();
+    if (!normalized.includes("model")) return false;
+
+    return (
+      normalized.includes("not available") ||
+      normalized.includes("not found") ||
+      normalized.includes("unknown model") ||
+      normalized.includes("unsupported model") ||
+      normalized.includes("no providers") ||
+      normalized.includes("no endpoints")
+    );
+  };
+
+  const callModel = async (model: string, timeoutMs: number): Promise<RawLLMResult<T>> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -168,26 +240,45 @@ export async function chatCompletion<T>(
     }
   };
 
-  const primaryModel = req.model ?? models.primaryModel ?? DEFAULT_MODEL;
-  const fallbackModel = models.fallbackModel ?? FALLBACK_MODEL;
-  const modelChain = primaryModel === fallbackModel
-    ? [primaryModel]
-    : [primaryModel, fallbackModel];
-  const startedAt = Date.now();
-
   for (let i = 0; i < modelChain.length; i += 1) {
-    for (let attempt = 0; attempt < MODEL_ATTEMPTS; attempt += 1) {
+    for (let attempt = 0; attempt < modelAttempts; attempt += 1) {
       const elapsedMs = Date.now() - startedAt;
-      const remainingMs = TOTAL_TIMEOUT_MS - elapsedMs;
+      const remainingMs = totalTimeoutMs - elapsedMs;
       if (remainingMs <= 1_000) {
-        return { data: null, error: "AI request timed out. Please try again." };
+        logEvent("llm_timeout_budget_exhausted", {
+          totalDurationMs: Date.now() - requestStartedAt,
+          primaryModel,
+          fallbackModel,
+          modelAttempts,
+        });
+        return {
+          data: null,
+          error: "AI request timed out. Please try again.",
+          meta: resultMeta(modelChain[i], i > 0),
+        };
       }
 
-      const attemptTimeoutMs = Math.min(ATTEMPT_TIMEOUT_MS, remainingMs);
-      const result = await callModel(modelChain[i], attemptTimeoutMs);
-      if (!result.error) return result;
+      const effectiveAttemptTimeoutMs = Math.min(attemptTimeoutMs, remainingMs);
+      const attemptStartedAt = Date.now();
+      attemptsUsed += 1;
+      const result = await callModel(modelChain[i], effectiveAttemptTimeoutMs);
+      logEvent("llm_attempt_completed", {
+        model: modelChain[i],
+        attempt: attempt + 1,
+        usedFallbackModel: i > 0,
+        success: !result.error,
+        durationMs: Date.now() - attemptStartedAt,
+        attemptTimeoutMs: effectiveAttemptTimeoutMs,
+        error: result.error ? result.error.slice(0, 160) : null,
+      });
+      if (!result.error) {
+        return {
+          ...result,
+          meta: resultMeta(modelChain[i], i > 0),
+        };
+      }
 
-      const isLastModelAttempt = attempt === MODEL_ATTEMPTS - 1;
+      const isLastModelAttempt = attempt === modelAttempts - 1;
       const hasFallbackModel = i === 0 && modelChain.length > 1;
 
       if (!isLastModelAttempt && isRetryableError(result.error)) {
@@ -196,13 +287,36 @@ export async function chatCompletion<T>(
         continue;
       }
 
-      if (hasFallbackModel && isRetryableError(result.error)) {
+      if (hasFallbackModel && (isRetryableError(result.error) || isModelAvailabilityError(result.error))) {
+        logEvent("llm_fallback_switch", {
+          fromModel: modelChain[i],
+          toModel: modelChain[i + 1],
+          error: result.error.slice(0, 160),
+          totalDurationMs: Date.now() - requestStartedAt,
+        });
         break;
       }
 
-      return result;
+      logEvent("llm_failed", {
+        model: modelChain[i],
+        totalDurationMs: Date.now() - requestStartedAt,
+        error: result.error.slice(0, 160),
+      });
+      return {
+        ...result,
+        meta: resultMeta(modelChain[i], i > 0),
+      };
     }
   }
 
-  return { data: null, error: "The AI service is temporarily unavailable. Please try again." };
+  logEvent("llm_unavailable", {
+    primaryModel,
+    fallbackModel,
+    totalDurationMs: Date.now() - requestStartedAt,
+  });
+  return {
+    data: null,
+    error: "The AI service is temporarily unavailable. Please try again.",
+    meta: resultMeta(fallbackModel, primaryModel === fallbackModel ? false : true),
+  };
 }

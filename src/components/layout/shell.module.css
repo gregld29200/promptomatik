@@ -200,3 +200,9 @@
     padding: var(--space-8) var(--space-4);
   }
 }
+
+.navLock {
+  margin-left: 0.3rem;
+  vertical-align: middle;
+  opacity: 0.65;
+}

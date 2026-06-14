@@ -14,8 +14,11 @@
     "close": "Fermer",
     "saved": "Enregistre",
     "saving": "Enregistrement...",
+    "show_more": "Voir plus",
+    "show_less": "Voir moins",
     "lang_fr": "FR",
     "lang_en": "EN",
+    "lang_es": "ES",
     "menu": "Menu"
   },
   "auth": {
@@ -87,7 +90,15 @@
     "submission_rejected": "Soumission refusee.",
     "published_templates": "Modeles publies",
     "prompt_id_label": "ID du prompt",
-    "publish": "Publier"
+    "publish": "Publier",
+    "tier": "Offre",
+    "tier_free": "Gratuit",
+    "tier_participant": "Participant",
+    "kind": "Origine",
+    "kind_admin": "Invitation admin",
+    "kind_self": "Inscription publique",
+    "promote_participant": "Passer participant",
+    "demote_free": "Passer gratuit"
   },
   "dashboard": {
     "new_prompt": "Nouveau prompt",
@@ -295,5 +306,37 @@
         "body": "Cliquez pour enregistrer. Ensuite, vous aurez moins de questions et de meilleurs choix par défaut."
       }
     }
+  },
+  "upgrade": {
+    "title": "Réservé aux participants de la formation",
+    "feature_templates": "La bibliothèque de templates est incluse dans la formation TeachInspire. Inspirez-vous de prompts prêts à l'emploi, créés et validés par des formateurs.",
+    "feature_profile": "Le profil enseignant mémorise votre contexte (langues, niveaux, public) pour personnaliser chaque prompt automatiquement. Il est inclus dans la formation TeachInspire.",
+    "feature_refine": "Le raffinement guidé améliore vos prompts à partir des résultats obtenus. Il est inclus dans la formation TeachInspire.",
+    "feature_edit": "Le mode Modifier (éditeur de blocs) est inclus dans la formation TeachInspire. Vous pouvez consulter vos prompts en mode Utilisateur et Étude.",
+    "feature_submit": "Le partage de templates avec la communauté est réservé aux participants de la formation.",
+    "library_limit": "Votre bibliothèque gratuite est pleine : {{used}}/{{limit}} prompts enregistrés. Les participants enregistrent sans limite.",
+    "cta": "Découvrir la formation TeachInspire",
+    "nav_locked": "Réservé aux participants de la formation"
+  },
+  "quota": {
+    "chip": "Générations aujourd'hui : {{used}}/{{limit}}",
+    "exhausted_title": "Vous avez utilisé vos {{limit}} générations du jour",
+    "exhausted_body": "Votre quota se réinitialise dans {{hours}} h. Les participants de la formation génèrent sans limite.",
+    "exhausted_cta_note": "En attendant, vos prompts enregistrés restent accessibles dans votre bibliothèque."
+  },
+  "signup": {
+    "title": "Créez votre accès gratuit",
+    "subtitle": "Recevez un lien de confirmation par email et commencez à créer des prompts structurés pour vos cours.",
+    "email_label": "Votre email",
+    "language_label": "Langue",
+    "consent": "Vous recevrez le lien de confirmation et, occasionnellement, des ressources pour enseigner avec l'IA. Désinscription en un clic.",
+    "submit": "Recevoir mon lien d'accès",
+    "success_title": "Vérifiez votre boîte mail",
+    "success_body": "Si cette adresse est valide, un lien de confirmation vient de vous être envoyé. Il expire dans 7 jours.",
+    "rate_limited": "Trop de tentatives. Réessayez dans une heure.",
+    "invalid_email": "Adresse email invalide.",
+    "login_link": "Déjà un compte ? Connectez-vous",
+    "from_login": "Pas de compte ? Obtenez un accès gratuit",
+    "expired_invite": "Ce lien a expiré. Demandez un nouveau lien d'accès."
   }
 }

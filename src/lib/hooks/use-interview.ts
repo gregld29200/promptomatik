@@ -53,6 +53,57 @@ export function useInterview() {
     setOriginalText(textForContext);
   }, [requireReanswer]);
 
+  const awaitAssembleJob = useCallback(async (jobId: string, textForContext: string) => {
+    const jobResult = await api.waitForInterviewJobResult<AssembleResult>(jobId);
+    if (jobResult.error) {
+      setError(jobResult.error.error);
+      setStep("error");
+      return;
+    }
+
+    if (!jobResult.data.result) {
+      setError("Empty response from AI.");
+      setStep("error");
+      return;
+    }
+
+    handleAssembleResponse(jobResult.data.result, textForContext);
+  }, [handleAssembleResponse]);
+
+  const awaitAnalyzeJob = useCallback(async (jobId: string) => {
+    const jobResult = await api.waitForInterviewJobResult<IntentAnalysis>(jobId);
+    if (jobResult.error) {
+      setError(jobResult.error.error);
+      setStep("error");
+      return null;
+    }
+
+    if (!jobResult.data.result) {
+      setError("Empty response from AI.");
+      setStep("error");
+      return null;
+    }
+
+    return jobResult.data.result;
+  }, []);
+
+  const awaitQuestionsJob = useCallback(async (jobId: string) => {
+    const jobResult = await api.waitForInterviewJobResult<{ questions: InterviewQuestion[] }>(jobId);
+    if (jobResult.error) {
+      setError(jobResult.error.error);
+      setStep("error");
+      return null;
+    }
+
+    if (!jobResult.data.result) {
+      setError("Empty response from AI.");
+      setStep("error");
+      return null;
+    }
+
+    return jobResult.data.result.questions;
+  }, []);
+
   const submitText = useCallback(
     async (text: string) => {
       setOriginalText(text);
@@ -66,7 +117,11 @@ export function useInterview() {
         return;
       }
 
-      const intentData = analyzeResult.data.intent;
+      const intentData = await awaitAnalyzeJob(analyzeResult.data.job.id);
+      if (!intentData) {
+        return;
+      }
+
       setIntent(intentData);
 
       // If nothing is missing, skip straight to assembly
@@ -75,18 +130,18 @@ export function useInterview() {
         intentData.missing_fields.length === 0
       ) {
         setStep("assembling");
-        const assembleResult = await api.assemblePrompt(
+        const assembleJob = await api.assemblePrompt(
           intentData,
           {},
           text,
           language
         );
-        if (assembleResult.error) {
-          setError(assembleResult.error.error);
+        if (assembleJob.error) {
+          setError(assembleJob.error.error);
           setStep("error");
           return;
         }
-        handleAssembleResponse(assembleResult.data, text);
+        await awaitAssembleJob(assembleJob.data.job.id, text);
         return;
       }
 
@@ -98,11 +153,16 @@ export function useInterview() {
         return;
       }
 
-      setQuestions(questionsResult.data.questions);
-      requireReanswer(questionsResult.data.questions);
+      const nextQuestions = await awaitQuestionsJob(questionsResult.data.job.id);
+      if (!nextQuestions) {
+        return;
+      }
+
+      setQuestions(nextQuestions);
+      requireReanswer(nextQuestions);
       setStep("questions");
     },
-    [language, handleAssembleResponse, requireReanswer]
+    [language, awaitAnalyzeJob, awaitAssembleJob, awaitQuestionsJob, requireReanswer]
   );
 
   const answerQuestion = useCallback((field: string, value: string) => {
@@ -114,20 +174,20 @@ export function useInterview() {
     setStep("assembling");
     setError(null);
 
-    const assembleResult = await api.assemblePrompt(
+    const assembleJob = await api.assemblePrompt(
       intent,
       answers,
       originalText,
       language
     );
-    if (assembleResult.error) {
-      setError(assembleResult.error.error);
+    if (assembleJob.error) {
+      setError(assembleJob.error.error);
       setStep("error");
       return;
     }
 
-    handleAssembleResponse(assembleResult.data, originalText);
-  }, [intent, answers, originalText, language, handleAssembleResponse]);
+    await awaitAssembleJob(assembleJob.data.job.id, originalText);
+  }, [intent, answers, originalText, language, awaitAssembleJob]);
 
   const reset = useCallback(() => {
     setStep("input");

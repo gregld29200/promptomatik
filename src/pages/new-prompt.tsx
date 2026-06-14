@@ -7,12 +7,22 @@ import BlurText from "@/reactbits/blur-text";
 import { QuestionCard } from "@/components/interview/question-card";
 import { useInterview } from "@/lib/hooks/use-interview";
 import { useOnboarding } from "@/lib/onboarding/onboarding-context";
+import { useAuth } from "@/lib/auth/auth-context";
 import { Tips } from "@/components/prompt/tips";
+import { UpgradeGate } from "@/components/upgrade-gate";
+import { QuotaChip } from "@/components/quota-chip";
+import { FREE_LIBRARY_LIMIT } from "@/lib/config";
 import { RotateCcw } from "lucide-react";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import type { Technique } from "@/lib/api";
 import s from "./new-prompt.module.css";
+
+function hoursUntilUtcMidnight(): number {
+  const now = new Date();
+  const nextMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  return Math.max(1, Math.ceil((nextMidnight - now.getTime()) / 3_600_000));
+}
 
 export function NewPromptPage() {
   const analyzeSpriteSrc = "/lightbulb-sprite.svg";
@@ -31,10 +41,12 @@ export function NewPromptPage() {
     reset,
   } = useInterview();
 
+  const { refreshMe } = useAuth();
   const [text, setText] = useState("");
   const [currentQ, setCurrentQ] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveGated, setSaveGated] = useState(false);
   const onboarding = useOnboarding();
   const [analyzeSpriteReady, setAnalyzeSpriteReady] = useState(false);
   const [assemblingSpriteReady, setAssemblingSpriteReady] = useState(false);
@@ -48,7 +60,8 @@ export function NewPromptPage() {
   function handleSubmitText(e: React.FormEvent) {
     e.preventDefault();
     if (text.trim().length >= 20) {
-      submitText(text.trim());
+      // refreshMe updates the quota chip once the generation is admitted
+      void submitText(text.trim()).then(() => refreshMe());
     }
   }
 
@@ -78,6 +91,10 @@ export function NewPromptPage() {
         navigate(`/prompt/${res.data.prompt.id}`);
         return;
       }
+      if (res.error?.error === "library_limit") {
+        setSaveGated(true);
+        return;
+      }
       setSaveError(res.error?.error ?? t("common.error"));
     } catch {
       setSaveError(t("common.error"));
@@ -105,6 +122,7 @@ export function NewPromptPage() {
                 direction="top"
               />
               <p className={s.subtitle}>{t("interview.subtitle")}</p>
+              <QuotaChip />
               <form onSubmit={handleSubmitText} className={s.form}>
                 <textarea
                   className={s.textarea}
@@ -287,12 +305,43 @@ export function NewPromptPage() {
                 </Button>
               </div>
               {saveError && <p className={s.errorText}>{saveError}</p>}
+              {saveGated && (
+                <UpgradeGate
+                  message={t("upgrade.library_limit", {
+                    used: String(FREE_LIBRARY_LIMIT),
+                    limit: String(FREE_LIBRARY_LIMIT),
+                  })}
+                  onDismiss={() => setSaveGated(false)}
+                />
+              )}
             </div>
           </FadeIn>
         )}
 
         {/* Error Step */}
-        {step === "error" && (
+        {step === "error" && error === "daily_quota" && (
+          <FadeIn duration={0.4} direction="up" distance={16}>
+            <div className={s.loading}>
+              <h2 className={s.sectionTitle}>
+                {t("quota.exhausted_title", { limit: "5" })}
+              </h2>
+              <UpgradeGate
+                message={t("quota.exhausted_body", {
+                  hours: String(hoursUntilUtcMidnight()),
+                })}
+              >
+                <p className={s.loadingSub}>{t("quota.exhausted_cta_note")}</p>
+              </UpgradeGate>
+              <div className={s.actions}>
+                <Button variant="ghost" onClick={() => navigate("/dashboard")}>
+                  {t("common.back")}
+                </Button>
+              </div>
+            </div>
+          </FadeIn>
+        )}
+
+        {step === "error" && error !== "daily_quota" && (
           <FadeIn duration={0.4} direction="up" distance={16}>
             <div className={s.loading}>
               <p className={s.errorText}>{error || t("common.error")}</p>

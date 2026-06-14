@@ -4,6 +4,7 @@ import { Shell } from "@/components/layout/shell";
 import { Card, Badge, Button, Spinner } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
 import { useAuth } from "@/lib/auth/auth-context";
+import { UpgradeGate } from "@/components/upgrade-gate";
 import { t } from "@/lib/i18n";
 import { Search, ArrowUpRight } from "lucide-react";
 import * as api from "@/lib/api";
@@ -11,7 +12,7 @@ import type { Template, Technique } from "@/lib/api";
 import s from "./templates.module.css";
 
 export function TemplatesPage() {
-  const { user } = useAuth();
+  const { user, isParticipant } = useAuth();
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -20,12 +21,13 @@ export function TemplatesPage() {
   const [scope, setScope] = useState<"all" | "official" | "community">("all");
 
   useEffect(() => {
+    if (!isParticipant) return;
     setLoaded(false);
     api.getTemplates(scope === "all" ? undefined : scope).then((res) => {
       if (res.data) setTemplates(res.data.templates);
       setLoaded(true);
     });
-  }, [scope]);
+  }, [scope, isParticipant]);
 
   const filtered = useMemo(() => {
     if (!search) return templates;
@@ -50,6 +52,14 @@ export function TemplatesPage() {
 
   const hasTemplates = templates.length > 0;
   const hasResults = filtered.length > 0;
+
+  if (!isParticipant) {
+    return (
+      <Shell>
+        <UpgradeGate variant="page" message={t("upgrade.feature_templates")} />
+      </Shell>
+    );
+  }
 
   if (!loaded) {
     return (

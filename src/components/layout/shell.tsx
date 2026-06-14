@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/lib/auth/auth-context";
-import { t, useLanguage } from "@/lib/i18n";
-import { Menu, X } from "lucide-react";
+import { SUPPORTED_LANGUAGES, t, useLanguage, type Language } from "@/lib/i18n";
+import { Menu, X, Lock } from "lucide-react";
 import s from "./shell.module.css";
 
 interface ShellProps {
@@ -10,7 +10,7 @@ interface ShellProps {
 }
 
 export function Shell({ children }: ShellProps) {
-  const { user, logout } = useAuth();
+  const { user, isParticipant, logout, updateLanguagePreference } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [lang, setLang] = useLanguage();
@@ -43,6 +43,29 @@ export function Shell({ children }: ShellProps) {
     setMenuOpen(false);
   }, [location.pathname]);
 
+  async function handleLanguageChange(nextLang: Language) {
+    if (nextLang === lang) return;
+
+    const previousLang = lang;
+    setLang(nextLang);
+
+    if (!user) {
+      return;
+    }
+
+    const error = await updateLanguagePreference(nextLang);
+    if (error) {
+      console.error("Failed to update language preference", error);
+      setLang(previousLang);
+    }
+  }
+
+  // Gated entries stay visible for free users with a lock badge —
+  // hiding them kills feature discovery; showing them sells the upgrade.
+  const lockBadge = !isParticipant && (
+    <Lock size={11} className={s.navLock} aria-label={t("upgrade.nav_locked")} />
+  );
+
   const navItems = (
     <>
       <li>
@@ -67,6 +90,7 @@ export function Shell({ children }: ShellProps) {
           className={`${s.navLink} ${isActive("/templates") ? s.navLinkActive : ""}`}
         >
           {t("dashboard.templates")}
+          {lockBadge}
         </Link>
       </li>
       <li>
@@ -75,6 +99,7 @@ export function Shell({ children }: ShellProps) {
           className={`${s.navLink} ${isActive("/profile") ? s.navLinkActive : ""}`}
         >
           {t("profile.nav_label")}
+          {lockBadge}
         </Link>
       </li>
       {user?.role === "admin" && (
@@ -92,20 +117,16 @@ export function Shell({ children }: ShellProps) {
 
   const langToggle = (
     <div className={s.langToggle}>
-      <button
-        type="button"
-        className={`${s.langBtn} ${lang === "fr" ? s.langBtnActive : ""}`}
-        onClick={() => setLang("fr")}
-      >
-        {t("common.lang_fr")}
-      </button>
-      <button
-        type="button"
-        className={`${s.langBtn} ${lang === "en" ? s.langBtnActive : ""}`}
-        onClick={() => setLang("en")}
-      >
-        {t("common.lang_en")}
-      </button>
+      {SUPPORTED_LANGUAGES.map((option) => (
+        <button
+          key={option}
+          type="button"
+          className={`${s.langBtn} ${lang === option ? s.langBtnActive : ""}`}
+          onClick={() => void handleLanguageChange(option)}
+        >
+          {t(`common.lang_${option}`)}
+        </button>
+      ))}
     </div>
   );
 

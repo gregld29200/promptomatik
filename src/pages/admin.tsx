@@ -11,6 +11,7 @@ import type {
   AdminUser,
   AdminTemplate,
   AdminTemplateSubmission,
+  Tier,
 } from "@/lib/api";
 import s from "./admin.module.css";
 
@@ -63,6 +64,7 @@ function InvitationsTab() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
+  const [inviteTier, setInviteTier] = useState<Tier>("participant");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -83,7 +85,7 @@ function InvitationsTab() {
     setSending(true);
     setResult(null);
 
-    const res = await api.sendInvitation(email.trim());
+    const res = await api.sendInvitation(email.trim(), inviteTier);
     if (res.error) {
       setResult({ type: "error", message: res.error.error });
     } else {
@@ -137,6 +139,16 @@ function InvitationsTab() {
             required
           />
         </div>
+        <label className={s.tierSelect}>
+          {t("admin.tier")}
+          <select
+            value={inviteTier}
+            onChange={(e) => setInviteTier(e.target.value as Tier)}
+          >
+            <option value="participant">{t("admin.tier_participant")}</option>
+            <option value="free">{t("admin.tier_free")}</option>
+          </select>
+        </label>
         <Button variant="primary" type="submit" disabled={sending}>
           {sending ? <Spinner size={16} /> : t("admin.send_invite")}
         </Button>
@@ -156,6 +168,8 @@ function InvitationsTab() {
             <tr>
               <th>{t("auth.email")}</th>
               <th>{t("admin.status")}</th>
+              <th>{t("admin.tier")}</th>
+              <th>{t("admin.kind")}</th>
               <th>{t("admin.date")}</th>
               <th></th>
             </tr>
@@ -171,6 +185,8 @@ function InvitationsTab() {
                       {t(`admin.status_${status}`)}
                     </span>
                   </td>
+                  <td>{t(`admin.tier_${inv.tier}`)}</td>
+                  <td>{t(`admin.kind_${inv.kind}`)}</td>
                   <td>{formatDate(inv.created_at)}</td>
                   <td>
                     {status === "pending" && (
@@ -220,6 +236,13 @@ function UsersTab() {
     setTogglingId(null);
   }
 
+  async function toggleTier(user: AdminUser) {
+    setTogglingId(user.id);
+    await api.setUserTier(user.id, user.tier === "free" ? "participant" : "free");
+    await loadUsers();
+    setTogglingId(null);
+  }
+
   if (loading) {
     return (
       <div className={s.empty}>
@@ -239,6 +262,7 @@ function UsersTab() {
               <th>{t("auth.name")}</th>
               <th>{t("auth.email")}</th>
               <th>{t("admin.role")}</th>
+              <th>{t("admin.tier")}</th>
               <th>{t("admin.status")}</th>
               <th>{t("admin.date")}</th>
               <th></th>
@@ -250,6 +274,7 @@ function UsersTab() {
                 <td>{u.name}</td>
                 <td>{u.email}</td>
                 <td>{u.role}</td>
+                <td>{t(`admin.tier_${u.tier}`)}</td>
                 <td>
                   <span
                     className={`${s.statusBadge} ${u.is_active ? s.statusActive : s.statusInactive}`}
@@ -258,22 +283,38 @@ function UsersTab() {
                   </span>
                 </td>
                 <td>{formatDate(u.created_at)}</td>
-                <td>
+                <td className={s.rowActions}>
                   {u.id !== currentUser?.id && (
-                    <Button
-                      variant={u.is_active ? "danger" : "secondary"}
-                      size="small"
-                      disabled={togglingId === u.id}
-                      onClick={() => toggleActive(u)}
-                    >
-                      {togglingId === u.id ? (
-                        <Spinner size={14} />
-                      ) : u.is_active ? (
-                        t("admin.deactivate")
-                      ) : (
-                        t("admin.reactivate")
-                      )}
-                    </Button>
+                    <>
+                      <Button
+                        variant="secondary"
+                        size="small"
+                        disabled={togglingId === u.id}
+                        onClick={() => toggleTier(u)}
+                      >
+                        {togglingId === u.id ? (
+                          <Spinner size={14} />
+                        ) : u.tier === "free" ? (
+                          t("admin.promote_participant")
+                        ) : (
+                          t("admin.demote_free")
+                        )}
+                      </Button>
+                      <Button
+                        variant={u.is_active ? "danger" : "secondary"}
+                        size="small"
+                        disabled={togglingId === u.id}
+                        onClick={() => toggleActive(u)}
+                      >
+                        {togglingId === u.id ? (
+                          <Spinner size={14} />
+                        ) : u.is_active ? (
+                          t("admin.deactivate")
+                        ) : (
+                          t("admin.reactivate")
+                        )}
+                      </Button>
+                    </>
                   )}
                 </td>
               </tr>

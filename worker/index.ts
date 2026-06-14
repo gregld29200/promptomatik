@@ -7,6 +7,8 @@ import { prompts } from "./routes/prompts";
 import { admin } from "./routes/admin";
 import { profile } from "./routes/profile";
 import { templates } from "./routes/templates";
+import { jobs } from "./routes/jobs";
+import { handleInterviewJobBatch } from "./lib/interview-jobs";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -17,7 +19,11 @@ app.route("/api/prompts", prompts);
 app.route("/api/profile", profile);
 app.route("/api/admin", admin);
 app.route("/api/templates", templates);
+app.route("/api/jobs", jobs);
 
 app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
 
-export default app;
+export default {
+  fetch: app.fetch,
+  queue: handleInterviewJobBatch,
+};

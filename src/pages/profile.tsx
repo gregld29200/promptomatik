@@ -6,6 +6,8 @@ import { FadeIn } from "@/reactbits/fade-in";
 import { RotateCcw } from "lucide-react";
 import { t } from "@/lib/i18n";
 import { useOnboarding } from "@/lib/onboarding/onboarding-context";
+import { useAuth } from "@/lib/auth/auth-context";
+import { UpgradeGate } from "@/components/upgrade-gate";
 import * as api from "@/lib/api";
 import type { TeacherProfile } from "@/lib/api";
 import s from "./profile.module.css";
@@ -30,6 +32,7 @@ const DURATION_OPTIONS = [
 
 export function ProfilePage() {
   const navigate = useNavigate();
+  const { isParticipant } = useAuth();
   const onboarding = useOnboarding();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -59,9 +62,11 @@ export function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    if (loading) return;
+    // Free users see the upgrade gate instead of the form — the profile tour
+    // would point at fields that aren't rendered.
+    if (loading || !isParticipant) return;
     onboarding.maybeAutoStartProfile({ profile });
-  }, [loading, profile, onboarding]);
+  }, [loading, profile, onboarding, isParticipant]);
 
   function toggleLevel(level: string) {
     setTypicalLevels((prev) =>
@@ -102,6 +107,14 @@ export function ProfilePage() {
       setTimeout(() => setSaved(false), 3000);
     }
     setSaving(false);
+  }
+
+  if (!isParticipant) {
+    return (
+      <Shell>
+        <UpgradeGate variant="page" message={t("upgrade.feature_profile")} />
+      </Shell>
+    );
   }
 
   if (loading) {

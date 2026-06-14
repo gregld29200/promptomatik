@@ -8,6 +8,8 @@ import { StudyMode } from "@/components/prompt/study-mode";
 import { ModeToggle, type ViewMode } from "@/components/prompt/mode-toggle";
 import { Tips } from "@/components/prompt/tips";
 import { CopyButton } from "@/components/prompt/copy-button";
+import { useAuth } from "@/lib/auth/auth-context";
+import { UpgradeGate } from "@/components/upgrade-gate";
 import { t } from "@/lib/i18n";
 import { ArrowLeft } from "lucide-react";
 import * as api from "@/lib/api";
@@ -16,6 +18,7 @@ import s from "./template-detail.module.css";
 
 export function TemplateDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { isParticipant } = useAuth();
   const navigate = useNavigate();
   const [template, setTemplate] = useState<Template | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +27,7 @@ export function TemplateDetailPage() {
   const [using, setUsing] = useState(false);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !isParticipant) return;
     api.getTemplate(id).then((res) => {
       if (res.data) {
         setTemplate(res.data.template);
@@ -33,7 +36,7 @@ export function TemplateDetailPage() {
       }
       setLoading(false);
     });
-  }, [id]);
+  }, [id, isParticipant]);
 
   async function handleUse() {
     if (!id) return;
@@ -51,6 +54,14 @@ export function TemplateDetailPage() {
         .map((b) => b.content)
         .join("\n\n")
     : "";
+
+  if (!isParticipant) {
+    return (
+      <Shell>
+        <UpgradeGate variant="page" message={t("upgrade.feature_templates")} />
+      </Shell>
+    );
+  }
 
   if (loading) {
     return (

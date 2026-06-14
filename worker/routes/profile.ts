@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../env";
 import { requireAuth } from "../lib/auth-middleware";
 import type { SessionData } from "../lib/session";
+import { getUserTier } from "../lib/tier";
 
 export interface TeacherProfile {
   languages_taught: string[];
@@ -77,10 +78,34 @@ profile.get("/", async (c) => {
   return c.json({ profile: parsed });
 });
 
+// Fields free-tier users may write — onboarding/tour state only. A whitelist
+// (not a blacklist of teaching fields) so future profile fields stay gated by
+// default. GET stays open for all tiers: the dashboard and onboarding tour
+// read the profile; the teaching-profile page itself is gated in the UI.
+const FREE_TIER_WRITABLE_FIELDS = [
+  "onboarding_completed",
+  "onboarding_version",
+  "profile_onboarding_completed",
+  "profile_onboarding_version",
+] as const;
+
 // PUT /api/profile — Update profile (merge, not replace)
 profile.put("/", async (c) => {
   const session = c.get("session");
-  const input = await c.req.json<Partial<TeacherProfile> & { typical_audience?: string[] | string }>();
+  let input = await c.req.json<Partial<TeacherProfile> & { typical_audience?: string[] | string }>();
+
+  if (session.role !== "admin") {
+    const tier = await getUserTier(c.env.DB, session.userId);
+    if (tier !== "participant") {
+      const filtered: Partial<TeacherProfile> = {};
+      for (const field of FREE_TIER_WRITABLE_FIELDS) {
+        if (input[field] !== undefined) {
+          filtered[field] = input[field] as never;
+        }
+      }
+      input = filtered;
+    }
+  }
 
   // Fetch existing profile
   const row = await c.env.DB.prepare("SELECT profile FROM users WHERE id = ?")

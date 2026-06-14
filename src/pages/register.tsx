@@ -16,6 +16,7 @@ export function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [expiredSelf, setExpiredSelf] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   if (authLoading) {
@@ -62,9 +63,13 @@ export function RegisterPage() {
     }
 
     setSubmitting(true);
+    setExpiredSelf(false);
     const err = await register(token, name, password);
     if (err) {
-      if (err.status === 400) {
+      if (err.code === "INVITE_EXPIRED_SELF") {
+        setError(t("signup.expired_invite"));
+        setExpiredSelf(true);
+      } else if (err.status === 400) {
         setError(
           err.error.includes("expired")
             ? t("auth.invite_expired")
@@ -122,6 +127,11 @@ export function RegisterPage() {
                   required
                 />
                 {error && <p className={s.error}>{error}</p>}
+                {expiredSelf && (
+                  <p className={s.footer}>
+                    <Link to="/signup">{t("signup.from_login")}</Link>
+                  </p>
+                )}
                 <Button
                   variant="primary"
                   type="submit"

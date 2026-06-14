@@ -3,6 +3,7 @@ import type { Env } from "../env";
 import type { SessionData } from "../lib/session";
 import { requireAuth, requireAdmin } from "../lib/auth-middleware";
 import { sendInvitationEmail } from "../lib/email";
+import { isTier } from "../lib/tier";
 
 const admin = new Hono<{ Bindings: Env; Variables: { session: SessionData } }>();
 
@@ -11,11 +12,13 @@ admin.use("*", requireAuth, requireAdmin);
 // ---- Invitations ----
 
 admin.post("/invitations", async (c) => {
-  const { email } = await c.req.json<{ email: string }>();
+  const { email, tier: rawTier } = await c.req.json<{ email: string; tier?: string }>();
 
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return c.json({ error: "Valid email is required" }, 400);
   }
+
+  const tier = isTier(rawTier) ? rawTier : "participant";
 
   const normalizedEmail = email.toLowerCase().trim();
 
@@ -52,8 +55,8 @@ admin.post("/invitations", async (c) => {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   await c.env.DB.prepare(
-    "INSERT INTO invitations (id, email, token, status, invited_by, expires_at, created_at) VALUES (?, ?, ?, 'pending', ?, ?, ?)"
-  ).bind(id, normalizedEmail, token, session.userId, expiresAt, now).run();
+    "INSERT INTO invitations (id, email, token, status, invited_by, tier, kind, expires_at, created_at) VALUES (?, ?, ?, 'pending', ?, ?, 'admin', ?, ?)"
+  ).bind(id, normalizedEmail, token, session.userId, tier, expiresAt, now).run();
 
   const emailResult = await sendInvitationEmail(c.env.RESEND_API_KEY, {
     to: normalizedEmail,
@@ -63,19 +66,21 @@ admin.post("/invitations", async (c) => {
     appBaseUrl: c.env.APP_URL ?? new URL(c.req.url).origin,
   });
 
-  const invitation = { id, email: normalizedEmail, token, status: "pending", expires_at: expiresAt, created_at: now };
+  const invitation = { id, email: normalizedEmail, token, status: "pending", tier, kind: "admin", expires_at: expiresAt, created_at: now };
 
   return c.json({ invitation, email_sent: emailResult.success }, 201);
 });
 
 admin.get("/invitations", async (c) => {
   const { results } = await c.env.DB.prepare(
-    "SELECT id, email, token, status, expires_at, created_at FROM invitations ORDER BY created_at DESC"
+    "SELECT id, email, token, status, tier, kind, expires_at, created_at FROM invitations ORDER BY created_at DESC"
   ).all<{
     id: string;
     email: string;
     token: string;
     status: string;
+    tier: string;
+    kind: string;
     expires_at: string;
     created_at: string;
   }>();
@@ -87,17 +92,39 @@ admin.get("/invitations", async (c) => {
 
 admin.get("/users", async (c) => {
   const { results } = await c.env.DB.prepare(
-    "SELECT id, email, name, role, is_active, created_at FROM users ORDER BY created_at DESC"
+    "SELECT id, email, name, role, tier, is_active, created_at FROM users ORDER BY created_at DESC"
   ).all<{
     id: string;
     email: string;
     name: string;
     role: string;
+    tier: string;
     is_active: number;
     created_at: string;
   }>();
 
   return c.json({ users: results });
+});
+
+admin.post("/users/:id/tier", async (c) => {
+  const userId = c.req.param("id");
+  const { tier } = await c.req.json<{ tier?: string }>();
+
+  if (!isTier(tier)) {
+    return c.json({ error: "Invalid tier" }, 400);
+  }
+
+  const result = await c.env.DB.prepare(
+    "UPDATE users SET tier = ?, updated_at = datetime('now') WHERE id = ?"
+  )
+    .bind(tier, userId)
+    .run();
+
+  if (!result.meta.changes) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  return c.json({ success: true });
 });
 
 admin.post("/users/:id/deactivate", async (c) => {
