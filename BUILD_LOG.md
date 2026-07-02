@@ -740,3 +740,26 @@ Session verdict: FR shareable __ / EN shareable __ / overall go-no-go __.
 - [ ] Greg's listening session and human review.
 
 Phase 7 awaits human review.
+
+## Phase 7 review sign-offs (2026-07-02)
+
+Greg's review of the Phase 7 automated results: the three automated
+go/no-go metrics are GO. Phase 7 remains OPEN pending the human
+listening verdicts on the current `.tmp/pilot-assets/` set (that set is
+the review set — do not regenerate unless asked).
+
+1. Amendment APPROVED — speaker-label detection narrowed to a 1-3-word
+   prefix, one shared `speakerLabelPrefix()` helper across the linter
+   and the compiler guard, tests in both directions (commit `bee9e03`).
+2. Rebuild-before-verify rule acknowledged and kept in the operating
+   checklist: `npm run build` before any `wrangler dev` verification
+   (deploy-config redirect serves the prebuilt dist worker).
+3. Known issue — dictation duration instability: the same dictation
+   script produced 36s and 223s takes across runs (the model sometimes
+   inserts very long inter-sentence pauses with the Dictation style).
+   Decision on whether Dictation stays in the V1 style list is PENDING
+   the human listening session. The style list must not change until
+   instructed.
+
+No further code work until the listening verdicts: no acceptance
+walkthrough, no deployment, no pilot-asset regeneration.
