@@ -661,3 +661,82 @@ reported complete:
 The failure rate and cost-per-hour figures on the admin dashboard are
 currently computed over only 7 local jobs and are NOT decision-grade.
 The Phase 7 pilot harness provides the go/no-go measurement set.
+
+## Phase 7 - Pilot harness (2026-07-02)
+
+### Built
+
+- Added `scripts/pilot-assets.ts` and `npm run audio:pilot`.
+  - Generates the 7 pilot assets (PRD §10.3) through the REAL pipeline: each take is a `POST /api/audio/jobs` against a running dev server, processed by the actual queue consumer, polled to a terminal status, and its `final.mp3` downloaded to `.tmp/pilot-assets/` for the listening session.
+  - All takes are Final quality. The B2 business scenario is written to ~2 minutes and runs 3 times so the "2-min Final dialogue" go/no-go metric is a median, not a single sample. The slow+natural pair generates the same script under both pace presets. 10 takes total.
+  - Prints a per-take metrics table (estimated vs actual seconds, accuracy ratio, wall-clock, ms per audio second, retries, cost) plus a go/no-go summary, and writes `.tmp/pilot-assets/metrics.md`.
+  - Config: `PILOT_BASE_URL` / `PILOT_EMAIL` / `PILOT_PASSWORD` env vars (defaults target local dev).
+
+### Amendment - speaker-label heuristic narrowed (found by the harness)
+
+The first harness run rejected 3 of the 7 assets before generation: the shared linter and the compiler-boundary guard both treated ANY line whose first colon fell within 80 characters as a speaker label. Ordinary prose colons — `...regarda l'horloge : six heures dix.` (FR narration), `...enjoy the flexibility: they can...` (EN pair) — blocked monologue generation entirely. Real teacher scripts would hit this constantly.
+
+Fix, kept within the approved Phase 5b intent (block speaker labels, not prose):
+- New shared helper `speakerLabelPrefix()` in `src/lib/audio-script-rules.ts`: a colon marks a label only when the prefix is 1-3 words (`Sarah`, `M. Dupont`, `Speaker 1`) within 40 characters and does not start with a tag bracket.
+- `lintAudioScript` and `validateTranscriptForTts` (`worker/lib/audio-direction.ts`) now share this single definition, so client lint, server lint, and the TTS compiler boundary agree.
+- Genuine labels are still blocked in monologue and still normalized/enforced in dialogue; the strict Speaker 1/2 dialogue rule is unchanged.
+- Tests extended (+3): prose colons pass in both layers, short labels still rejected, dialogue narration with a prose colon stays a warning.
+
+### Dev-workflow gotcha (cost one debugging session, recorded for future phases)
+
+`.wrangler/deploy/config.json` (written by @cloudflare/vite-plugin at build time) redirects `npx wrangler dev` to the PREBUILT worker in `dist/promptomatik/`, not to `worker/index.ts` source. Worker changes are invisible to `wrangler dev` — including across restarts and cache clears — until `npm run build` regenerates dist. Two harness runs hit stale lint code this way. Rule going forward: `npm run build` before any `wrangler dev` verification, and confirm by grepping `dist/promptomatik/index.js` for the changed string.
+
+### Pilot metrics (final clean run, 2026-07-02, local dev, real Gemini API)
+
+| Asset | Lang | Mode | Run | Status | Est s | Actual s | Accuracy (act/est) | Wall time | ms/audio-s | Retries | Cost |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| A2 monologue (EN) | EN | monologue | 1/1 | ready | 32 | 49 | 1.53x | 36.5s | 745 | 0 | $0.0245 |
+| B1 workplace dialogue (FR) | FR | dialogue | 1/1 | ready | 54 | 36 | 0.67x | 33.2s | 863 | 0 | $0.0180 |
+| B2 business scenario, 2-min dialogue (EN) | EN | dialogue | 1/3 | ready | 102 | 80 | 0.78x | 57.3s | 715 | 0 | $0.0400 |
+| B2 business scenario, 2-min dialogue (EN) | EN | dialogue | 2/3 | ready | 102 | 80 | 0.78x | 66.3s | 808 | 0 | $0.0400 |
+| B2 business scenario, 2-min dialogue (EN) | EN | dialogue | 3/3 | ready | 102 | 82 | 0.80x | 58.0s | 707 | 0 | $0.0410 |
+| EN roleplay (hotel check-in) | EN | dialogue | 1/1 | ready | 55 | 44 | 0.80x | 36.2s | 773 | 0 | $0.0220 |
+| FR classroom narration | FR | monologue | 1/1 | ready | 39 | 43 | 1.10x | 33.2s | 714 | 0 | $0.0215 |
+| Dictation version (FR) | FR | monologue | 1/1 | ready | 24 | 37 | 1.54x | 30.2s | 766 | 0 | $0.0185 |
+| Slow+natural pair — slow take (EN) | EN | monologue | 1/1 | ready | 35 | 51 | 1.46x | 39.3s | 720 | 0 | $0.0255 |
+| Slow+natural pair — natural take (EN) | EN | monologue | 1/1 | ready | 35 | 42 | 1.20x | 36.4s | 865 | 0 | $0.0210 |
+
+| Go/no-go metric | Threshold | Measured |
+|---|---|---|
+| Failure rate after retries | < 5% | 0.0% (0/10 takes) |
+| Real cost per generated hour (Final) | < $3.60/h (2x $1.80/h estimate) | $1.80/h |
+| Median generation time, 2-min Final dialogue | < 3 min | 58.0s over 3 runs |
+| Quality shareable with learners | 7 pilot assets | pending Greg's listening session |
+
+Total API cost: $0.2720 · total audio: 544s · takes with actual > 2x estimate: 0.
+
+Observations for the pilot record:
+- Slow-pace and dictation monologues run 1.2x-1.55x over the word-count estimate (the 150 wpm assumption is too fast for slowed delivery); dialogues run 0.67x-0.80x under it. Nothing crossed the 2x admin flag in the final run.
+- Dictation duration was unstable in an earlier run on the same script (36s vs 223s across runs — the model sometimes inserts very long inter-sentence pauses with the dictation style). Worth listening for; if long-pause takes recur in the pilot, per-style estimate multipliers are a V1.5 candidate.
+- Cost per generated hour landed at exactly the published $1.80/h Final estimate in every run (pricing is linear in audio seconds, so this is expected — the metric guards against pricing config drift and retry waste).
+
+### Listening notes template (fill during the pilot session)
+
+For each asset: play `.tmp/pilot-assets/<slug>.mp3` (regenerate anytime with `npm run audio:pilot`). Judge FR and EN separately.
+
+| # | Asset | File | Voice quality (1-5) | Pace/level fit (1-5) | Tags rendered correctly? | Artifacts/glitches? | Shareable with learners? | Notes |
+|---|---|---|---|---|---|---|---|---|
+| 1 | A2 monologue (EN) | a2-monologue-en.mp3 | | | | | oui / non | |
+| 2 | B1 workplace dialogue (FR) | b1-workplace-dialogue-fr.mp3 | | | | | oui / non | |
+| 3 | B2 business scenario (EN, 2 min) | b2-business-2min-en-run1..3.mp3 | | | | | oui / non | |
+| 4 | EN roleplay (hotel) | en-roleplay-hotel.mp3 | | | | | oui / non | |
+| 5 | FR classroom narration | fr-classroom-narration.mp3 | | | | | oui / non | |
+| 6 | Dictation version (FR) | fr-dictation.mp3 | | | | | oui / non | |
+| 7 | Slow+natural pair (EN) | en-pair-slow.mp3 + en-pair-natural.mp3 | | | pair contrast audible? | | oui / non | |
+
+Session verdict: FR shareable __ / EN shareable __ / overall go-no-go __.
+
+### Phase 7 DoD
+
+- [x] `scripts/pilot-assets.ts` generates the 7 pilot assets through the real pipeline.
+- [x] Metrics table printed from one command; attached above with the go/no-go summary.
+- [x] Listening notes template attached.
+- [x] All four go/no-go metrics measurable from one command plus a listening session; the three automated ones are green on the final run.
+- [ ] Greg's listening session and human review.
+
+Phase 7 awaits human review.
