@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { Download, Pause, Play, RotateCcw } from "lucide-react";
 import type { AudioJob } from "@/lib/api";
+import { t } from "@/lib/i18n";
 import s from "./waveform-player.module.css";
 
 interface WaveformPlayerProps {
@@ -80,7 +81,7 @@ export function WaveformPlayer({
   }
 
   return (
-    <section className={s.player} aria-label="Lecteur audio">
+    <section className={s.player} aria-label={t("audio.player_aria")}>
       {job.downloads?.mp3 && <audio ref={audioRef} src={job.downloads.mp3} preload="metadata" />}
 
       <div className={s.controls}>
@@ -88,7 +89,7 @@ export function WaveformPlayer({
           type="button"
           className={s.play}
           onClick={() => void togglePlayback()}
-          aria-label={playing ? "Mettre en pause" : "Lire"}
+          aria-label={playing ? t("audio.player_pause") : t("audio.player_play")}
         >
           {playing ? <Pause size={18} aria-hidden /> : <Play size={18} aria-hidden />}
         </button>
@@ -97,17 +98,17 @@ export function WaveformPlayer({
         </div>
         <div className={s.downloads}>
           {job.downloads?.mp3 && (
-            <a href={job.downloads.mp3} download aria-label="Télécharger MP3">
+            <a href={job.downloads.mp3} download aria-label={t("audio.download_mp3_aria")}>
               <Download size={16} aria-hidden /> MP3
             </a>
           )}
           {job.downloads?.wav && (
-            <a href={job.downloads.wav} download aria-label="Télécharger WAV">
+            <a href={job.downloads.wav} download aria-label={t("audio.download_wav_aria")}>
               WAV
             </a>
           )}
           {job.downloads?.transcript && (
-            <a href={job.downloads.transcript} download aria-label="Télécharger le script">
+            <a href={job.downloads.transcript} download aria-label={t("audio.download_transcript_aria")}>
               TXT
             </a>
           )}
@@ -120,7 +121,7 @@ export function WaveformPlayer({
           viewBox="0 0 1000 180"
           preserveAspectRatio="none"
           role="img"
-          aria-label="Forme d'onde avec limites de blocs"
+          aria-label={t("audio.waveform_aria")}
           onClick={seek}
         >
           <rect x="0" y="0" width="1000" height="180" rx="8" className={s.waveBg} />
@@ -174,17 +175,17 @@ export function WaveformPlayer({
       {selected && (
         <div className={s.selection}>
           <div>
-            <strong>Bloc {selected.idx + 1}</strong>
-            <span>{formatTime(selected.durationSeconds)} de quota estimé</span>
+            <strong>{t("audio.block_label", { index: String(selected.idx + 1) })}</strong>
+            <span>{t("audio.block_quota_estimate", { time: formatTime(selected.durationSeconds) })}</span>
           </div>
           <button
             type="button"
             onClick={() => onRegenerate(selected.idx)}
             disabled={regenerating}
-            aria-label={`Régénérer le bloc ${selected.idx + 1}`}
+            aria-label={t("audio.regenerate_block_aria", { index: String(selected.idx + 1) })}
           >
             <RotateCcw size={16} aria-hidden />
-            Régénérer ce bloc
+            {t("audio.regenerate_block")}
           </button>
         </div>
       )}

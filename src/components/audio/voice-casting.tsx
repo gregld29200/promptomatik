@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
 import { Play, Volume2 } from "lucide-react";
 import type { AudioMode, AudioVoice } from "@/lib/api";
+import { getLanguage, t } from "@/lib/i18n";
 import s from "./voice-casting.module.css";
 
+// Display-only FR transforms; the backend descriptor values are the EN labels.
 const DESCRIPTORS_FR: Record<string, string> = {
   Bright: "Claire",
   Upbeat: "Enjouée",
@@ -40,12 +42,13 @@ function slotsForMode(mode: AudioMode) {
 }
 
 function slotLabel(slot: string) {
-  if (slot === "solo") return "Narrateur";
-  return slot.replace(/^Speaker\s+(\d+)$/i, "Locuteur $1");
+  if (slot === "solo") return t("audio.narrator");
+  const n = slot.match(/^Speaker\s+(\d+)$/i)?.[1];
+  return n ? t("audio.speaker_n", { n }) : slot;
 }
 
 function descriptorLabel(descriptor: string) {
-  return DESCRIPTORS_FR[descriptor] ?? descriptor;
+  return getLanguage() === "fr" ? (DESCRIPTORS_FR[descriptor] ?? descriptor) : descriptor;
 }
 
 export function VoiceCasting({ voices, mode, selected, onChange }: VoiceCastingProps) {
@@ -76,7 +79,7 @@ export function VoiceCasting({ voices, mode, selected, onChange }: VoiceCastingP
 
   return (
     <div className={s.casting}>
-      <div className={s.slots} aria-label="Attribution des voix">
+      <div className={s.slots} aria-label={t("audio.voice_slots_aria")}>
         {slots.map((slot) => {
           const selectedVoice = voices.find((voice) => voice.name === selected[slot]);
           return (
@@ -88,14 +91,14 @@ export function VoiceCasting({ voices, mode, selected, onChange }: VoiceCastingP
               aria-pressed={targetSlot === slot}
             >
               <span>{slotLabel(slot)}</span>
-              <strong>{selectedVoice?.name ?? "À choisir"}</strong>
+              <strong>{selectedVoice?.name ?? t("audio.voice_to_choose")}</strong>
               {selectedVoice && <small>{descriptorLabel(selectedVoice.descriptor)}</small>}
             </button>
           );
         })}
       </div>
 
-      <div className={s.grid} aria-label="Catalogue de voix">
+      <div className={s.grid} aria-label={t("audio.voice_catalog_aria")}>
         {voices.map((voice) => {
           const isSelected = Object.values(selected).includes(voice.name);
           const isPreviewing = activePreview === voice.name;
@@ -106,7 +109,7 @@ export function VoiceCasting({ voices, mode, selected, onChange }: VoiceCastingP
                 type="button"
                 className={s.selectButton}
                 onClick={() => selectVoice(voice.name)}
-                aria-label={`Choisir ${voice.name}`}
+                aria-label={t("audio.voice_select_aria", { name: voice.name })}
               >
                 <span className={s.name}>{voice.name}</span>
                 <span className={s.descriptor}>{descriptorLabel(voice.descriptor)}</span>
@@ -116,8 +119,8 @@ export function VoiceCasting({ voices, mode, selected, onChange }: VoiceCastingP
                 type="button"
                 className={s.preview}
                 onClick={() => void preview(voice)}
-                aria-label={`Écouter ${voice.name}`}
-                title={`Écouter ${voice.name}`}
+                aria-label={t("audio.voice_preview_aria", { name: voice.name })}
+                title={t("audio.voice_preview_aria", { name: voice.name })}
               >
                 {isPreviewing ? <Volume2 size={16} aria-hidden /> : <Play size={16} aria-hidden />}
               </button>

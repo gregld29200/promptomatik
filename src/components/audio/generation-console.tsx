@@ -1,4 +1,5 @@
 import type { AudioJob } from "@/lib/api";
+import { t } from "@/lib/i18n";
 import s from "./generation-console.module.css";
 
 interface GenerationConsoleProps {
@@ -23,8 +24,9 @@ function currentBlock(job: AudioJob) {
 function speakerLabel(text: string) {
   const match = text.match(/^([^:\n]{1,40}):/);
   const label = match?.[1]?.trim();
-  if (!label) return "la voix";
-  return label.replace(/^Speaker\s+(\d+)$/i, "locuteur $1");
+  if (!label) return t("audio.console_generic_voice");
+  const n = label.match(/^Speaker\s+(\d+)$/i)?.[1];
+  return n ? t("audio.console_speaker_n", { n }) : label;
 }
 
 export function GenerationConsole({ job, elapsedSeconds }: GenerationConsoleProps) {
@@ -42,8 +44,8 @@ export function GenerationConsole({ job, elapsedSeconds }: GenerationConsoleProp
     <section className={s.console} aria-live="polite">
       <div className={s.header}>
         <div>
-          <p className={s.kicker}>En régie...</p>
-          <h2>{hasFailed ? "Prise interrompue" : isAssembling ? "Assemblage" : "Génération"}</h2>
+          <p className={s.kicker}>{t("audio.console_kicker")}</p>
+          <h2>{hasFailed ? t("audio.console_failed_title") : isAssembling ? t("audio.console_assembling_title") : t("audio.console_generating_title")}</h2>
         </div>
         <div className={s.meter} aria-hidden="true">
           <span />
@@ -56,13 +58,17 @@ export function GenerationConsole({ job, elapsedSeconds }: GenerationConsoleProp
 
       <div className={s.statusLine}>
         {hasFailed
-          ? "Cette prise a échoué - réessayer ne vous coûte rien."
+          ? t("audio.console_failed_hint")
           : isAssembling
-            ? "Assemblage de la prise finale..."
-            : `Bloc ${activeIndex}/${total} - voix de ${speakerLabel(active?.text ?? "")}`}
+            ? t("audio.console_assembling_hint")
+            : t("audio.console_block_line", {
+                current: String(activeIndex),
+                total: String(total),
+                speaker: speakerLabel(active?.text ?? ""),
+              })}
       </div>
 
-      <div className={s.progressGrid} role="list" aria-label="Progression des blocs">
+      <div className={s.progressGrid} role="list" aria-label={t("audio.console_blocks_aria")}>
         {Array.from({ length: total }, (_, index) => {
           const segment = segments[index];
           const state = segment?.status ?? (index < done ? "ok" : "pending");
@@ -73,7 +79,7 @@ export function GenerationConsole({ job, elapsedSeconds }: GenerationConsoleProp
               className={`${s.block} ${state === "ok" ? s.done : ""} ${
                 index + 1 === activeIndex && !isAssembling ? s.active : ""
               }`}
-              aria-label={`Bloc ${index + 1}: ${state}`}
+              aria-label={`${t("audio.block_label", { index: String(index + 1) })}: ${state}`}
             />
           );
         })}
@@ -81,16 +87,16 @@ export function GenerationConsole({ job, elapsedSeconds }: GenerationConsoleProp
 
       <dl className={s.metrics}>
         <div>
-          <dt>Temps écoulé</dt>
+          <dt>{t("audio.console_elapsed")}</dt>
           <dd>{formatDuration(elapsedSeconds)}</dd>
         </div>
         <div>
-          <dt>Estimation</dt>
+          <dt>{t("audio.console_estimate")}</dt>
           <dd>{formatDuration(job.estimatedSeconds)}</dd>
         </div>
         <div>
-          <dt>Modèle</dt>
-          <dd>{job.modelUsed ?? (job.quality === "final" ? "Final" : "Draft")}</dd>
+          <dt>{t("audio.console_model")}</dt>
+          <dd>{job.quality === "final" ? t("audio.final") : t("audio.draft")}</dd>
         </div>
       </dl>
 

@@ -1025,3 +1025,33 @@ pace, and scene stay global for pedagogical consistency.
   dialogue to `ready`; `direction_json.speakers` persisted exactly the
   configured overrides.
 - Screenshot: `docs/audio-studio-screenshots/phase8-speaker-direction-dialog.png`
+
+## Post-launch fix - EN mode showed French across the studio (2026-07-02)
+
+Reported by Greg: much of Audio Studio stayed French in EN mode. Root
+cause: the Phase 4 "no mixed English in the FR view" fix hardcoded
+French display maps and literals instead of using i18n - DIRECTION_LABELS,
+STATUS_LABELS, PREPARE_GROUP_LABELS in the page, DESCRIPTORS_FR and slot
+labels in VoiceCasting, and every sentence in GenerationConsole and
+WaveformPlayer (titles, status lines, aria labels, metrics, downloads,
+regenerate action).
+
+Fix:
+- 40 new i18n keys (FR + EN) covering statuses, prepare groups,
+  casting labels/aria, the whole generation console, and the whole
+  player. Key parity verified.
+- Direction presets and voice descriptors: FR maps kept as display-only
+  transforms, now gated on the current language; EN shows the backend
+  English values directly.
+- Stale hardcoded maps removed from the page.
+- Browser audit in EN mode: no residual French UI (only user script
+  content); FR mode unchanged; history rows now fully localized
+  ("Ready · Expires ..." / "Prêt · Expire le ...").
+
+Also fixed while in the console: the "Modèle" metric rendered
+`job.modelUsed` - the raw model ID - whenever a regenerated job passed
+through the console (model_used is set after the first assembly). This
+violated the hard "model names never in the UI" rule; the console now
+always shows Brouillon/Finale.
+
+Gate green: 63 tests, build, audit, clean tree. Deployed.

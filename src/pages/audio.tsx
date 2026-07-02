@@ -57,21 +57,6 @@ const DIRECTION_LABELS: Record<string, string> = {
   Storytelling: "Narration",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  queued: "En attente",
-  generating: "En régie",
-  assembling: "Assemblage",
-  ready: "Prêt",
-  failed: "Échec",
-};
-
-const PREPARE_GROUP_LABELS: Record<(typeof PREPARE_GROUPS)[number], string> = {
-  speaker_rename: "Renommages de locuteurs",
-  tag_added: "Tags proposés",
-  direction_hint: "Direction proposée",
-  cleanup: "Nettoyages",
-};
-
 const PREPARE_TYPE_TO_GROUP: Record<api.AudioPrepareChange["type"], (typeof PREPARE_GROUPS)[number]> = {
   speaker_rename: "speaker_rename",
   tag_added: "tag_added",
@@ -212,6 +197,7 @@ function applyPreparedChanges(original: string, changes: api.AudioPrepareChange[
 }
 
 function directionLabel(value: string) {
+  if (getLanguage() !== "fr") return value;
   return DIRECTION_LABELS[value] ?? value;
 }
 
@@ -651,7 +637,7 @@ export function AudioStudioPage() {
 
                     return (
                       <section key={group} className={s.prepareGroup}>
-                        <h4>{PREPARE_GROUP_LABELS[group]} <span>{changes.length}</span></h4>
+                        <h4>{t(`audio.prepare_group_${group}`)} <span>{changes.length}</span></h4>
                         <div className={s.changeList}>
                           {changes.map(({ change, id }) => {
                             const parts = diffParts(change.before, change.after);
@@ -851,7 +837,7 @@ export function AudioStudioPage() {
                   <span className={s.historyTitle}>{scriptTitle(job.script)}</span>
                   <span className={s.historyMeta}>{modeLabel(job.mode)} · {qualityLabel(job.quality)}</span>
                   <strong>{formatShort(job.actualSeconds ?? job.estimatedSeconds)}</strong>
-                  <span className={s.historyStatus}>{STATUS_LABELS[job.status] ?? job.status}</span>
+                  <span className={s.historyStatus}>{t(`audio.status_${job.status}`)}</span>
                   <small>{t("audio.expires_on", { date: formatDate(job.expiresAt) })}</small>
                   <Copy size={15} aria-hidden />
                 </button>
