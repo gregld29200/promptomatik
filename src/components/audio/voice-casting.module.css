@@ -1,0 +1,147 @@
+.casting {
+  display: grid;
+  gap: 1rem;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.slot {
+  min-height: 88px;
+  padding: 0.85rem;
+  border: 1px solid rgba(133, 162, 163, 0.34);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #2c3d57;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    box-shadow 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+.slot:hover,
+.slotActive {
+  border-color: #2c3d57;
+  box-shadow: 0 10px 22px rgba(44, 61, 87, 0.08);
+}
+
+.slot span {
+  display: block;
+  color: #688889;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.slot strong {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 1rem;
+}
+
+.slot small {
+  display: block;
+  margin-top: 0.15rem;
+  color: #688889;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+  gap: 0.65rem;
+  max-height: 390px;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  min-height: 76px;
+  border: 1px solid rgba(133, 162, 163, 0.28);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(44, 61, 87, 0.05);
+  transition:
+    border-color 180ms ease-out,
+    box-shadow 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+.card:hover,
+.selected {
+  border-color: #2c3d57;
+  box-shadow: 0 12px 28px rgba(44, 61, 87, 0.09);
+}
+
+.selectButton {
+  min-width: 0;
+  padding: 0.8rem 0.7rem;
+  border: 0;
+  background: transparent;
+  color: #2c3d57;
+  text-align: left;
+  cursor: pointer;
+}
+
+.name,
+.descriptor {
+  display: block;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.descriptor {
+  margin-top: 0.2rem;
+  color: #688889;
+  font-size: 0.82rem;
+}
+
+.dot {
+  position: absolute;
+  top: 0.6rem;
+  right: 2.85rem;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #f1d263;
+  box-shadow: 0 0 0 3px rgba(241, 210, 99, 0.25);
+}
+
+.preview {
+  display: inline-grid;
+  place-items: center;
+  align-self: stretch;
+  width: 2.55rem;
+  border: 0;
+  border-left: 1px solid rgba(133, 162, 163, 0.22);
+  border-radius: 0 8px 8px 0;
+  background: #f8f7f2;
+  color: #2c3d57;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease-out,
+    color 180ms ease-out;
+}
+
+.preview:hover {
+  background: #85a2a3;
+  color: #ffffff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot,
+  .card,
+  .preview {
+    transition: none;
+  }
+}

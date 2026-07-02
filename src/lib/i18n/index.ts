@@ -5,7 +5,7 @@ import es from "./es.json";
 
 export const SUPPORTED_LANGUAGES = ["fr", "en", "es"] as const;
 export type Language = (typeof SUPPORTED_LANGUAGES)[number];
-type Translations = typeof fr;
+type Translations = Record<string, unknown>;
 
 const translations: Record<Language, Translations> = { fr, en, es };
 
@@ -53,15 +53,21 @@ export function useLanguage(): [Language, (lang: Language) => void] {
 
 export function t(key: string, vars?: Record<string, string>): string {
   const keys = key.split(".");
-  let value: unknown = translations[currentLang];
+  const lookup = (language: Language): unknown => {
+    let value: unknown = translations[language];
 
-  for (const k of keys) {
-    if (value && typeof value === "object" && k in value) {
-      value = (value as Record<string, unknown>)[k];
-    } else {
-      return key;
+    for (const k of keys) {
+      if (value && typeof value === "object" && k in value) {
+        value = (value as Record<string, unknown>)[k];
+      } else {
+        return undefined;
+      }
     }
-  }
+
+    return value;
+  };
+
+  const value = lookup(currentLang) ?? lookup("en");
 
   if (typeof value !== "string") return key;
 

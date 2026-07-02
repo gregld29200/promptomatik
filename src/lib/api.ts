@@ -581,3 +581,180 @@ export function reactivateUser(id: string) {
     method: "POST",
   });
 }
+
+// ---- Audio Studio types ----
+
+export type AudioMode = "monologue" | "dialogue";
+export type AudioQuality = "draft" | "final";
+export type AudioJobStatus = "queued" | "generating" | "assembling" | "ready" | "failed";
+export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1";
+
+export interface AudioDirection {
+  level: CefrLevel;
+  accent: string;
+  accentDetail?: string;
+  pace: string;
+  style: string;
+  scene?: string;
+}
+
+export interface AudioVoice {
+  name: string;
+  descriptor: string;
+  previewUrl: string;
+}
+
+export interface AudioSegment {
+  idx: number;
+  text: string;
+  status: string;
+  durationSeconds: number | null;
+  retryCount: number;
+}
+
+export interface AudioWaveform {
+  peaks: number[];
+  blocks: {
+    idx: number;
+    startSeconds: number;
+    endSeconds: number;
+    durationSeconds: number;
+  }[];
+}
+
+export interface AudioJob {
+  id: string;
+  mode: AudioMode;
+  quality: AudioQuality;
+  script: string;
+  direction: AudioDirection;
+  voices: Record<string, string>;
+  status: AudioJobStatus;
+  estimatedSeconds: number;
+  actualSeconds: number | null;
+  error: string | null;
+  modelUsed: string | null;
+  genMs: number | null;
+  retryCount: number;
+  apiCostUsd: number | null;
+  expiresAt: string | null;
+  createdAt: string;
+  segments?: AudioSegment[];
+  waveform?: AudioWaveform;
+  downloads?: {
+    mp3: string;
+    wav: string;
+    transcript: string;
+  };
+}
+
+export interface AudioQuota {
+  includedRemaining: number;
+  credits: number;
+  monthResetsOn: string;
+}
+
+export interface AudioPrepareChange {
+  type: "speaker_rename" | "tag_added" | "stage_direction_converted" | "direction_hint" | "removed_stage_direction" | "cleanup";
+  before: string;
+  after: string;
+  line: number;
+  rationale: string;
+}
+
+export interface AudioPrepareResult {
+  speaker_count: number;
+  formatted_script: string;
+  changes: AudioPrepareChange[];
+  warnings: string[];
+}
+
+export function getAudioQuota() {
+  return request<AudioQuota>("/api/audio/quota");
+}
+
+export function getAudioVoices() {
+  return request<{ voices: AudioVoice[] }>("/api/audio/voices");
+}
+
+export function getAudioJobs(limit = 10) {
+  return request<{ jobs: AudioJob[] }>(`/api/audio/jobs?limit=${limit}`);
+}
+
+export function getAudioJob(id: string) {
+  return request<{ job: AudioJob }>(`/api/audio/jobs/${id}`);
+}
+
+export function prepareAudioScript(data: { script: string; mode: AudioMode }) {
+  return request<AudioPrepareResult>("/api/audio/prepare", {
+    method: "POST",
+    body: JSON.stringify(data),
+  }, { timeoutMs: 60_000 });
+}
+
+export function createAudioJob(data: {
+  mode: AudioMode;
+  quality: AudioQuality;
+  script: string;
+  direction: AudioDirection;
+  voices: Record<string, string>;
+}) {
+  return request<{ jobId: string; estimatedSeconds: number }>("/api/audio/jobs", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function regenerateAudioSegment(jobId: string, segmentIdx: number) {
+  return request<{ accepted: boolean }>(`/api/audio/jobs/${jobId}/segments/${segmentIdx}/regenerate`, {
+    method: "POST",
+  });
+}
+
+// ---- Audio Studio admin ----
+
+export interface AudioAdminJobCounts {
+  total: number;
+  ready: number;
+  failed: number;
+  active: number;
+  failureRate: number | null;
+}
+
+export interface AudioAdminSpeedStats {
+  medianMsPerAudioSecond: number | null;
+  sampleCount: number;
+}
+
+export interface AudioAdminUserUsage {
+  userId: string;
+  email: string;
+  name: string;
+  tier: string;
+  includedUsedMonth: number;
+  creditsUsed: number;
+  creditsRemaining: number;
+}
+
+export interface AudioAdminMetrics {
+  month: string;
+  jobs: Record<AudioQuality | "overall", AudioAdminJobCounts>;
+  speed: Record<AudioQuality, AudioAdminSpeedStats>;
+  cost: {
+    cumulativeApiCostUsd: number;
+    chargedSeconds: number;
+    costPerGeneratedHourUsd: Record<AudioQuality, number | null>;
+  };
+  users: AudioAdminUserUsage[];
+}
+
+export function getAudioAdminMetrics() {
+  return request<{ metrics: AudioAdminMetrics }>("/api/audio/admin/metrics");
+}
+
+export function grantAudioCredits(userId: string, seconds: number) {
+  return request<{ success: boolean; credits: number }>("/api/audio/admin/credits", {
+    method: "POST",
+    body: JSON.stringify({ userId, seconds }),
+  });
+}

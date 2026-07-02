@@ -95,6 +95,15 @@ export function Shell({ children }: ShellProps) {
       </li>
       <li>
         <Link
+          to="/audio"
+          className={`${s.navLink} ${isActive("/audio") ? s.navLinkActive : ""}`}
+        >
+          {t("audio.nav_label")}
+          {lockBadge}
+        </Link>
+      </li>
+      <li>
+        <Link
           to="/profile"
           className={`${s.navLink} ${isActive("/profile") ? s.navLinkActive : ""}`}
         >
@@ -178,7 +187,7 @@ export function Shell({ children }: ShellProps) {
           </div>
         )}
       </nav>
-      <main className={s.main}>{children}</main>
+      <main className={`${s.main} ${isActive("/audio") ? s.mainWide : ""}`}>{children}</main>
     </div>
   );
 }

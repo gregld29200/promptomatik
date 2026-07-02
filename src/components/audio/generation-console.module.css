@@ -1,0 +1,166 @@
+.console {
+  min-height: 260px;
+  padding: 1.35rem;
+  border: 1px solid rgba(133, 162, 163, 0.35);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 38px rgba(44, 61, 87, 0.08);
+  color: #2c3d57;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.kicker {
+  margin: 0 0 0.35rem;
+  color: #688889;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header h2 {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.65rem;
+  letter-spacing: 0;
+  color: #2c3d57;
+}
+
+.meter {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 36px;
+  min-width: 52px;
+}
+
+.meter span {
+  width: 6px;
+  height: 12px;
+  border-radius: 999px;
+  background: #85a2a3;
+  animation: vu 900ms ease-out infinite;
+}
+
+.meter span:nth-child(2) {
+  animation-delay: 90ms;
+}
+
+.meter span:nth-child(3) {
+  animation-delay: 180ms;
+}
+
+.meter span:nth-child(4) {
+  animation-delay: 270ms;
+}
+
+.meter span:nth-child(5) {
+  animation-delay: 360ms;
+}
+
+.statusLine {
+  min-height: 2.6rem;
+  margin-top: 1.1rem;
+  padding: 0.8rem 0;
+  border-top: 1px solid rgba(133, 162, 163, 0.28);
+  border-bottom: 1px solid rgba(133, 162, 163, 0.28);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.progressGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(34px, 1fr));
+  gap: 0.45rem;
+  min-height: 20px;
+  margin-top: 1rem;
+}
+
+.block {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(133, 162, 163, 0.25);
+  transition:
+    background-color 180ms ease-out,
+    transform 180ms ease-out;
+}
+
+.done {
+  background: #85a2a3;
+}
+
+.active {
+  background: #2c3d57;
+  transform: translateY(-2px);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.2rem 0 0;
+}
+
+.metrics div {
+  min-width: 0;
+}
+
+.metrics dt {
+  color: #688889;
+  font-size: 0.73rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.metrics dd {
+  margin: 0.2rem 0 0;
+  overflow: hidden;
+  color: #2c3d57;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error {
+  margin: 1rem 0 0;
+  color: #8f3326;
+  font-weight: 600;
+}
+
+@keyframes vu {
+  0%,
+  100% {
+    height: 10px;
+    opacity: 0.55;
+  }
+
+  45% {
+    height: 34px;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meter span {
+    animation: none;
+  }
+
+  .block {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .metrics {
+    grid-template-columns: 1fr;
+  }
+}

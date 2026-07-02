@@ -30,19 +30,19 @@ interface EmailResult {
 const APP_BASE_URL = "https://promptomatik.com";
 
 const invitationSubjects: Record<Language, string> = {
-  fr: "Vous etes invite(e) sur Promptomatik",
+  fr: "Vous êtes invité(e) sur Promptomatik",
   en: "You're invited to Promptomatik",
   es: "Estas invitado(a) a Promptomatik",
 };
 
 const resetSubjects: Record<Language, string> = {
-  fr: "Reinitialisation de mot de passe Promptomatik",
+  fr: "Réinitialisation de mot de passe Promptomatik",
   en: "Promptomatik password reset",
   es: "Restablecimiento de contrasena de Promptomatik",
 };
 
 const signupSubjects: Record<Language, string> = {
-  fr: "Confirmez votre acces gratuit a Promptomatik",
+  fr: "Confirmez votre accès gratuit à Promptomatik",
   en: "Confirm your free Promptomatik access",
   es: "Confirma tu acceso gratuito a Promptomatik",
 };
@@ -58,8 +58,8 @@ function buildHtml(params: InvitationEmailParams): string {
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>${params.inviterName} vous invite a rejoindre <strong>Promptomatik</strong>, l'outil de creation de prompts pour enseignants.</p>
-  <p>Utilisez ce lien de connexion pour creer votre mot de passe.</p>
+  <p>${params.inviterName} vous invite à rejoindre <strong>Promptomatik</strong>, l'outil de création de prompts pour enseignants.</p>
+  <p>Utilisez ce lien de connexion pour créer votre mot de passe.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
       Ouvrir le lien de connexion
@@ -118,10 +118,10 @@ function buildResetHtml(params: PasswordResetEmailParams): string {
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>Vous avez demande une reinitialisation de mot de passe.</p>
+  <p>Vous avez demandé une réinitialisation de mot de passe.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
-      Reinitialiser mon mot de passe
+      Réinitialiser mon mot de passe
     </a>
   </p>
   <p style="font-size: 13px; color: #666;">Ce lien expire dans 1 heure.</p>
@@ -175,13 +175,13 @@ function buildSignupHtml(params: SignupConfirmationEmailParams): string {
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
   <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>Bienvenue ! Confirmez votre adresse email pour activer votre acces gratuit a <strong>Promptomatik</strong>, l'outil de creation de prompts pour enseignants.</p>
+  <p>Bienvenue ! Confirmez votre adresse email pour activer votre accès gratuit à <strong>Promptomatik</strong>, l'outil de création de prompts pour enseignants.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
-      Activer mon acces gratuit
+      Activer mon accès gratuit
     </a>
   </p>
-  <p style="font-size: 13px; color: #666;">Ce lien expire dans 7 jours. Si vous n'avez pas demande cet acces, ignorez cet email.</p>
+  <p style="font-size: 13px; color: #666;">Ce lien expire dans 7 jours. Si vous n'avez pas demandé cet accès, ignorez cet email.</p>
 </body>
 </html>`.trim();
   }
