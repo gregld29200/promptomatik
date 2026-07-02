@@ -920,3 +920,35 @@ live take is Greg's - the queue consumer is attached and identical to the
 pipeline the pilot validated locally).
 
 TeachInspire Audio Studio V1 is live.
+
+## Post-deploy incident - production login 500 (2026-07-02, resolved)
+
+Symptom: `POST /api/auth/login` returned 500 in production immediately
+after the V1 deploy; password reset appeared not to take effect.
+
+Root cause: the deployed worker (which includes the freemium/tier feature
+from commit `08d5a5e`, never previously deployed) reads `users.tier`
+during login, but remote D1 was still at migration level 0006 - migrations
+0007 (Spanish language rebuild), 0008 (interview job kinds), 0009 (user
+tier), and 0010 (self-serve invitations) had only ever been applied
+locally. The deploy checklist verified/applied only 0011 (audio). The
+missing `tier` column made the login query throw → 500.
+
+Fix, in order:
+1. Production D1 backup exported before any DDL:
+   `.tmp/prod-backup/pre-migration-20260702-165631.sql` (865 KB; D1
+   Time Travel also available).
+2. Verified remote `prompts` columns matched 0007's rebuild SELECT.
+3. Applied 0007, 0008, 0009, 0010 remotely in order (417/724/12/93 rows
+   written; no errors - the `PRAGMA foreign_keys` statements were
+   accepted by remote D1).
+4. Verified: `users.tier` present, 11/11 existing users backfilled to
+   `participant` per 0009, row counts preserved (11 users, 46 prompts,
+   11 invitations), and the login path returns 401 for bad credentials
+   instead of 500.
+
+Checklist change: before any production deploy, verify remote schema
+parity across the ENTIRE migration chain (e.g. compare
+`sqlite_master` against local), not just the migration added by the
+current feature. The repo's `db:migrate` script is local-only, which
+makes this drift easy to create.
