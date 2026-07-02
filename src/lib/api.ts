@@ -603,6 +603,7 @@ export interface AudioDirection {
   pace: string;
   style: string;
   scene?: string;
+  notes?: string;
   speakers?: Record<string, AudioSpeakerDirection>;
 }
 

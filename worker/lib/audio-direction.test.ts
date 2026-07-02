@@ -197,3 +197,24 @@ describe("validateTranscriptForTts", () => {
     )).not.toThrow();
   });
 });
+
+describe("monologue manner-of-speaking note", () => {
+  it("appends the note to the narrator profile line", () => {
+    const prompt = compileDirection({
+      mode: "monologue",
+      speakers: ["solo"],
+      script: "Good morning everyone.",
+      direction: {
+        level: "B1",
+        accent: "Neutral international",
+        pace: "Natural classroom speed",
+        style: "Storytelling",
+        notes: "hesitates often, searches for words.",
+      },
+    });
+
+    expect(prompt).toContain(
+      "The speaker: Expressive narration with clear images and controlled emotion. Manner of speaking: hesitates often, searches for words."
+    );
+  });
+});

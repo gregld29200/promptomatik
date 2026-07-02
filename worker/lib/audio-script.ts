@@ -47,6 +47,11 @@ const SPEAKER_FIELD_LIMITS: Record<keyof AudioSpeakerDirection, number> = {
 // the two canonical speakers, and only with bounded, non-empty strings.
 export function normalizeSpeakerDirections(direction: AudioDirection, mode: AudioMode): AudioDirection {
   const { speakers, ...rest } = direction;
+  if (typeof rest.notes === "string") {
+    const trimmed = rest.notes.trim().slice(0, SPEAKER_FIELD_LIMITS.notes);
+    if (trimmed) rest.notes = trimmed;
+    else delete rest.notes;
+  }
   if (mode !== "dialogue" || !speakers || typeof speakers !== "object") {
     return rest;
   }

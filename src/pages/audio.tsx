@@ -741,6 +741,16 @@ export function AudioStudioPage() {
                     {STYLES.map((style) => <option key={style} value={style}>{directionLabel(style)}</option>)}
                   </select>
                 </label>
+                <label className={s.field}>
+                  <span>{t("audio.speaker_notes")}</span>
+                  <input
+                    type="text"
+                    value={direction.notes ?? ""}
+                    onChange={(event) => updateDirection("notes", event.target.value)}
+                    placeholder={t("audio.speaker_notes_placeholder")}
+                    maxLength={200}
+                  />
+                </label>
               </>
             ) : (
               DIALOGUE_SLOTS.map((slot) => (

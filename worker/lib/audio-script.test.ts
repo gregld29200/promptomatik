@@ -149,3 +149,20 @@ describe("normalizeSpeakerDirections", () => {
     expect(result.speakers).toBeUndefined();
   });
 });
+
+describe("global manner-of-speaking note normalization", () => {
+  it("trims, caps, and drops empty global notes", () => {
+    const base = {
+      level: "B1" as const,
+      accent: "Neutral international",
+      pace: "Natural classroom speed",
+      style: "Storytelling",
+    };
+    expect(normalizeSpeakerDirections({ ...base, notes: "  parle lentement  " }, "monologue").notes)
+      .toBe("parle lentement");
+    expect(normalizeSpeakerDirections({ ...base, notes: "x".repeat(500) }, "monologue").notes)
+      .toHaveLength(200);
+    expect(normalizeSpeakerDirections({ ...base, notes: "   " }, "monologue").notes)
+      .toBeUndefined();
+  });
+});

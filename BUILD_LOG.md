@@ -1086,3 +1086,16 @@ Verification: 63 tests green, build + audit green; browser check of both
 modes (dialogue shows two legended fieldsets, monologue collapses to the
 flat form), Speaker 1 -> global mirroring confirmed, FR/EN parity kept.
 Screenshot: docs/audio-studio-screenshots/phase8-direction-per-speaker-inline.png
+
+## Feature - manner-of-speaking note in monologue mode (2026-07-02)
+
+Requested by Greg. The dialogue speakers already had a free "Façon de
+s'exprimer" note; monologue mode now has the same field.
+
+- `direction.notes` (optional, capped at 200 chars server-side like the
+  per-speaker notes) is compiled into the narrator profile line:
+  "The speaker: {persona}. Manner of speaking: {notes}."
+- Dialogue mode ignores the global note (speakers carry their own).
+- UI: the field appears after Style in the monologue Direction form,
+  reusing the existing FR/EN labels.
+- Tests: compiler note test + normalizer trim/cap/drop tests (65 total).

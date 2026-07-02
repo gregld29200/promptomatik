@@ -21,6 +21,9 @@ export interface AudioDirection {
   pace: string;
   style: string;
   scene?: string;
+  // Free manner-of-speaking note; voiced by the narrator in monologue
+  // mode (dialogue speakers carry their own notes in `speakers`).
+  notes?: string;
   speakers?: Record<string, AudioSpeakerDirection>;
 }
 

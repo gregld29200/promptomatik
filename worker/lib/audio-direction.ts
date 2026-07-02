@@ -37,7 +37,8 @@ function accentPhrase(accent: string, accentDetail: string | undefined): string 
 function audioProfile(mode: AudioMode, speakers: string[], direction: AudioDirection): string {
   const globalPersona = expandPreset(STYLE_EXPANSIONS, direction.style).replace(/\.+$/, "");
   if (mode === "monologue") {
-    return `The speaker: ${globalPersona}.`;
+    const notes = trimOptional(direction.notes);
+    return `The speaker: ${globalPersona}.${notes ? ` Manner of speaking: ${notes.replace(/\.+$/, "")}.` : ""}`;
   }
 
   return speakers.map((speaker) => {
