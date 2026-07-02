@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useState, useEffect, useCallback, type FormEvent, type ReactElement } from "react";
 import { Navigate } from "react-router";
 import { Shell } from "@/components/layout/shell";
 import { Card, Button, Input, Spinner } from "@/components/ui";
 import { useAuth } from "@/lib/auth/auth-context";
-import { t } from "@/lib/i18n";
+import { getLanguage, t } from "@/lib/i18n";
 import { formatDate } from "@/lib/format-date";
 import * as api from "@/lib/api";
 import type {
@@ -11,11 +11,13 @@ import type {
   AdminUser,
   AdminTemplate,
   AdminTemplateSubmission,
+  AudioAdminMetrics,
+  AudioQuality,
   Tier,
 } from "@/lib/api";
 import s from "./admin.module.css";
 
-type Tab = "invitations" | "users" | "templates";
+type Tab = "invitations" | "users" | "templates" | "audio";
 
 export function AdminPage() {
   const { user } = useAuth();
@@ -51,11 +53,19 @@ export function AdminPage() {
         >
           {t("admin.templates")}
         </button>
+        <button
+          type="button"
+          className={`${s.tab} ${tab === "audio" ? s.tabActive : ""}`}
+          onClick={() => setTab("audio")}
+        >
+          {t("admin.audio_tab")}
+        </button>
       </div>
 
       {tab === "invitations" && <InvitationsTab />}
       {tab === "users" && <UsersTab />}
       {tab === "templates" && <TemplatesTab />}
+      {tab === "audio" && <AudioTab />}
     </Shell>
   );
 }
@@ -513,5 +523,284 @@ function TemplatesTab() {
         </table>
       )}
     </Card>
+  );
+}
+
+const GO_NO_GO_FAILURE_MAX = 0.05;
+const GO_NO_GO_FINAL_COST_PER_HOUR_MAX_USD = 3.6;
+const QUALITY_KEYS: AudioQuality[] = ["draft", "final"];
+
+function qualityLabel(quality: AudioQuality | "overall"): string {
+  if (quality === "overall") return t("admin.audio_overall");
+  return t(`audio.${quality}`);
+}
+
+function AudioTab() {
+  const lang = getLanguage();
+  const [metrics, setMetrics] = useState<AudioAdminMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [grantMinutes, setGrantMinutes] = useState<Record<string, string>>({});
+  const [grantingId, setGrantingId] = useState<string | null>(null);
+  const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const loadMetrics = useCallback(async () => {
+    const res = await api.getAudioAdminMetrics();
+    if (res.data) setMetrics(res.data.metrics);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadMetrics();
+  }, [loadMetrics]);
+
+  function formatPercent(rate: number | null): string {
+    if (rate === null) return t("admin.audio_no_data");
+    return `${(rate * 100).toLocaleString(lang, { maximumFractionDigits: 1 })} %`;
+  }
+
+  function formatUsd(value: number | null, digits = 2): string {
+    if (value === null) return t("admin.audio_no_data");
+    return value.toLocaleString(lang === "fr" ? "fr-FR" : "en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    });
+  }
+
+  function formatSeconds(seconds: number): string {
+    const safe = Math.max(0, Math.round(seconds));
+    const minutes = Math.floor(safe / 60);
+    const rest = safe % 60;
+    if (minutes === 0) return `${rest} s`;
+    return rest === 0 ? `${minutes} min` : `${minutes} min ${rest} s`;
+  }
+
+  function formatSpeed(msPerAudioSecond: number | null): string {
+    if (msPerAudioSecond === null) return t("admin.audio_no_data");
+    return t("admin.audio_speed_value", {
+      seconds: (msPerAudioSecond / 1000).toLocaleString(lang, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    });
+  }
+
+  function thresholdStatus(pass: boolean | null): ReactElement | null {
+    if (pass === null) return null;
+    return (
+      <span className={`${s.statusBadge} ${pass ? s.statusActive : s.statusInactive}`}>
+        {pass ? "GO" : "NO-GO"}
+      </span>
+    );
+  }
+
+  async function handleGrant(userId: string, email: string) {
+    const minutes = Number.parseInt(grantMinutes[userId] ?? "", 10);
+    if (!Number.isInteger(minutes) || minutes <= 0) return;
+    setGrantingId(userId);
+    setResult(null);
+
+    const res = await api.grantAudioCredits(userId, minutes * 60);
+    if (res.error) {
+      setResult({ type: "error", message: res.error.error });
+    } else {
+      setResult({ type: "success", message: t("admin.audio_grant_success", { email }) });
+      setGrantMinutes((prev) => ({ ...prev, [userId]: "" }));
+      await loadMetrics();
+    }
+    setGrantingId(null);
+  }
+
+  if (loading || !metrics) {
+    return (
+      <div className={s.empty}>
+        <Spinner size={24} />
+      </div>
+    );
+  }
+
+  const failureRate = metrics.jobs.overall.failureRate;
+  const finalCostPerHour = metrics.cost.costPerGeneratedHourUsd.final;
+
+  return (
+    <>
+      <Card>
+        <h3 className={s.sectionTitle}>{t("admin.audio_go_no_go_title")}</h3>
+        <table className={s.table}>
+          <thead>
+            <tr>
+              <th>{t("admin.audio_gng_metric")}</th>
+              <th>{t("admin.audio_gng_threshold")}</th>
+              <th>{t("admin.audio_gng_live")}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{t("admin.audio_gng_failure")}</td>
+              <td>{t("admin.audio_gng_failure_threshold")}</td>
+              <td>{formatPercent(failureRate)}</td>
+              <td>{thresholdStatus(failureRate === null ? null : failureRate < GO_NO_GO_FAILURE_MAX)}</td>
+            </tr>
+            <tr>
+              <td>{t("admin.audio_gng_cost")}</td>
+              <td>{t("admin.audio_gng_cost_threshold")}</td>
+              <td>{formatUsd(finalCostPerHour)}</td>
+              <td>
+                {thresholdStatus(
+                  finalCostPerHour === null ? null : finalCostPerHour < GO_NO_GO_FINAL_COST_PER_HOUR_MAX_USD
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td>{t("admin.audio_gng_quality")}</td>
+              <td>—</td>
+              <td className={s.gngNote}>{t("admin.audio_gng_quality_note")}</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td>{t("admin.audio_gng_median")}</td>
+              <td>{t("admin.audio_gng_median_threshold")}</td>
+              <td className={s.gngNote}>{t("admin.audio_gng_median_note")}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </Card>
+
+      <Card>
+        <h3 className={s.sectionTitle}>{t("admin.audio_reliability_title")}</h3>
+        <table className={s.table}>
+          <thead>
+            <tr>
+              <th>{t("audio.quality")}</th>
+              <th>{t("admin.audio_jobs_total")}</th>
+              <th>{t("admin.audio_jobs_ready")}</th>
+              <th>{t("admin.audio_jobs_failed")}</th>
+              <th>{t("admin.audio_jobs_active")}</th>
+              <th>{t("admin.audio_failure_rate")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(["draft", "final", "overall"] as const).map((quality) => (
+              <tr key={quality}>
+                <td>{qualityLabel(quality)}</td>
+                <td>{metrics.jobs[quality].total}</td>
+                <td>{metrics.jobs[quality].ready}</td>
+                <td>{metrics.jobs[quality].failed}</td>
+                <td>{metrics.jobs[quality].active}</td>
+                <td>{formatPercent(metrics.jobs[quality].failureRate)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card>
+        <h3 className={s.sectionTitle}>{t("admin.audio_speed_title")}</h3>
+        <p className={s.subtitle}>{t("admin.audio_speed_desc")}</p>
+        <table className={s.table}>
+          <tbody>
+            {QUALITY_KEYS.map((quality) => (
+              <tr key={quality}>
+                <td>{qualityLabel(quality)}</td>
+                <td>{formatSpeed(metrics.speed[quality].medianMsPerAudioSecond)}</td>
+                <td className={s.gngNote}>
+                  {t("admin.audio_speed_samples", { count: String(metrics.speed[quality].sampleCount) })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card>
+        <h3 className={s.sectionTitle}>{t("admin.audio_cost_title")}</h3>
+        <table className={s.table}>
+          <tbody>
+            <tr>
+              <td>{t("admin.audio_cumulative_cost")}</td>
+              <td>{formatUsd(metrics.cost.cumulativeApiCostUsd, 4)}</td>
+            </tr>
+            <tr>
+              <td>{t("admin.audio_charged_time")}</td>
+              <td>{formatSeconds(metrics.cost.chargedSeconds)}</td>
+            </tr>
+            {QUALITY_KEYS.map((quality) => (
+              <tr key={quality}>
+                <td>
+                  {t("admin.audio_cost_per_hour")} — {qualityLabel(quality)}
+                </td>
+                <td>{formatUsd(metrics.cost.costPerGeneratedHourUsd[quality])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Card>
+        <h3 className={s.sectionTitle}>{t("admin.audio_users_title")}</h3>
+        {result && (
+          <div className={`${s.inviteResult} ${result.type === "success" ? s.inviteSuccess : s.inviteError}`}>
+            {result.message}
+          </div>
+        )}
+        {metrics.users.length === 0 ? (
+          <p className={s.empty}>{t("admin.audio_no_users")}</p>
+        ) : (
+          <table className={s.table}>
+            <thead>
+              <tr>
+                <th>{t("auth.name")}</th>
+                <th>{t("auth.email")}</th>
+                <th>{t("admin.audio_included_used")}</th>
+                <th>{t("admin.audio_credits_used")}</th>
+                <th>{t("admin.audio_credits_remaining")}</th>
+                <th>{t("admin.audio_grant_minutes_label")}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.users.map((usage) => (
+                <tr key={usage.userId}>
+                  <td>{usage.name}</td>
+                  <td>{usage.email}</td>
+                  <td>{formatSeconds(usage.includedUsedMonth)}</td>
+                  <td>{formatSeconds(usage.creditsUsed)}</td>
+                  <td>{formatSeconds(usage.creditsRemaining)}</td>
+                  <td>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      className={s.grantInput}
+                      aria-label={t("admin.audio_grant_minutes_label")}
+                      value={grantMinutes[usage.userId] ?? ""}
+                      onChange={(e) =>
+                        setGrantMinutes((prev) => ({ ...prev, [usage.userId]: e.target.value }))
+                      }
+                    />
+                  </td>
+                  <td className={s.rowActions}>
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      disabled={
+                        grantingId === usage.userId ||
+                        !(Number.parseInt(grantMinutes[usage.userId] ?? "", 10) > 0)
+                      }
+                      onClick={() => handleGrant(usage.userId, usage.email)}
+                    >
+                      {grantingId === usage.userId ? <Spinner size={14} /> : t("admin.audio_grant")}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+    </>
   );
 }

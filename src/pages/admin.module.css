@@ -208,3 +208,19 @@
   font-family: var(--font-body);
   color: var(--color-navy-900);
 }
+
+/* Audio metrics */
+.gngNote {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.grantInput {
+  width: 72px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-cream-500);
+  background: var(--color-cream-50);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-navy-900);
+}

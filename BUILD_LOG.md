@@ -1,0 +1,623 @@
+# TeachInspire Audio Studio Build Log
+
+## Phase 0 - Repo audit and integration plan (2026-07-01)
+
+### Audit map
+
+- Auth middleware: `worker/lib/auth-middleware.ts`
+  - `requireAuth` loads the KV-backed session via `worker/lib/session.ts` and sets `session`.
+  - `requireAdmin` checks `session.role === "admin"` after auth.
+  - `requireParticipant` reads tier live from D1 via `getUserTier`; admins bypass participant gates.
+- Tier checks: `worker/lib/tier.ts`
+  - Supported tiers are `free` and `participant`.
+  - Audio Studio participant access should reuse `requireParticipant`; free users should get the locked teaser in the UI.
+- D1 access pattern: raw SQL through `env.DB.prepare(...).bind(...).run()/first()/all()`
+  - Existing migrations are sequential files in `migrations/`; next migration should be `0011_audio_studio.sql`.
+  - `package.json` has a manual `db:migrate` command listing every migration, so Phase 1 must append the new migration there.
+- KV quota helper: `worker/lib/quota.ts`
+  - Current free interview quota uses the `SESSIONS` KV namespace with UTC-date keys and implicit reset.
+  - Audio quota should reuse `SESSIONS` with the PRD key pattern `audioq:{userId}:{YYYY-MM}`.
+- Queue setup: `wrangler.jsonc`, `worker/index.ts`, `worker/lib/interview-jobs.ts`
+  - One producer/consumer queue exists: `INTERVIEW_JOBS_QUEUE` / `interview-jobs`.
+  - The worker exports one `queue` handler. Audio should add an `AUDIO_GENERATION_QUEUE` producer and `audio-generation` consumer, then route batches from the exported queue handler to the interview or audio consumer.
+- Frontend routing: `src/App.tsx`
+  - React Router routes live in one route tree behind `ProtectedRoute`.
+  - Audio Studio should add a protected route at `/audio`.
+- Shell/nav gating: `src/components/layout/shell.tsx`
+  - Navigation entries are visible to free users with a lock badge.
+  - Audio Studio should add an `/audio` nav entry using the same visible-locked pattern.
+- Frontend auth/tier state: `src/lib/auth/auth-context.tsx`
+  - `isParticipant` is true for participant tier and admins.
+  - Audio UI can use `isParticipant` for the locked teaser and participant-only full screen.
+- API client: `src/lib/api.ts`
+  - Typed helpers return `{ data, error }` and use same-origin credentials.
+  - Audio endpoints from PRD §7.8 should be added here with typed request/response shapes.
+- i18n: `src/lib/i18n/index.ts`, `src/lib/i18n/fr.json`, `src/lib/i18n/en.json`, `src/lib/i18n/es.json`
+  - French is the default. The app currently exposes `fr`, `en`, and `es`.
+  - PRD requires FR + EN strings from day one; because Spanish is already user-selectable, Phase 4 should either add Spanish fallbacks for Audio Studio keys or intentionally hide Audio Studio until FR/EN are active.
+- Admin area: `worker/routes/admin.ts`, `src/pages/admin.tsx`
+  - Admin API is mounted at `/api/admin` and protected globally with `requireAuth, requireAdmin`.
+  - Admin UI uses local tabs in `AdminPage`; Audio metrics should add an `audio` tab/section and API routes under the existing admin router or the PRD route prefix as admin-only.
+- Deployment/config: `wrangler.jsonc`, `worker/env.ts`
+  - Worker config uses `wrangler.jsonc` with D1, KV, queue, and plain vars.
+  - No R2 binding is currently configured in this repo, even though the PRD says to reuse an existing bucket.
+- Tests: no test runner or test script is currently configured.
+  - Phase 1 must add a lightweight test setup before unit/integration tests can satisfy the phase DoD.
+
+### Integration plan
+
+- Backend route prefix: add `worker/routes/audio.ts` and mount it at `/api/audio` in `worker/index.ts`.
+- Auth model:
+  - All `/api/audio/*` endpoints require `requireAuth`.
+  - Generation, preparation, history, quota, voice catalog, and regeneration are participant features; admins bypass via `requireParticipant`.
+  - Admin metrics/credit endpoints should require `requireAdmin` and stay under `/api/audio/admin/*` to match the PRD endpoint table.
+- Data model:
+  - Add migration `migrations/0011_audio_studio.sql` with `audio_jobs`, `audio_segments`, `quota_ledger`, and `credit_balances`.
+  - Use raw SQL and JSON text columns, matching current D1 conventions.
+- Quota:
+  - Add a separate audio quota service rather than modifying the existing interview quota API in place.
+  - Reuse `SESSIONS` KV for included monthly seconds and D1 for credits/ledger.
+- Queue/consumer:
+  - Add `AUDIO_GENERATION_QUEUE` to `Env`.
+  - Extend `wrangler.jsonc` with producer/consumer binding for `audio-generation`.
+  - Update the exported queue handler to dispatch interview and audio batches without changing interview job behavior.
+- R2:
+  - Add an R2 binding once the real bucket name/binding is confirmed.
+  - Use `audio/{jobId}/...` for expiring job assets and `voices/{name}.mp3` for persistent voice previews.
+- Frontend:
+  - Add route `/audio` and a participant-gated `AudioStudioPage`.
+  - Add a shell nav item labelled through i18n; free-tier users see the same locked teaser pattern used by templates/profile.
+  - Keep the V1 UI as the PRD's single screen: header quota, three zones, and history access.
+- Admin UI:
+  - Add an Audio tab to `src/pages/admin.tsx` for metrics and credit grants, backed by `/api/audio/admin/*`.
+- Config:
+  - TTS model IDs, text prep model, prompt expansions, voice catalog, and prices should live in worker config/provider/config modules, not scattered UI constants.
+  - Phase 2 must verify Gemini speech docs before finalizing model IDs.
+
+### Deviations and open questions
+
+- Resolved in Phase 1: `teachinspire-media` was created as the Audio Studio R2 bucket with binding `MEDIA`.
+- Decided for V1: Audio Studio ships FR + EN strings only. Spanish should fall back to EN if supported; otherwise copy EN values into ES and mark them `TODO-ES`. Do not machine-translate ES. Full Spanish localization is a V1.5 item.
+- Resolved in Phase 1: Vitest plus `@cloudflare/vitest-pool-workers` was added as task 1.0.
+- PRD amendment for V1: replace signed audio URLs with authenticated proxy downloads at `GET /api/audio/jobs/:id/download/:file`, where `file` is `final.mp3`, `final.wav`, or `transcript.txt`. Voice previews should stream from `GET /api/audio/voices/:name/preview` with `Cache-Control: public, max-age=86400`.
+
+### Phase 0 DoD
+
+- [x] Integration points mapped.
+- [x] Audio Studio plug-in plan written.
+- [x] No product code added.
+
+## Phase 1 - Data model and quota service (2026-07-01)
+
+### Built
+
+- Task 1.0 test infrastructure:
+  - Added Vitest and `@cloudflare/vitest-pool-workers`.
+  - Added `vitest.config.ts` using Cloudflare's worker pool with `wrangler.jsonc`.
+  - Added `npm test`.
+- R2:
+  - Created bucket: `teachinspire-media`.
+  - Added R2 binding `MEDIA` in `wrangler.jsonc` and `worker/env.ts`.
+  - Added the 7-day lifecycle rule to the `audio/` prefix only.
+  - Exact lifecycle command run:
+    `npx wrangler r2 bucket lifecycle add teachinspire-media audio-expire-7d audio/ --expire-days 7 --force`
+  - No lifecycle rule was added for `voices/`.
+- D1:
+  - Added `migrations/0011_audio_studio.sql` with `audio_jobs`, `audio_segments`, `quota_ledger`, and `credit_balances`.
+  - Added the migration to `package.json`'s local `db:migrate` chain.
+- Quota service:
+  - Added `worker/lib/audio-quota.ts`.
+  - Implemented `getAudioQuotaBalance`, `precheckAudioQuota`, and `chargeAudioQuota`.
+  - Monthly included quota uses `SESSIONS` KV key pattern `audioq:{userId}:{YYYY-MM}`.
+  - Charges round actual seconds up, consume included seconds first, then credits, and write ledger rows for included/credit movement.
+- API:
+  - Added `worker/routes/audio.ts`.
+  - Mounted `/api/audio` in `worker/index.ts`.
+  - `GET /api/audio/quota` returns `{ includedRemaining, credits, monthResetsOn }` for authenticated participant/admin users.
+
+### Dependency health notes
+
+- `vitest@4.1.9`: npm metadata shows it was modified 2026-06-15; installed as a dev dependency.
+- `@cloudflare/vitest-pool-workers@0.17.0`: npm metadata shows it was modified 2026-06-30; installed as a dev dependency.
+- Cloudflare's current Workers Vitest docs use the `cloudflareTest()` plugin with `wrangler.configPath`, matching this setup.
+- `npm audit --omit=dev` initially reported existing high-severity advisories for `hono` and `react-router`; both direct runtime dependencies were bumped within semver range and production audit is now clean.
+- Full `npm audit` still reports dev/toolchain advisories under the Cloudflare/Vite/Rollup stack; `npm audit fix --dry-run` showed a broad toolchain upgrade, so that should be handled as a separate dependency-hardening pass.
+
+### Verification
+
+- `npm test` passed: 7 tests after adding the exact quota straddle/precheck cases requested in review.
+- `npm run build` passed.
+- `npm audit --omit=dev` passed.
+- `npx wrangler d1 execute promptomatik-db --local --file=./migrations/0011_audio_studio.sql` passed locally.
+
+### Phase 1 DoD
+
+- [x] Vitest worker-pool test setup added before the migration work.
+- [x] Audio Studio migration added.
+- [x] Quota service implemented.
+- [x] Unit tests cover month rollover, included/credit split, exact 30s included + 70s credit straddle, credit balance decrement, 1.2x precheck margin, rounding up, and regeneration charge.
+- [x] `GET /api/audio/quota` returns correct values for a seeded user in a worker-runtime test.
+
+## Phase 2 - TTS provider and pipeline core (2026-07-01)
+
+### Task 2.0 docs verification
+
+- Source checked: Google Gemini speech generation docs, current page last updated 2026-06-22 UTC; model pages last updated 2026-06-23 UTC.
+- API shape:
+  - Google now recommends the Interactions API for latest features.
+  - The generateContent page is labeled legacy, but still documents the PRD-compatible REST endpoint `models/{model}:generateContent` and request shape.
+  - Decision: keep generateContent for this V1 PRD build, isolated in `worker/lib/tts-provider.ts` so a future Interactions migration is contained.
+- Model IDs:
+  - Draft is configured as `gemini-2.5-flash-preview-tts`.
+  - Final is configured as `gemini-2.5-pro-preview-tts`.
+  - Decision: stay on these benchmarked 2.5 TTS models for the pilot. `gemini-3.1-flash-tts-preview` is documented and tested as available, but has documented voice-consistency limitations; it is only a post-pilot config-switch candidate.
+  - Model IDs live in config/defaults only: `wrangler.jsonc` and `worker/lib/audio-config.ts`.
+- API keys:
+  - Google AI Studio now creates Authorization API keys with the `AQ...` prefix by default.
+  - The provider uses the native `x-goog-api-key` header, and the local `AQ...` key was verified successfully against Gemini text and TTS endpoints.
+- Speaker limit:
+  - Multi-speaker TTS is documented as up to 2 speakers.
+- PCM format:
+  - Docs examples write PCM as 1 channel, 24,000 Hz, 2-byte samples: 24kHz / 16-bit / mono.
+- Retryable failures:
+  - Docs document occasional text-token returns instead of audio, usually surfacing as HTTP 500.
+  - Provider retries HTTP 429, 500, 503, and text-instead-of-audio responses.
+  - `PROHIBITED_CONTENT` is non-retryable and returns the PRD message recommending Prepare for audio.
+
+### Built
+
+- Config:
+  - Added TTS env/config keys to `wrangler.jsonc` and `worker/env.ts`.
+  - Documented `GEMINI_API_KEY` in `.env.example` and `README.md`.
+- Dependencies:
+  - Added `lamejs` for MP3 encoding, as named in the PRD.
+  - Added `nanoid` for upcoming job IDs, as named in the PRD environment additions.
+  - No unrelated version bumps were made.
+- Provider:
+  - Added `worker/lib/tts-provider.ts`.
+  - Implements generateContent REST calls, single-speaker and 2-speaker request bodies, retry policy, PCM duration calculation, and sanitized provider errors.
+- Direction compiler:
+  - Added `worker/lib/audio-direction.ts`.
+  - Uses CEFR delivery modifiers and preset expansions from `worker/lib/audio-config.ts`.
+- Block splitting and duration estimate:
+  - Added `worker/lib/audio-script.ts`.
+  - Tags are excluded from estimated word count.
+  - Dialogue splits at speaker turns; monologue splits at sentence boundaries; long single turns remain intact.
+- Audio assembly:
+  - Added `worker/lib/audio-assembly.ts`.
+  - Concatenates PCM with 400ms silence gaps, writes WAV headers, and encodes 128 kbps mono MP3 through `lamejs`.
+  - Added a contained compatibility shim because `lamejs@1.2.1` has missing CommonJS globals under modern module loading.
+- Smoke script:
+  - Added `scripts/audio-studio-smoke.ts` and `npm run audio:smoke`.
+  - The script writes `.wav` and `.mp3` files under `.tmp/audio-studio-phase2/` and prints model, quality, block count, measured duration, wall-clock time, retry count, cost, and output paths.
+
+### Verification
+
+- `npm test` passed: 20 tests.
+- `npm run build` passed.
+- `npm audit --omit=dev` passed.
+- `rg -n "gemini-" src worker scripts wrangler.jsonc README.md .env.example BUILD_LOG.md` shows production model IDs only in `wrangler.jsonc` and `worker/lib/audio-config.ts`; other matches are this build log and a test fixture key string.
+- `npm run audio:smoke` passed with a real Gemini TTS call:
+  - model: `gemini-2.5-flash-preview-tts`
+  - quality: `draft`
+  - blocks: 1
+  - measured duration: 11.21s
+  - wall-clock time: 14960ms
+  - retry count: 1
+  - computed API cost: $0.0030
+  - WAV: `.tmp/audio-studio-phase2/smoke-2026-07-02T06-36-26-874Z.wav`
+  - MP3: `.tmp/audio-studio-phase2/smoke-2026-07-02T06-36-26-874Z.mp3`
+
+### Phase 2 DoD
+
+- [x] Current Gemini TTS docs verified.
+- [x] Provider module implemented.
+- [x] Direction compiler implemented and covered by 3 inline snapshot tests.
+- [x] Block splitter implemented and covered for turn boundaries, 90s cap, and long single turn.
+- [x] Audio assembly implemented and covered for WAV header bytes and durations.
+- [x] Real end-to-end local generation wrote a playable MP3; Greg reviewed it by ear and accepted it.
+
+## Phase 3 - Jobs API and queue consumer (2026-07-02)
+
+### Built
+
+- Queue:
+  - Added `AUDIO_GENERATION_QUEUE` binding and `audio-generation` producer/consumer in `wrangler.jsonc`.
+  - Updated the worker queue export to dispatch `interview-jobs` and `audio-generation` by `batch.queue`.
+- Jobs API:
+  - `POST /api/audio/jobs` validates mode, quality, non-empty script, server-side 2-speaker limit, voices, and quota precheck; then creates job/segment rows and enqueues processing.
+  - `GET /api/audio/jobs/:id` returns job plus segment status and proxy download URLs when ready.
+  - `GET /api/audio/jobs` returns paginated history for the current user.
+  - `POST /api/audio/jobs/:id/segments/:idx/regenerate` marks one segment pending and re-enqueues the job.
+  - `GET /api/audio/jobs/:id/download/:file` implements the authenticated proxy download route for `final.mp3`, `final.wav`, and `transcript.txt`.
+  - Foreign jobs return `403`; nonexistent jobs return `404`.
+- Consumer:
+  - Added `worker/lib/audio-jobs.ts`.
+  - Processes pending segments idempotently, skipping already-`ok` segments on redelivery.
+  - Generation and assembly are split into separate queue actions. This keeps the real job lifecycle externally observable as `generating -> assembling -> ready` instead of collapsing the short assembly step into the same queue turn.
+  - Writes segment PCM to R2 under `audio/{jobId}/seg-{idx}.pcm`.
+  - Assembles final PCM with 400ms gaps, writes `final.wav`, `final.mp3`, and `transcript.txt` to R2.
+  - Marks failed segments and failed jobs with human-readable errors.
+  - Charges quota only after successful assembly.
+  - Regeneration charges only the regenerated segment duration while still reassembling the final files.
+  - Records model, actual seconds, retry count, wall-clock generation time, and computed API cost.
+
+### Verification
+
+- `npm test` passed: 26 tests.
+- `npm run build` passed.
+- `npm audit --omit=dev` passed.
+- Phase 3 integration tests cover:
+  - successful lifecycle to Ready with R2 final files and quota ledger charge
+  - failed block after provider failure with no quota charge
+  - redelivery resume by skipping already completed segments
+  - foreign job ownership returns `403`
+  - `POST /api/audio/jobs` creates jobs through the worker route
+  - server-side >2 speaker rejection
+
+### Local dev curl lifecycle
+
+- Local dev command:
+  - `npx wrangler dev --local --port 8787`
+  - Wrangler dev used local D1, KV, R2, and `audio-generation` Queue bindings with `GEMINI_API_KEY` loaded from `.dev.vars`.
+- Local auth setup:
+  - Root local D1 had a corrupted dev admin bcrypt hash from an older shell-expanded seed command. Fixed only local dev state via `/tmp/audio-studio-curl/fix-admin.sql`, then logged in with `greg@teachinspire.com` / `admin123`.
+- Login:
+  - Command: `curl -i -c cookies.txt -H 'Content-Type: application/json' -d '{"email":"greg@teachinspire.com","password":"admin123"}' http://localhost:8787/api/auth/login`
+  - Response: `HTTP/1.1 200 OK`, `Set-Cookie: promptomatik_session=...`, user role `admin`, tier `participant`.
+- Starting quota:
+  - Command: `curl -b cookies.txt http://localhost:8787/api/audio/quota`
+  - Response: `{"includedRemaining":3455,"credits":0,"monthResetsOn":"2026-08-01T00:00:00.000Z"}`
+- Create Final dialogue job:
+  - Command: `curl -i -b cookies.txt -H 'Content-Type: application/json' --data-binary @create-job.json http://localhost:8787/api/audio/jobs`
+  - Input: 2-speaker dialogue, quality `final`, 204 words, estimated 82s.
+  - Response: `HTTP/1.1 202 Accepted`, `{"jobId":"nvCcjL6V0k0YuGnuqPHme","estimatedSeconds":82}`
+  - Initial DB status is `queued` by insert default; first external poll after queue dispatch observed `generating`.
+- Poll to Ready:
+  - Command loop: `curl -b cookies.txt http://localhost:8787/api/audio/jobs/nvCcjL6V0k0YuGnuqPHme` every 50ms.
+  - Observed statuses:
+    - `06:47:22.3NZ status=generating segments=0:pending`
+    - `06:48:07.3NZ status=assembling segments=0:ok`
+    - `06:48:08.3NZ status=ready segments=0:ok`
+  - Final job metrics: model `gemini-2.5-pro-preview-tts`, estimated 82s, actual 71s, `genMs=46079`, retry count 0, API cost `$0.0355`, segment duration 70.610958s.
+- Downloads:
+  - MP3 command: `curl -D final.mp3.headers -b cookies.txt http://localhost:8787/api/audio/jobs/nvCcjL6V0k0YuGnuqPHme/download/final.mp3 -o final.mp3`
+    - Headers: `Content-Type: audio/mpeg`, `Content-Disposition: attachment; filename="final.mp3"`, length 1,130,880 bytes.
+    - File signature: `MPEG ADTS, layer III, v2, 128 kbps, 24 kHz, Monaural`.
+  - WAV command: `curl -D final.wav.headers -b cookies.txt http://localhost:8787/api/audio/jobs/nvCcjL6V0k0YuGnuqPHme/download/final.wav -o final.wav`
+    - Headers: `Content-Type: audio/wav`, `Content-Disposition: attachment; filename="final.wav"`, length 3,389,370 bytes.
+    - File signature: `RIFF WAVE audio, Microsoft PCM, 16 bit, mono 24000 Hz`.
+  - Transcript command: `curl -D transcript.txt.headers -b cookies.txt http://localhost:8787/api/audio/jobs/nvCcjL6V0k0YuGnuqPHme/download/transcript.txt -o transcript.txt`
+    - Headers: `Content-Type: text/plain; charset=utf-8`, `Content-Disposition: attachment; filename="transcript.txt"`, length 1,218 bytes.
+    - Contents confirmed speaker labels and submitted dialogue text.
+  - Browser playback: opened `/tmp/audio-studio-curl-2/downloads-after-regenerate/final.mp3` in Google Chrome.
+- Charge after generation:
+  - Quota response: `{"includedRemaining":3384,"credits":0,"monthResetsOn":"2026-08-01T00:00:00.000Z"}`
+  - Ledger query: `SELECT source, reason, delta_seconds, job_id, created_at FROM quota_ledger WHERE job_id='nvCcjL6V0k0YuGnuqPHme' ORDER BY id`
+  - Ledger row: `included`, `generation`, `-71`, created `2026-07-02 06:48:08`.
+- Regenerate segment 0:
+  - Command: `curl -i -b cookies.txt -X POST http://localhost:8787/api/audio/jobs/nvCcjL6V0k0YuGnuqPHme/segments/0/regenerate`
+  - Response: `HTTP/1.1 202 Accepted`, `{"accepted":true}`
+  - Poll observed:
+    - `06:48:27.3NZ status=generating segments=0:pending`
+    - `06:49:21.3NZ status=ready segments=0:ok`
+  - Regenerated job metrics: actual 76s, `genMs=53600`, retry count 0, API cost `$0.0380`, regenerated segment duration 75.970958s.
+  - MP3 hash changed:
+    - Before: `31025bb91a03517662ec475563bbbf1b9ecc8ef9ec220181dc02bc2f404d2aae`
+    - After: `ca959f9593b2621d7880658f01dee431abc465ff68c46f4c53845468e9edf9c4`
+  - Quota after regeneration: `{"includedRemaining":3308,"credits":0,"monthResetsOn":"2026-08-01T00:00:00.000Z"}`
+  - Ledger rows:
+    - `included`, `generation`, `-71`, created `2026-07-02 06:48:08`
+    - `included`, `regeneration`, `-76`, created `2026-07-02 06:49:21`
+
+### Phase 3 DoD
+
+- [x] Job API endpoints implemented.
+- [x] Queue consumer implemented.
+- [x] Authenticated proxy download route implemented instead of signed URLs.
+- [x] Integration tests cover happy path, failed block/no charge, redelivery resume, ownership check, and server-side speaker validation.
+- [x] Manual curl lifecycle against `wrangler dev` with real Gemini generation completed and recorded.
+
+## Phase 4 - Frontend 3-zone Audio Studio screen (2026-07-02)
+
+### Built
+
+- Backend micro-addition:
+  - Added `peaksFromPcm()` during assembly.
+  - Stores `peaks.json` beside `final.mp3`, `final.wav`, and `transcript.txt` under the job R2 prefix.
+  - `GET /api/audio/jobs/:id` now returns `waveform: { peaks, blocks }` for ready jobs; block timings are derived from segment durations plus the existing 400ms assembly gaps.
+- Voice catalog:
+  - Added static 30-voice Gemini catalog at `GET /api/audio/voices`.
+  - Added cached preview proxy at `GET /api/audio/voices/:name/preview` with `Cache-Control: public, max-age=86400`; it returns `404` until Phase 6 seeds `voices/{name}.mp3`.
+- Frontend route:
+  - Added protected `/audio` route and nav entry with the existing participant lock badge behavior.
+  - Free users see the locked teaser; participants/admins see the full studio.
+- 3-zone screen:
+  - Script zone: mode toggle, live duration estimate, static FR/EN example scripts, tag insertion at cursor, tag highlighting, dialogue turn preview, and >2-speaker warning.
+  - Direction zone: exactly the five V1 controls: level, accent, pace, style, scene.
+  - Booth zone: card-grid voice casting, selected speaker slots, preview controls, Draft/Final toggle, Generate, polled generation console, waveform player, per-block regenerate action, downloads, and history duplicate-settings.
+- Generation console:
+  - No simulated progress. Status, block count, and active block come from the polled job/segment response.
+  - Shows `Block n/m - voicing Speaker x`, elapsed time, estimate, model label, and a CSS-only VU meter.
+  - `assembling` switches copy to `Assembling the final take...`.
+- Waveform player:
+  - Hand-rolled SVG waveform from backend peaks; no waveform dependency added.
+  - Draws block boundaries; clicking a block selects it and reveals `Regenerer ce bloc` with estimated quota seconds.
+  - Includes play/pause, click-to-seek, elapsed/total time, and MP3/WAV/TXT downloads.
+- i18n:
+  - Added FR + EN Audio Studio strings.
+  - Added EN fallback in the i18n helper, so Spanish falls back to EN without machine-translated ES copy.
+- Typography:
+  - Added bundled `@fontsource/inter` and `@fontsource/playfair-display` because Phase 4 explicitly requires Inter and Playfair Display.
+  - Health check: both packages are `5.2.8`, OFL-1.1 licensed, and self-host font assets. Imports are limited to latin weights used by the Audio Studio UI.
+
+### Screenshots
+
+The current Phase 4 screenshot set is listed in the final closeout section below. Earlier pre-fix screenshots were removed after the French diacritics review so this log only references current UI state.
+
+Screenshots were captured against local dev with deterministic local D1/R2 fixtures:
+
+- `phase4-ready`: ready job with `final.mp3`, `final.wav`, `transcript.txt`, and `peaks.json` in local R2.
+- `phase4-generating`: in-progress job with four segments and status `generating`, used to verify honest console state from polling.
+
+### Verification
+
+- `npm test` passed: 28 tests.
+- `npm run build` passed.
+- Browser QA via `agent-browser`:
+  - Logged in locally as `greg@teachinspire.com`.
+  - Opened `/audio`.
+  - Verified voice casting grid selected states.
+  - Loaded ready history fixture, selected waveform block 1, and verified regenerate action visibility.
+  - Loaded generating history fixture and verified `Block 2/4 - voicing Speaker 2` console copy.
+
+### Phase 4 DoD
+
+- [x] `/audio` route and nav entry implemented.
+- [x] Free-tier locked teaser implemented through existing tier gate.
+- [x] Script zone implemented.
+- [x] Direction zone implemented with the five required controls.
+- [x] Booth zone implemented with voice cards, generation state, waveform result, regeneration, downloads, and history.
+- [x] `peaks.json` backend micro-addition implemented and tested.
+- [ ] Human walkthrough accepted by Greg.
+- [ ] "Prepare for audio" diff view screenshot. Blocked because the feature is Phase 5 and no route/UI exists yet.
+
+### Phase 4 review addendum - not closed (2026-07-02)
+
+Phase 4 is not closed. Three items:
+
+1. Housekeeping was skipped: `.DS_Store` was already present in `.gitignore`, but the file was still tracked by Git. Fixed by removing it from the index without deleting the local file and committing `a09e797 chore: stop tracking macOS metadata`.
+
+2. Screenshots were incomplete. The final current screenshot set is listed in the closeout section below. The `"Prepare for audio"` diff view remains a Phase 5 DoD screenshot.
+
+3. Human review findings:
+   - Fixed: `.DS_Store` was tracked despite `.gitignore`.
+   - Fixed: FR default was mixed with visible English UI labels (`Speaker`, `Booth`, `Draft`, direction presets, voice descriptors, generation console copy, history statuses). UI labels now render in French while backend/config values remain unchanged.
+   - Fixed: gold accent was too dispersed inside Audio Studio components. Disabled primary action, waveform selection, play button, and console active block now use neutral/teal/slate treatment; selected voice dots remain gold per the Phase 4 casting requirement.
+   - Verified clean: tag insertion occurs at cursor position.
+   - Verified clean: duration estimate changes on each real user edit.
+   - Verified clean: 3+ speaker scripts show a hard warning and disable generation.
+   - Verified clean: polling stops after navigating away from `/audio`; after 30 seconds on `/dashboard`, only the two pre-navigation `/api/audio/jobs/phase4-generating` requests were logged.
+   - Verified clean: browser walkthrough for the implemented flow succeeded: paste script -> direct -> generate real Draft audio -> listen in player -> download MP3/WAV/TXT -> regenerate block.
+   - Blocker: complete requested walkthrough cannot include "prepare" until Phase 5 implements `POST /api/audio/prepare` and the diff UI.
+
+The phase closes when all three are done and Greg confirms the walkthrough.
+
+### Phase 4 final closeout fixes (2026-07-02)
+
+Phase 4 review blockers fixed:
+
+1. French diacritics:
+   - Audited visible FR strings in `src/lib/i18n/fr.json`, Audio Studio components, the Audio Studio page, and FR email copy.
+   - Corrected known unaccented forms including `Réinitialisation`, `Générer la prise`, `Réunion professionnelle`, `Se déconnecter`, `Prêt`, `En régie`, `Temps écoulé`, `Modèle`, `Enjouée`, `Décontractée`, `Soufflée`, `Légère`, `Énergique`, `apparaîtront`, and `téléchargements`.
+   - Added `worker/lib/i18n-fr-lint.test.ts`, which fails on the known unaccented regression pattern `/\b(Generer|Reinitialisation|Reunion|deconnecter|Pret|ECOULE|MODELE)\b/`.
+2. History now matches REQ-9.1:
+   - Rows show title from first script words, mode, quality, duration, status, and expiry date.
+   - Dates are localized with the app locale; French renders `DD/MM/YYYY` (`09/07/2026` in the local fixtures).
+3. Speaker labels:
+   - Input accepts `Speaker N:` and `Locuteur N:` in mixed case.
+   - Backend normalizes stored scripts, segment transcripts, voice-map keys, and `transcript.txt` output to `Speaker 1/2`.
+   - Added normalizer unit tests for both conventions, mixed case, mixed input, and voice-map keys.
+4. Locked teaser:
+   - Updated copy to `génération audio, choix des voix, quotas inclus et téléchargements`.
+
+Affected screenshots recaptured:
+
+- Quota header: `docs/audio-studio-screenshots/phase4-quota-header.png`
+- Generation console mid-run: `docs/audio-studio-screenshots/phase4-generation-console-mid-run.png`
+- History row with all REQ-9.1 fields: `docs/audio-studio-screenshots/phase4-history-rich-row.png`
+- Free-tier locked teaser: `docs/audio-studio-screenshots/phase4-free-tier-locked-teaser.png`
+- FR studio view: `docs/audio-studio-screenshots/phase4-fr-studio-view.png`
+
+Housekeeping after Greg's confirmation:
+
+- Removed stale pre-fix screenshot files from `docs/audio-studio-screenshots/` so the folder and this log reference only current Phase 4 UI state.
+
+Verification:
+
+- `npm test -- --run worker/lib/audio-script.test.ts worker/lib/i18n-fr-lint.test.ts` passed: 8 tests.
+- `npm test` passed: 32 tests before Phase 5 files were added.
+- `npm run build` passed.
+- Browser text audit on `/audio` as admin confirmed:
+  - no mixed English core UI in the FR studio view,
+  - `En régie`, `Prêt`, `Réinitialisation`, `Générer la prise`, `Réunion professionnelle`, `Temps écoulé`, and `Modèle` render with accents,
+  - history dates render as `09/07/2026`,
+  - voice descriptors render with accents.
+- Browser text audit as free-tier user confirmed the locked teaser copy.
+
+Phase 4 is closed. The `"Prepare for audio"` diff screenshot is intentionally deferred to Phase 5 DoD.
+
+## Phase 5 - Prepare for audio (2026-07-02)
+
+### Started
+
+- Added `worker/lib/audio-prepare.ts`:
+  - Defensive parser for the §7.7 JSON contract.
+  - Strips accidental markdown JSON fences.
+  - Extracts a JSON object from accidental surrounding model text while still rejecting malformed JSON.
+  - Validates `speaker_count`, `formatted_script`, `changes`, and `warnings` before returning anything to the caller.
+  - Gemini Flash text service wrapper using `LLM_MODEL_PREP` from config and `GEMINI_API_KEY` from env.
+- Added `POST /api/audio/prepare` under the authenticated participant audio router.
+  - Empty scripts return `400` and are not sent to Gemini.
+  - Invalid modes return `400`.
+  - Malformed provider output returns an error; nothing is applied.
+- Added frontend API client types and `prepareAudioScript()`.
+- Added the Audio Studio diff UI:
+  - Disabled empty-script state with the exact French hint: `Collez d'abord votre script — Audio Studio le prépare, il ne l'écrit pas.`
+  - Changes grouped by type with counts: `Renommages de locuteurs`, `Tags proposés`, `Nettoyages`.
+  - Per-item `Accepter` / `Rejeter` decisions.
+  - `Tout accepter` is secondary; `Appliquer la sélection` is the explicit application action.
+  - Added fragments render in green; removed fragments render red with strike-through.
+  - Warnings render in a distinct banner above the change groups.
+  - The editor content remains intact until `Appliquer la sélection`.
+- Added tolerant partial-apply logic for speaker renames where a label contains visual direction, e.g. `Marie (sourit):` can become `Speaker 1:` without applying the rejected tag suggestion.
+
+### Verification
+
+- `npm test -- --run worker/lib/audio-prepare.test.ts` passed after parser hardening.
+- `npm test` passed: 36 tests.
+- `npm run build` passed.
+- Browser E2E against local dev with real `GEMINI_API_KEY` passed:
+  - Pasted messy dialogue with character names, visual stage directions, and no tags.
+  - Ran one Prepare pass.
+  - Verified the editor content stayed unchanged before applying the selection.
+  - Accepted only speaker-renaming changes and rejected tag/cleanup suggestions.
+  - Applied the selection; script became generation-ready with normalized `Speaker 1/2` labels.
+  - Generated a Draft job successfully; the ready player appeared and history showed the new 12s Brouillon take.
+- Diff view screenshot: `docs/audio-studio-screenshots/phase5-prepare-diff-view.png`
+
+### Remaining Phase 5 work
+
+- None for the Phase 5 DoD.
+
+### Phase 5 DoD
+
+- [x] Preparation service: one Gemini Flash text call with the §7.7 JSON contract and defensive parsing.
+- [x] Diff UI: grouped changes, accept/reject per item, `Tout accepter`, explicit apply action, warnings banner, and empty-script disabled hint.
+- [x] Parser tests cover valid, fenced, surrounding-text, and malformed inputs.
+- [x] E2E messy script -> Prepare -> accept subset -> generate successfully.
+- [x] Diff view screenshot captured.
+
+Phase 5 is closed.
+
+## Phase 5b - PRD amendments before Phase 6 (2026-07-02)
+
+### Built
+
+- Rule 1 - hard Speaker 1/2 compiler boundary:
+  - Added `validateTranscriptForTts()` in the Direction compiler path.
+  - Dialogue transcripts must have every non-empty line start with `Speaker 1: ` or `Speaker 2: ` immediately before prompt compilation.
+  - Monologue transcripts reject any speaker-style label before prompt compilation.
+  - If validation fails during queue processing, the job fails before any provider call; no quota ledger row and no API cost are recorded.
+  - Prepare responses are also validated so named labels are not presented to the UI as a valid formatted script.
+- Rule 2 - stage-direction handling:
+  - Added shared `SUPPORTED_AUDIO_TAGS` and FR/EN `STAGE_DIRECTION_TAG_MAP` config in `src/lib/audio-script-rules.ts`.
+  - Updated Prepare contract with `stage_direction_converted` and `direction_hint`.
+  - Convert action: acting notes like `(sourit)` become supported inline tags such as `[smiling]`.
+  - Promote action: upstream context such as `il regarde son téléphone` becomes a `direction_hint`; accepting it appends to the Scene field and removes it from the script path.
+  - Remove action remains `removed_stage_direction`.
+  - Added deterministic completion for repeated speaker-name renames when Gemini maps the first occurrence but omits later rows.
+  - `Tout accepter` applies the validated `formatted_script` plus accepted direction hints; partial selections still apply per accepted row.
+- Rule 3 - local and server script lint:
+  - Added shared `lintAudioScript()`.
+  - Blocking findings: unknown speaker labels after normalization, >2 speakers, unbalanced brackets, empty script.
+  - Warning findings: residual stage directions, tags outside the reference list, single turn >60s estimated, narration lines in dialogue mode.
+  - Client shows blocking reasons continuously and disables Generate.
+  - Server runs the same linter at job creation and remains authoritative.
+- User guide:
+  - Added the static `Bien écrire pour l'audio` help panel in the Script zone.
+  - Covers Speaker 1/2 conventions, supported bracket tags, no stage directions in script, and scene/character info in Direction.
+  - No new route added.
+
+### Verification
+
+- `npm test -- --run worker/lib/audio-direction.test.ts worker/lib/audio-prepare.test.ts worker/lib/audio-script-lint.test.ts worker/lib/audio-jobs.test.ts worker/lib/i18n-fr-lint.test.ts` passed: 25 tests.
+- `npm test` passed: 46 tests.
+- `npm run build` passed.
+- Browser E2E against local dev with real `GEMINI_API_KEY` passed:
+  - Pasted messy dialogue with names, `(sourit)`, and `[il regarde son téléphone]`.
+  - Blocking lint appeared before Prepare.
+  - One Prepare pass produced a tag conversion and a `direction_hint`.
+  - Editor content stayed intact before apply.
+  - `Tout accepter` applied the validated formatted script:
+    - `Speaker 1: [smiling] Bonjour Paul, tu as vérifié la salle ?`
+    - `Speaker 2: Oui, mais le projecteur ne démarre pas.`
+    - remaining lines normalized to `Speaker 1/2`.
+  - Scene field received `Paul vérifie son téléphone.`
+  - Blocking lint cleared, Generate enabled, and Draft generation reached Ready in 9169 ms.
+- Diff view screenshot recaptured: `docs/audio-studio-screenshots/phase5-prepare-diff-view.png`.
+
+### Phase 5b DoD
+
+- [x] Compiler-boundary guard implemented and tested.
+- [x] Prepare contract handles convert/promote/remove stage-direction actions.
+- [x] Shared script linter implemented client-side and server-side with unit tests.
+- [x] Static FR/EN user guide panel added in the Script zone.
+- [x] Messy-script E2E rerun and screenshot recaptured.
+
+Phase 5 is re-closed after amendments. Phase 6 may begin.
+
+## Phase 6 - Voice previews, admin, instrumentation (2026-07-02)
+
+### Built
+
+- Admin metrics API:
+  - Added `worker/lib/audio-metrics.ts` with `getAudioAdminMetrics()` and `grantAudioCredits()`.
+  - Added `GET /api/audio/admin/metrics` and `POST /api/audio/admin/credits` in `worker/routes/audio.ts`, behind the existing `requireAuth` + `requireAdmin` middleware, matching the PRD §7.8 route table.
+  - Metrics returned: failure rate after retries split Draft/Final plus overall; median normalized generation speed (wall-clock ms per second of audio produced, from `gen_ms / actual_seconds` on ready jobs) split Draft/Final; cumulative API cost vs cumulative charged quota seconds; cost per generated hour split Draft/Final; per-user usage table (included consumed this calendar month from `quota_ledger` `included` rows, credits consumed all-time, credits remaining from `credit_balances`).
+  - The per-user table lists all users so credits can be granted before first use.
+  - The metrics endpoint returns ids, numbers, and statuses only; a route test asserts the response body does not contain script content.
+- Credit grants:
+  - `grantAudioCredits` validates the user exists, then upserts `credit_balances` and inserts a positive `credit_grant` ledger row in one D1 batch.
+  - Route validation: `userId` non-empty string, `seconds` a positive integer; unknown user returns 404; non-admin returns 403.
+- Admin dashboard UI:
+  - Added an `Audio` tab to `src/pages/admin.tsx` with five cards: go/no-go thresholds, reliability, generation speed, costs/consumption, and per-user usage with an inline per-row credit grant (minutes input, converted to seconds).
+  - The four §10 go/no-go thresholds display next to live values with GO/NO-GO badges where measurable now (failure rate, Final cost per generated hour vs the 2x $1.80/h threshold). The 2-minute Final dialogue median is marked "Mesurée par le harnais pilote (phase 7)" and shareable quality is marked as assessed by pilot listening.
+  - UI shows Brouillon/Finale only; no model names.
+  - Numbers are locale-formatted (FR comma decimals, USD currency).
+- Quota header (REQ-8.2 alignment, flagged):
+  - The Phase 4 header displayed one combined figure (`includedRemaining + credits`). It now shows `X min restantes ce mois` from included seconds plus `+ Y min de crédits` only when credits > 0, matching REQ-8.2 and making grants visible per the Phase 6 DoD. Generation-blocking logic is unchanged (still `included + credits` pool with the 1.2 margin).
+- Voice preview seed:
+  - Added `scripts/seed-voice-previews.ts` and `npm run audio:seed-voices` (append `-- --remote` for the production bucket; default is local R2).
+  - One ~4s neutral English introduction per voice ("Hello! My name is {name}, and this is what I sound like."), Draft (Flash) model, default temperature (no temperature parameter sent), MP3-encoded via the existing assembly module, uploaded to `voices/{name}.mp3` with `Content-Type: audio/mpeg`.
+  - Idempotent: existence is checked per voice with `wrangler r2 object get` before any API call, so re-runs skip existing previews and spend nothing.
+  - Logs per-voice duration/retries and a final JSON summary with total audio seconds and total API cost.
+- i18n:
+  - Added FR + EN strings for the admin Audio tab and the header credits suffix (`audio.quota_credits`).
+  - Extended `worker/lib/i18n-fr-lint.test.ts` with new unaccented regression forms (`Echouees|Reussies|Evaluee|Mesuree|Metrique|Crediter|credites|generee|echec`).
+
+### Config note
+
+- No config defaults were changed. Go/no-go threshold constants (5% failure, $3.60/h Final = 2x the published $1.80/h estimate) are informational display values in the admin component per PRD §4 REQ-10.3.
+
+### Verification
+
+- `npm test` passed: 55 tests (9 new in `worker/lib/audio-metrics.test.ts` covering aggregate math, month scoping of per-user included usage, ledger auditability of grants, 403 for non-admins, payload validation, and no-script-content in metrics).
+- `npm run build` passed.
+- `npm audit --omit=dev` passed: 0 vulnerabilities.
+- Model-ID leak check: `grep -rn "gemini-" src/ worker/ scripts/ | grep -v provider | grep -v config` returns nothing outside tests.
+- Local seed run against local R2: 30/30 previews generated, total 134.61s audio, total API cost $0.03375 (PRD estimate ~= $0.05). Immediate re-run: 30/30 skipped, $0. `GET /api/audio/voices/Kore/preview` now returns `200 audio/mpeg` (71,040 bytes).
+- Local dev DoD walkthrough (`wrangler dev --local`, admin `greg@teachinspire.com`):
+  - `GET /api/audio/admin/metrics` reflected the real Phase 3-5 jobs in local D1: 7 jobs (3 Draft ready, 3 Final ready, 1 stale generating fixture), 0% failure, median speed 623.75 ms/s Draft and 666.67 ms/s Final, cumulative cost $0.0910, charged 327s, cost per generated hour $0.90 Draft / $1.80 Final (Final exactly at the published estimate, GO).
+  - `POST /api/audio/admin/credits` with 900s: `{"success":true,"credits":900}`; ledger row `+900 / credit / credit_grant / job_id null`; `GET /api/audio/quota` returned `credits: 900`.
+  - Browser (agent-browser): admin Audio tab renders all five cards in French with GO badges; granted 10 minutes to `participant@test.com` through the UI, success message shown and the row updated to `10 min` credits remaining; `/audio` header reads `54 min restantes ce mois + 15 min de crédits`; Zephyr preview playback request returned `200` Media; no page errors.
+- Screenshots:
+  - Admin dashboard: `docs/audio-studio-screenshots/phase6-admin-audio-dashboard.png`
+  - Credit grant result: `docs/audio-studio-screenshots/phase6-admin-credit-grant.png`
+  - Quota header with credits: `docs/audio-studio-screenshots/phase6-quota-header-credits.png`
+
+### Notes for review
+
+- The production bucket has not been seeded; run `npm run audio:seed-voices -- --remote` once against the deployed `teachinspire-media` bucket (~$0.034 API cost).
+- The per-user table header reuses the existing `auth.name` / `auth.email` keys, matching the Users tab convention.
+
+### Phase 6 DoD
+
+- [x] Seed script `scripts/seed-voice-previews.ts`: 30 samples to `voices/`, idempotent, cost logged.
+- [x] Admin metrics endpoint and dashboard: failure rate, normalized generation speed, cumulative cost vs charged seconds, per-user usage, credit grant action.
+- [x] Go/no-go thresholds displayed with live values; 2-minute-dialogue metric marked as measured by the pilot harness.
+- [x] Dashboard reflects real generated jobs (local D1 jobs from Phases 3-5).
+- [x] Credits can be granted and appear in the user's quota header.
+- [ ] Human review by Greg.
+
+Phase 6 awaits human review before Phase 7.
