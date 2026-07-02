@@ -6,24 +6,32 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc -b && vite build",
+		"test": "vitest run",
+		"audio:smoke": "tsx scripts/audio-studio-smoke.ts",
+		"audio:seed-voices": "tsx scripts/seed-voice-previews.ts",
 		"preview": "vite preview",
 		"deploy": "npm run build && wrangler deploy",
 		"seed": "npx tsx seed/seed.ts",
-		"db:migrate": "npx wrangler d1 execute promptomatik-db --local --file=./migrations/0001_init-schema.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0002_add-is-active.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0003_replace-model-rec-with-tips.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0004_add-template-moderation.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0005_add-password-resets.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0006_add_interview_jobs.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0007_add-spanish-language.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0008_expand-interview-job-kinds.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0009_add-user-tier.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0010_invitations-self-serve.sql"
+		"db:migrate": "npx wrangler d1 execute promptomatik-db --local --file=./migrations/0001_init-schema.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0002_add-is-active.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0003_replace-model-rec-with-tips.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0004_add-template-moderation.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0005_add-password-resets.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0006_add_interview_jobs.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0007_add-spanish-language.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0008_expand-interview-job-kinds.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0009_add-user-tier.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0010_invitations-self-serve.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0011_audio_studio.sql"
 	},
 	"dependencies": {
 		"@fontsource-variable/dm-sans": "^5.2.8",
 		"@fontsource-variable/fraunces": "^5.2.9",
+		"@fontsource/inter": "^5.2.8",
+		"@fontsource/playfair-display": "^5.2.8",
 		"bcryptjs": "^3.0.3",
-		"hono": "^4.11.9",
+		"hono": "^4.12.27",
+		"lamejs": "^1.2.1",
 		"lucide-react": "^0.563.0",
 		"motion": "^12.34.0",
+		"nanoid": "^5.1.16",
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
-		"react-router": "^7.13.0"
+		"react-router": "^7.18.1"
 	},
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "^1.24.0",
+		"@cloudflare/vitest-pool-workers": "^0.17.0",
 		"@cloudflare/workers-types": "^4.20260210.0",
 		"@types/react": "^19.2.13",
 		"@types/react-dom": "^19.2.3",
@@ -32,6 +40,7 @@
 		"tsx": "^4.21.0",
 		"typescript": "^5.9.3",
 		"vite": "^7.3.1",
+		"vitest": "^4.1.9",
 		"wrangler": "^4.64.0",
 		"ws": "^8.19.0"
 	}

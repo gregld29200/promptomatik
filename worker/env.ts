@@ -1,10 +1,18 @@
 export interface Env {
   DB: D1Database;
   SESSIONS: KVNamespace;
+  MEDIA: R2Bucket;
   INTERVIEW_JOBS_QUEUE: Queue<{ jobId: string }>;
+  AUDIO_GENERATION_QUEUE: Queue<{ jobId: string; segmentIdx?: number; action?: "generate" | "assemble" }>;
   OPENROUTER_API_KEY: string;
   OPENROUTER_MODEL?: string;
   OPENROUTER_FALLBACK_MODEL?: string;
+  TTS_MODEL_DRAFT?: string;
+  TTS_MODEL_FINAL?: string;
+  TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT?: string;
+  TTS_PRICE_AUDIO_PER_1M_TOKENS_FINAL?: string;
+  LLM_MODEL_PREP?: string;
+  GEMINI_API_KEY?: string;
   RESEND_API_KEY: string;
   APP_SECRET: string;
   APP_URL?: string;

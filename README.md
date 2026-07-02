@@ -79,6 +79,7 @@ Backend endpoints (Cloudflare Worker, Hono):
 - D1 (SQLite) for users, prompts, templates, invitations, password resets
 - KV for sessions (cookie `promptomatik_session`, TTL 7 days)
 - OpenRouter for LLM calls (configured via `OPENROUTER_MODEL` + fallback)
+- Gemini API for Audio Studio TTS
 - Resend for invitation + password reset emails
 
 ## Local Development
@@ -91,7 +92,7 @@ Setup:
 ```bash
 npm install
 cp .env.example .dev.vars
-# fill: OPENROUTER_API_KEY, RESEND_API_KEY, APP_SECRET
+# fill: OPENROUTER_API_KEY, GEMINI_API_KEY, RESEND_API_KEY, APP_SECRET
 # set:  APP_URL (optional for local, used in email links; defaults to request origin)
 # optional: OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL
 
@@ -123,6 +124,7 @@ npx wrangler kv namespace create SESSIONS --preview
 3. Set production secrets:
 ```bash
 npx wrangler secret put OPENROUTER_API_KEY
+npx wrangler secret put GEMINI_API_KEY
 npx wrangler secret put RESEND_API_KEY
 npx wrangler secret put APP_SECRET
 ```
