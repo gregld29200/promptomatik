@@ -73,6 +73,50 @@ describe("compileDirection", () => {
     `);
   });
 
+  it("snapshots a dialogue with per-speaker overrides (PRD amendment)", () => {
+    expect(
+      compileDirection({
+        mode: "dialogue",
+        speakers: ["Speaker 1", "Speaker 2"],
+        script: "Speaker 1: Good morning.\nSpeaker 2: Good morning, do sit down.",
+        direction: {
+          level: "B1",
+          accent: "Neutral international",
+          pace: "Natural classroom speed",
+          style: "Neutral classroom",
+          speakers: {
+            "Speaker 1": {
+              accent: "French-accented English",
+              accentDetail: "a learner from Lyon",
+              notes: "hesitates and searches for words",
+            },
+            "Speaker 2": {
+              style: "Examiner voice",
+            },
+          },
+        },
+      })
+    ).toMatchInlineSnapshot(`
+      "Synthesize the following dialogue as speech. Everything before
+      "TRANSCRIPT:" is performance direction — do not read it aloud. Read only the
+      transcript, exactly as written, following the bracketed audio tags.
+
+      AUDIO PROFILE:
+      Speaker 1: A clear, balanced classroom delivery focused on comprehension. Accent: English spoken with a French accent, specifically a learner from Lyon. Manner of speaking: hesitates and searches for words.
+      Speaker 2: Objective, measured, calm, and consistent.
+
+      DIRECTOR'S NOTES:
+      Style: A clear, balanced classroom delivery focused on comprehension.
+      Accent: Neutral international English.
+      Pacing: Natural classroom speed, clear but not artificial. Controlled natural pace with moderate pauses between ideas.
+      Clarity: Clear articulation, limited reduced forms, clear sentence stress.
+
+      TRANSCRIPT:
+      Speaker 1: Good morning.
+      Speaker 2: Good morning, do sit down."
+    `);
+  });
+
   // The dictation style was removed from V1 after the pilot (BUILD_LOG.md,
   // Phase 7 closure), so the third representative snapshot is the examiner
   // voice instead.

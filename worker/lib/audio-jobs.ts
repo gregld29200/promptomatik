@@ -18,7 +18,7 @@ import {
   type AudioSegmentRow,
   type CreateAudioJobInput,
 } from "./audio-job-response";
-import { estimateAudioSeconds, normalizeSpeakerLabels, normalizeVoiceMap, splitScriptIntoBlocks } from "./audio-script";
+import { estimateAudioSeconds, normalizeSpeakerDirections, normalizeSpeakerLabels, normalizeVoiceMap, splitScriptIntoBlocks } from "./audio-script";
 import { chargeAudioQuota, precheckAudioQuota } from "./audio-quota";
 import { costForQuality, generateBlock, type GenerateBlockInput, type GenerateBlockResult } from "./tts-provider";
 
@@ -121,6 +121,7 @@ export async function createAudioJob(env: Env, input: CreateAudioJobInput): Prom
     ...input,
     script: normalizeSpeakerLabels(input.script),
     voices: normalizeVoiceMap(input.voices),
+    direction: normalizeSpeakerDirections(input.direction, input.mode),
   };
   const validationError = validateCreateInput(normalizedInput);
   if (validationError) {

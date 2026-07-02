@@ -982,3 +982,46 @@ Fix:
 - Screenshot: `docs/audio-studio-screenshots/phase8-accent-detail-field.png`
 
 Gate green (58 tests, build, audit); deployed to production.
+
+## PRD amendment - per-speaker direction in dialogues (2026-07-02)
+
+Requested and approved by Greg post-launch: dialogues need differentiated
+interlocutors (native/learner pairs, contrasting registers, different
+accents in one exchange). Scope decision (Greg): per-speaker accent
+(preset + free refinement), style (preset), and a free "manner of
+speaking" note - all as overrides of the global Direction. CEFR level,
+pace, and scene stay global for pedagogical consistency.
+
+### Built
+
+- Data: optional `direction.speakers["Speaker 1"|"Speaker 2"]` with
+  `{accent?, accentDetail?, style?, notes?}`. Stored in the existing
+  `direction_json` column - no migration.
+- Compiler: AUDIO PROFILE lines are now per-speaker. A speaker with
+  overrides gets `Speaker N: {style persona}. Accent: {expansion},
+  specifically {detail}. Manner of speaking: {notes}.` Speakers without
+  overrides keep the global persona; jobs without overrides compile
+  byte-identically to the previous template (existing snapshots
+  unchanged; new snapshot covers the override case).
+- Server: `normalizeSpeakerDirections()` keeps only canonical Speaker 1/2
+  keys (Locuteur accepted), trims and caps fields (accent 80,
+  accentDetail 120, style 80, notes 200), drops empty entries, and strips
+  the whole object in monologue mode.
+- UI: "Direction par locuteur" row under the casting grid (dialogue mode
+  only) with one button per speaker opening a per-speaker dialog: accent
+  (with "Hériter des réglages globaux"), accent refinement, style
+  (inherit option), manner-of-speaking note. A "Personnalisé" badge marks
+  configured speakers. FR + EN strings.
+- Duplicate-settings restores overrides automatically (direction is
+  restored wholesale).
+
+### Verification
+
+- `npm test` passed: 63 tests (+4 normalizer, +1 compiler snapshot).
+- `npm run build` + `npm audit --omit=dev` passed.
+- Browser E2E on local dev: configured Speaker 2 via the dialog
+  (French-accented English, "débutant, de Lyon", Informal conversation,
+  "hésite souvent, cherche ses mots"), badge shown, generated a Draft
+  dialogue to `ready`; `direction_json.speakers` persisted exactly the
+  configured overrides.
+- Screenshot: `docs/audio-studio-screenshots/phase8-speaker-direction-dialog.png`

@@ -1,4 +1,4 @@
-import type { AudioMode } from "./audio-config";
+import type { AudioDirection, AudioMode, AudioSpeakerDirection } from "./audio-config";
 
 export interface AudioBlock {
   idx: number;
@@ -34,6 +34,41 @@ export function normalizeVoiceMap(voices: Record<string, string>): Record<string
   }
 
   return normalized;
+}
+
+const SPEAKER_FIELD_LIMITS: Record<keyof AudioSpeakerDirection, number> = {
+  accent: 80,
+  accentDetail: 120,
+  style: 80,
+  notes: 200,
+};
+
+// Per-speaker direction overrides only make sense for dialogue, only for
+// the two canonical speakers, and only with bounded, non-empty strings.
+export function normalizeSpeakerDirections(direction: AudioDirection, mode: AudioMode): AudioDirection {
+  const { speakers, ...rest } = direction;
+  if (mode !== "dialogue" || !speakers || typeof speakers !== "object") {
+    return rest;
+  }
+
+  const normalized: Record<string, AudioSpeakerDirection> = {};
+  for (const [key, value] of Object.entries(speakers)) {
+    const match = key.match(/^(speaker|locuteur)\s*([12])$/i);
+    if (!match || !value || typeof value !== "object") continue;
+
+    const entry: AudioSpeakerDirection = {};
+    for (const field of Object.keys(SPEAKER_FIELD_LIMITS) as (keyof AudioSpeakerDirection)[]) {
+      const raw = (value as Record<string, unknown>)[field];
+      if (typeof raw !== "string") continue;
+      const trimmed = raw.trim().slice(0, SPEAKER_FIELD_LIMITS[field]);
+      if (trimmed) entry[field] = trimmed;
+    }
+    if (Object.keys(entry).length > 0) {
+      normalized[`Speaker ${match[2]}`] = entry;
+    }
+  }
+
+  return Object.keys(normalized).length > 0 ? { ...rest, speakers: normalized } : rest;
 }
 
 function pushBlock(blocks: AudioBlock[], parts: string[]) {

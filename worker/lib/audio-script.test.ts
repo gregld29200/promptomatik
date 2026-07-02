@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   estimateAudioSeconds,
+  normalizeSpeakerDirections,
   normalizeSpeakerLabels,
   normalizeVoiceMap,
   splitScriptIntoBlocks,
 } from "./audio-script";
+import type { AudioDirection } from "./audio-config";
 
 function words(count: number): string {
   return Array.from({ length: count }, (_, index) => `word${index}`).join(" ");
@@ -92,5 +94,58 @@ describe("speaker normalization", () => {
       "Speaker 2": "Puck",
       solo: "Aoede",
     });
+  });
+});
+
+describe("normalizeSpeakerDirections", () => {
+  const base: AudioDirection = {
+    level: "B1",
+    accent: "Neutral international",
+    pace: "Natural classroom speed",
+    style: "Neutral classroom",
+  };
+
+  it("normalizes localized keys and drops unknown speakers and empty fields", () => {
+    const result = normalizeSpeakerDirections({
+      ...base,
+      speakers: {
+        "locuteur 1": { accent: " British ", notes: "" },
+        "Speaker 2": { style: "Examiner voice" },
+        "Speaker 3": { accent: "Irish" },
+        narrator: { accent: "Irish" },
+      },
+    }, "dialogue");
+
+    expect(result.speakers).toEqual({
+      "Speaker 1": { accent: "British" },
+      "Speaker 2": { style: "Examiner voice" },
+    });
+  });
+
+  it("caps field lengths", () => {
+    const result = normalizeSpeakerDirections({
+      ...base,
+      speakers: { "Speaker 1": { notes: "x".repeat(500) } },
+    }, "dialogue");
+
+    expect(result.speakers?.["Speaker 1"].notes).toHaveLength(200);
+  });
+
+  it("drops speaker overrides entirely in monologue mode", () => {
+    const result = normalizeSpeakerDirections({
+      ...base,
+      speakers: { "Speaker 1": { accent: "British" } },
+    }, "monologue");
+
+    expect(result.speakers).toBeUndefined();
+  });
+
+  it("drops an empty speakers object", () => {
+    const result = normalizeSpeakerDirections({
+      ...base,
+      speakers: { "Speaker 1": {} },
+    }, "dialogue");
+
+    expect(result.speakers).toBeUndefined();
   });
 });

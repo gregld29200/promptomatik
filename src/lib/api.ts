@@ -589,6 +589,13 @@ export type AudioQuality = "draft" | "final";
 export type AudioJobStatus = "queued" | "generating" | "assembling" | "ready" | "failed";
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1";
 
+export interface AudioSpeakerDirection {
+  accent?: string;
+  accentDetail?: string;
+  style?: string;
+  notes?: string;
+}
+
 export interface AudioDirection {
   level: CefrLevel;
   accent: string;
@@ -596,6 +603,7 @@ export interface AudioDirection {
   pace: string;
   style: string;
   scene?: string;
+  speakers?: Record<string, AudioSpeakerDirection>;
 }
 
 export interface AudioVoice {

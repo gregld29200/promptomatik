@@ -28,13 +28,33 @@ function trimOptional(value: string | undefined): string | undefined {
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
-function audioProfile(mode: AudioMode, speakers: string[], style: string): string {
-  const persona = expandPreset(STYLE_EXPANSIONS, style).replace(/\.+$/, "");
+function accentPhrase(accent: string, accentDetail: string | undefined): string {
+  const base = expandPreset(ACCENT_EXPANSIONS, accent).replace(/\.+$/, "");
+  const detail = trimOptional(accentDetail);
+  return `${base}${detail ? `, specifically ${detail}` : ""}`;
+}
+
+function audioProfile(mode: AudioMode, speakers: string[], direction: AudioDirection): string {
+  const globalPersona = expandPreset(STYLE_EXPANSIONS, direction.style).replace(/\.+$/, "");
   if (mode === "monologue") {
-    return `The speaker: ${persona}.`;
+    return `The speaker: ${globalPersona}.`;
   }
 
-  return speakers.map((speaker) => `${speaker}: ${persona}.`).join("\n");
+  return speakers.map((speaker) => {
+    const override = direction.speakers?.[speaker];
+    const persona = override?.style
+      ? expandPreset(STYLE_EXPANSIONS, override.style).replace(/\.+$/, "")
+      : globalPersona;
+    const parts = [`${speaker}: ${persona}.`];
+    if (override && (trimOptional(override.accent) || trimOptional(override.accentDetail))) {
+      parts.push(`Accent: ${accentPhrase(override.accent ?? direction.accent, override.accentDetail)}.`);
+    }
+    const notes = trimOptional(override?.notes);
+    if (notes) {
+      parts.push(`Manner of speaking: ${notes.replace(/\.+$/, "")}.`);
+    }
+    return parts.join(" ");
+  }).join("\n");
 }
 
 export function validateTranscriptForTts(mode: AudioMode, script: string): void {
@@ -73,7 +93,7 @@ export function compileDirection(input: CompileDirectionInput): string {
 "TRANSCRIPT:" is performance direction — do not read it aloud. Read only the
 transcript, exactly as written, following the bracketed audio tags.`,
     `AUDIO PROFILE:
-${audioProfile(mode, speakers, direction.style)}`,
+${audioProfile(mode, speakers, direction)}`,
   ];
 
   if (scene) {

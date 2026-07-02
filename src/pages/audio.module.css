@@ -780,3 +780,40 @@
     grid-template-columns: 1fr;
   }
 }
+
+.speakerDirectionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.speakerDirectionRow > span {
+  color: var(--studio-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.speakerCustomized {
+  font-style: normal;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  background: var(--studio-teal-soft, rgba(133, 162, 163, 0.18));
+  color: var(--studio-teal);
+  border-radius: 999px;
+}
+
+.speakerConfigFields {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.9rem;
+}
+
+.speakerConfigActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}

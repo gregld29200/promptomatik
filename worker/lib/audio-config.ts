@@ -4,6 +4,16 @@ export type AudioMode = "monologue" | "dialogue";
 export type AudioQuality = "draft" | "final";
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1";
 
+// Per-speaker overrides for dialogue mode (PRD amendment, 2026-07-02):
+// accent/style default to the global Direction; notes is a free
+// "manner of speaking" hint appended verbatim to that speaker's profile.
+export interface AudioSpeakerDirection {
+  accent?: string;
+  accentDetail?: string;
+  style?: string;
+  notes?: string;
+}
+
 export interface AudioDirection {
   level: CefrLevel;
   accent: string;
@@ -11,6 +21,7 @@ export interface AudioDirection {
   pace: string;
   style: string;
   scene?: string;
+  speakers?: Record<string, AudioSpeakerDirection>;
 }
 
 export interface TtsModelConfig {
