@@ -896,3 +896,27 @@ API via curl. Admin account `greg@teachinspire.com`.
 
 The acceptance walkthrough is complete. Deployment is the next step and is
 not started - awaiting Greg's instruction.
+
+## Deployment (2026-07-02)
+
+Deployed on Greg's go after the completed §4 acceptance walkthrough.
+
+Steps executed, in order:
+1. `wrangler secret put GEMINI_API_KEY` - uploaded (was absent from the remote secret list; value never logged).
+2. `wrangler queues create audio-generation` - created; confirmed in `wrangler queues list`.
+3. `wrangler d1 execute promptomatik-db --remote --file=./migrations/0011_audio_studio.sql` - applied; all four tables (`audio_jobs`, `audio_segments`, `quota_ledger`, `credit_balances`) confirmed present in remote D1.
+4. `npm run deploy` - version `3c142af0-478d-473b-a726-01c27c0decd6` uploaded with bindings: SESSIONS KV, DB, MEDIA R2, both queues (producer + consumer for `interview-jobs` and `audio-generation`), and the TTS config vars.
+5. `npm run audio:seed-voices -- --remote` - 30/30 previews generated and uploaded to `voices/` in the production bucket; 138.57s audio, $0.03475 API cost.
+
+Post-deploy verification:
+- `GET https://promptomatik.com/api/health` → 200.
+- SPA root → 200.
+- `GET /api/audio/quota` and `/api/audio/voices` unauthenticated → 401 (auth enforced).
+- `voices/Kore.mp3` in remote R2 starts with an MP3 frame-sync header.
+- R2 lifecycle: `audio/` 7-day expiry active; `voices/` has no expiry rule (verified during acceptance).
+
+Not exercised in production: an authenticated end-to-end generation (first
+live take is Greg's - the queue consumer is attached and identical to the
+pipeline the pilot validated locally).
+
+TeachInspire Audio Studio V1 is live.
