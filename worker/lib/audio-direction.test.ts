@@ -73,7 +73,10 @@ describe("compileDirection", () => {
     `);
   });
 
-  it("snapshots a C1 dictation direction", () => {
+  // The dictation style was removed from V1 after the pilot (BUILD_LOG.md,
+  // Phase 7 closure), so the third representative snapshot is the examiner
+  // voice instead.
+  it("snapshots a C1 examiner direction", () => {
     expect(
       compileDirection({
         mode: "monologue",
@@ -83,7 +86,7 @@ describe("compileDirection", () => {
           level: "C1",
           accent: "Neutral international",
           pace: "Exam speed",
-          style: "Dictation (measured, deliberate pauses after each sentence)",
+          style: "Examiner voice",
         },
       })
     ).toMatchInlineSnapshot(`
@@ -92,10 +95,10 @@ describe("compileDirection", () => {
       transcript, exactly as written, following the bracketed audio tags.
 
       AUDIO PROFILE:
-      The speaker: Measured dictation with deliberate pauses after each sentence.
+      The speaker: Objective, measured, calm, and consistent.
 
       DIRECTOR'S NOTES:
-      Style: Measured dictation with deliberate pauses after each sentence.
+      Style: Objective, measured, calm, and consistent.
       Accent: Neutral international English.
       Pacing: Exam speed: controlled, neutral, and consistent. Fully authentic pace and rhythm, subtle emotion.
       Clarity: Authentic speech; natural linking and reduction.

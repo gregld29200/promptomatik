@@ -15,7 +15,11 @@ import s from "./audio.module.css";
 const LEVELS: CefrLevel[] = ["A1", "A2", "B1", "B2", "C1"];
 const ACCENTS = ["Neutral international", "British", "North American", "Australian", "Irish", "Indian English", "Neutral", "Parisian", "Canadian", "Slow classroom French"];
 const PACES = ["Slow learner-friendly", "Natural classroom speed", "Business meeting speed", "Exam speed", "Fast authentic speech"];
-const STYLES = ["Neutral classroom", "Warm and encouraging", "Professional corporate", "Business meeting", "Podcast host", "Examiner voice", "Customer service", "Informal conversation", "Storytelling", "Dictation (measured, deliberate pauses after each sentence)"];
+// "Dictation (measured, deliberate pauses after each sentence)" was removed
+// from V1 after the pilot: model-performed pauses made durations vary up to
+// 6x on identical input. Dictation returns in V1.5 on programmatic PCM
+// silence insertion (BUILD_LOG.md, Phase 7 closure).
+const STYLES = ["Neutral classroom", "Warm and encouraging", "Professional corporate", "Business meeting", "Podcast host", "Examiner voice", "Customer service", "Informal conversation", "Storytelling"];
 const TAGS = SUPPORTED_AUDIO_TAGS;
 const PREPARE_GROUPS = ["speaker_rename", "tag_added", "direction_hint", "cleanup"] as const;
 
@@ -47,7 +51,6 @@ const DIRECTION_LABELS: Record<string, string> = {
   "Customer service": "Service client",
   "Informal conversation": "Conversation informelle",
   Storytelling: "Narration",
-  "Dictation (measured, deliberate pauses after each sentence)": "Dictée avec pauses",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -800,6 +803,7 @@ export function AudioStudioPage() {
                 <li>{t("audio.help_tags")}</li>
                 <li>{t("audio.help_stage")}</li>
                 <li>{t("audio.help_direction")}</li>
+                <li>{t("audio.help_dictation")}</li>
               </ul>
               <div className={s.helpTags} aria-label={t("audio.help_supported_tags")}>
                 <strong>{t("audio.help_supported_tags")}</strong>

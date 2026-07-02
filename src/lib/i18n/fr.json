@@ -208,6 +208,7 @@
     "help_tags": "Utilisez uniquement des tags entre crochets issus de la liste prise en charge.",
     "help_stage": "Évitez les indications scéniques dans le script. Préparer pour l'audio les convertit, les déplace vers Direction ou les retire.",
     "help_direction": "Placez le décor, l'état des personnages et les gestes non parlés dans Direction, pas dans le texte à lire.",
+    "help_dictation": "La dictée avec pauses chronométrées arrive dans une prochaine version. En attendant, insérez des tags [pause] manuels aux endroits voulus.",
     "help_supported_tags": "Tags pris en charge"
   },
   "profile": {

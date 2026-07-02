@@ -208,6 +208,7 @@
     "help_tags": "Use only bracketed tags from the supported list.",
     "help_stage": "Avoid stage directions in the script. Prepare for audio converts them, moves them to Direction, or removes them.",
     "help_direction": "Put setting, character state, and non-spoken actions in Direction, not in the text to read.",
+    "help_dictation": "Timed-pause dictation arrives in a future version. In the meantime, insert manual [pause] tags where needed.",
     "help_supported_tags": "Supported tags"
   },
   "profile": {

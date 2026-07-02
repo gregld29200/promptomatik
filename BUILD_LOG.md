@@ -763,3 +763,47 @@ the review set — do not regenerate unless asked).
 
 No further code work until the listening verdicts: no acceptance
 walkthrough, no deployment, no pilot-asset regeneration.
+
+## Phase 7 closure - listening verdict and dictation decision (2026-07-02)
+
+### Go/no-go outcome - all four criteria GO
+
+| Criterion | Threshold | Result |
+|---|---|---|
+| Generation failure rate after retries | < 5% | 0.0% (0/10 pilot takes) - GO |
+| Real cost per generated hour (Final) | < 2x estimate ($3.60/h) | $1.80/h - GO |
+| Median generation time, 2-min Final dialogue | < 3 min | 58.0s over 3 runs - GO |
+| Quality shareable with learners | 7 pilot assets, FR and EN judged separately | Validated by Greg's listening session on all seven assets, FR and EN - GO |
+
+Phase 7 is CLOSED.
+
+### Decision - Dictation removed from the V1 delivery-style list (Greg)
+
+Rationale: duration variance of up to 6x on identical input (36s vs 223s
+observed on the same dictation script) makes real-cost charging
+unpredictable for participants, which conflicts with the quota-trust
+promise. Dictation returns in V1.5 built on pause presets with
+programmatic PCM silence insertion (deterministic durations, zero model
+dependency) rather than model-performed pauses.
+
+Implemented:
+- Removed the style from `STYLE_EXPANSIONS` (`worker/lib/audio-config.ts`)
+  and from the frontend preset list + FR display label (`src/pages/audio.tsx`).
+- Replaced the third compiled-prompt snapshot (C1 dictation) with a C1
+  Examiner voice snapshot so the representative set stays at three.
+- Added a `help_dictation` line (FR + EN) to the "Bien écrire pour
+  l'audio" panel: timed-pause dictation arrives in a future version;
+  manual `[pause]` tags are the interim workaround.
+- No other style changes.
+- Note: `scripts/pilot-assets.ts` still references the removed preset in
+  its historical asset 6 definition. `expandPreset` falls back to the raw
+  key, so a future harness run would compile the style text verbatim -
+  harmless, and the Phase 7 review set is already archived. Left as-is to
+  preserve the pilot record.
+
+### Verification
+
+- `npm test` passed: 58 tests.
+- `npm run build` passed.
+- `npm audit --omit=dev` passed: 0 vulnerabilities.
+- `git status` clean after commit (gate check 4).

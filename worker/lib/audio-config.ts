@@ -89,8 +89,6 @@ export const STYLE_EXPANSIONS: Record<string, string> = {
   "Customer service": "Helpful, courteous, and solution-oriented.",
   "Informal conversation": "Relaxed, spontaneous, and natural.",
   Storytelling: "Expressive narration with clear images and controlled emotion.",
-  "Dictation (measured, deliberate pauses after each sentence)":
-    "Measured dictation with deliberate pauses after each sentence.",
 };
 
 export const PACE_EXPANSIONS: Record<string, string> = {
