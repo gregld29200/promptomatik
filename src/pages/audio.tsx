@@ -12,8 +12,11 @@ import { SUPPORTED_AUDIO_TAGS, lintAudioScript } from "@/lib/audio-script-rules"
 import type { AudioDirection, AudioJob, AudioMode, AudioQuality, AudioVoice, CefrLevel } from "@/lib/api";
 import s from "./audio.module.css";
 
+// V1 credit purchase entry point (REQ-8.3): a mailto stub. Stripe is V1.5.
+const CONTACT_EMAIL = "greg@teachinspire.com";
+
 const LEVELS: CefrLevel[] = ["A1", "A2", "B1", "B2", "C1"];
-const ACCENTS = ["Neutral international", "British", "North American", "Australian", "Irish", "Indian English", "Neutral", "Parisian", "Canadian", "Slow classroom French"];
+const ACCENTS = ["Neutral international", "British", "North American", "Australian", "Irish", "Indian English", "French-accented English", "Neutral", "Parisian", "Canadian", "Slow classroom French"];
 const PACES = ["Slow learner-friendly", "Natural classroom speed", "Business meeting speed", "Exam speed", "Fast authentic speech"];
 // "Dictation (measured, deliberate pauses after each sentence)" was removed
 // from V1 after the pilot: model-performed pauses made durations vary up to
@@ -33,6 +36,7 @@ const DIRECTION_LABELS: Record<string, string> = {
   Australian: "Australien",
   Irish: "Irlandais",
   "Indian English": "Anglais indien",
+  "French-accented English": "Anglais avec accent français",
   Neutral: "Neutre",
   Parisian: "Parisien",
   Canadian: "Canadien",
@@ -565,6 +569,7 @@ export function AudioStudioPage() {
                 </button>
               ))}
             </div>
+            <p className={s.tagsNote}>{t("audio.tags_english_note")}</p>
 
             {blockingFindings.length > 0 && (
               <div className={s.lintPanel} role="alert">
@@ -741,7 +746,14 @@ export function AudioStudioPage() {
               </button>
             </div>
 
-            {quotaBlocked && <p className={s.warning}>{t("audio.quota_blocked")}</p>}
+            {quotaBlocked && (
+              <p className={s.warning}>
+                {t("audio.quota_blocked")}{" "}
+                <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t("audio.quota_blocked_mail_subject"))}`}>
+                  {t("audio.quota_blocked_cta")}
+                </a>
+              </p>
+            )}
             {error && <p className={s.error}>{error}</p>}
 
             <GenerationConsole job={activeJob} elapsedSeconds={elapsed} />

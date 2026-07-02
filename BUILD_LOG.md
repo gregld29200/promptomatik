@@ -807,3 +807,92 @@ Implemented:
 - `npm run build` passed.
 - `npm audit --omit=dev` passed: 0 vulnerabilities.
 - `git status` clean after commit (gate check 4).
+
+## Acceptance walkthrough - AGENT_INSTRUCTIONS §4 (2026-07-02)
+
+Environment: local `wrangler dev` on the freshly built worker (rebuild-before-verify),
+real local D1/KV/R2 state including the pilot jobs, browser via agent-browser,
+API via curl. Admin account `greg@teachinspire.com`.
+
+### Gaps found by the walkthrough and fixed during it
+
+1. REQ-2.3 - the tag panel had no note that tags stay in English. Added
+   `audio.tags_english_note` (FR + EN) rendered under the panel.
+2. REQ-8.3 - the blocked state had contact text but no actionable entry
+   point. Added a `mailto:greg@teachinspire.com` link (address chosen by
+   Greg) with a prefilled subject, FR + EN strings.
+3. REQ-3.3 - "French-accented English" existed in the backend accent
+   expansions but was missing from the frontend preset list. Added, with
+   the FR display label "Anglais avec accent français" (11 accents total).
+4. FR lint regression pattern extended for the new strings.
+
+### REQ-by-REQ evidence
+
+- REQ-1.1 modes: Dialogue/Monologue toggle present (browser).
+- REQ-1.2 turn rendering: alternating Speaker 1/2 turns visually distinct in the preview (screenshot `phase8-acceptance-player-blocks.png`).
+- REQ-1.3 >2 speakers: pasting a 3-speaker script showed "Deux locuteurs maximum pour cette version." and disabled Generate (browser).
+- REQ-1.4 live estimate: "env. 10s" for a 24-word script, updates on edit (browser).
+- REQ-1.5 tag highlighting: inline `[curious]` rendered highlighted in the preview (screenshot).
+- REQ-2.1 tag panel: all 19 required tags present (browser count).
+- REQ-2.2 insertion at cursor: verified in-page (tag appended at the active cursor position); also human-verified in the Phase 4 review. Note: synthetic automation clicks without a real focus/selection don't reproduce it - real-user behavior is the verified path.
+- REQ-2.3 English-tags note: "Les tags restent en anglais, même pour les scripts en français (recommandation Google)." visible under the panel (fixed during walkthrough).
+- REQ-3.1 five controls: NIVEAU, ACCENT, RYTHME, STYLE selects + SCÈNE free text - exactly five (browser).
+- REQ-3.2 compiled prompt hidden: compilation happens only in the worker (`compileDirection`); no UI surface renders it; §4 grep confirms no model/prompt leakage client-side.
+- REQ-3.3 accent presets: 11 options after fix (7 EN + 4 FR per PRD); free-text refinement appended verbatim (compiler snapshot tests).
+- REQ-3.4 CEFR delivery-only: compiler snapshots show CEFR modifiers in Director's Notes only; script text is never rewritten (unit tests).
+- REQ-4.1 voices: 30 voice cards with descriptors (browser count; catalog endpoint).
+- REQ-4.2 previews from R2: `GET /api/audio/voices/:name/preview` streams the seeded static MP3 (200, audio/mpeg, cache-control 86400); no live TTS call in the preview path.
+- REQ-4.3 voice casting: dialogue requires one voice per speaker, monologue exactly one - enforced in UI (missing voices disable Generate) and server-side (`validateCreateInput`, unit + integration tests).
+- REQ-5.1 validation + statuses: pilot harness drove 10 jobs through queued → generating → assembling → ready with live console states; server-side validation tests green.
+- REQ-5.2 quality routing: Draft→Flash / Final→Pro resolved from config only (`modelForQuality`); UI shows Brouillon/Finale only.
+- REQ-5.3 retries: provider retry policy (2s/8s/30s on 500/429/503/text-instead-of-audio, no retry on PROHIBITED_CONTENT) unit-tested; observed retry counts recorded per job.
+- REQ-5.4 assembly + charge: pilot jobs produced final.wav/mp3/transcript in R2 and charged measured seconds to the ledger (Phase 3 curl + today's pilot ledger rows).
+- REQ-5.5 failure = no charge: integration test (failed block after retries leaves no ledger row).
+- REQ-5.6 polling: frontend polls active jobs every 3000 ms (`src/pages/audio.tsx:320`); Phase 4 verified polling stops after navigation.
+- REQ-6.1 player + boundaries: ready 2-min dialogue rendered the waveform player (203 bars) with a visible block boundary (screenshot).
+- REQ-6.2 block regeneration: waveform block selection reveals "Régénérer ce bloc" (Phase 4 human review); backend regeneration + pro-rata charge demonstrated by curl in Phase 3 (-71s generation, -76s regeneration ledger rows) and covered by tests.
+- REQ-6.3 downloads: MP3 / WAV / TXT buttons on the ready player; authenticated proxy downloads verified by curl (Phase 3) and by the pilot harness MP3 downloads (approved amendment replacing signed URLs).
+- REQ-6.4 expiry: R2 lifecycle rule `audio-expire-7d` on prefix `audio/` confirmed live on the remote bucket (`wrangler r2 bucket lifecycle list`); `voices/` has no expiry rule; every history row displays "Expire le DD/MM/YYYY".
+- REQ-7.1 one Flash text call, three passes: Phase 5/5b implementation and E2E; contract tests green.
+- REQ-7.2 accept/reject diff: Phase 5b E2E + screenshot `phase5-prepare-diff-view.png`; nothing applied silently.
+- REQ-7.3 preparation not charged: the prepare route contains no quota charge call (code inspection - `grep charge worker/routes/audio.ts` is empty for prepare).
+- REQ-7.4 empty-state: Prepare disabled with the exact hint "Collez d'abord votre script — Audio Studio le prépare, il ne l'écrit pas." (browser).
+- REQ-8.1 quota model: 3600 included seconds per calendar month, included-first then credits, implicit KV reset - unit tests incl. month rollover and exact straddle.
+- REQ-8.2 header: "21 min restantes ce mois + 15 min de crédits" observed; credits suffix shown only when > 0.
+- REQ-8.3 blocked generation: a 7,002-word script (estimate > remaining × 1.2) disabled Generate and showed "Quota insuffisant pour cette estimation." with the mailto entry point (screenshot `phase8-acceptance-quota-blocked.png`).
+- REQ-8.4 actual-seconds charge: charges equal measured PCM seconds rounded up; regeneration pro-rata (unit tests + pilot ledger).
+- REQ-8.5 auditable ledger: every movement is a ledger row - generation, regeneration, credit_grant verified in D1 during Phases 3/6 and today.
+- REQ-9.1 history rows: title from first script words · mode · quality · duration · status · localized expiry, most recent first (browser).
+- REQ-9.2 duplicate settings: clicking a history row restored script, direction, voices, and quality into the editor (screenshot).
+- REQ-10.1 job metrics: model_used, estimated vs actual seconds, gen_ms, retry_count, api_cost_usd recorded per job (D1 rows from the pilot).
+- REQ-10.2 admin dashboard: failure rate, normalized speed, cumulative cost vs charged seconds, per-user usage, credit grant - live in the Audio tab (Phase 6 + today's data).
+- REQ-10.3 thresholds: the four go/no-go thresholds display next to live values; all four now GO (Phase 7 closure).
+- NFR-1 i18n: FR default on first load; full EN pass verified by switching languages ("21 min remaining this month + 15 min credits", Booth, Draft, Generate take); FR/EN key sets are identical (parity script: no diff either direction).
+- NFR-2 config: model IDs, prices, prompt expansions, prep model all in `wrangler.jsonc` / `worker/lib/audio-config.ts`.
+- NFR-3 privacy/access: nanoid R2 keys, authenticated proxy downloads (approved amendment), ownership checks (403 tests), no script-content logging (metrics endpoint tested for script absence).
+- NFR-4 honest degradation: no simulated progress; statuses come from polled job/segment state (Phase 4 verification; pilot console observation).
+
+### §4 checklist
+
+- [x] Every REQ 1-10 acceptance criterion walked one by one (above).
+- [x] All tests green (58); `grep -rn "gemini-" src/ | grep -v provider | grep -v config` returns nothing.
+- [x] FR and EN UI complete; French default; key parity verified.
+- [x] R2 lifecycle rule on `audio/` confirmed at 7 days on the live bucket; `voices/` untouched.
+- [x] Pilot harness output attached (Phase 7 entry).
+- [x] Deviations documented with rationale (proxy downloads, REQ-8.2 header split, speaker-label heuristic, Dictation removal - all approved and logged).
+
+### Walkthrough screenshots
+
+- `docs/audio-studio-screenshots/phase8-acceptance-script-zone.png`
+- `docs/audio-studio-screenshots/phase8-acceptance-player-blocks.png`
+- `docs/audio-studio-screenshots/phase8-acceptance-quota-blocked.png`
+
+### Verification
+
+- `npm test` passed: 58 tests.
+- `npm run build` passed.
+- `npm audit --omit=dev` passed: 0 vulnerabilities.
+- `git status` clean after commit.
+
+The acceptance walkthrough is complete. Deployment is the next step and is
+not started - awaiting Greg's instruction.

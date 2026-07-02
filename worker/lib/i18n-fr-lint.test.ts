@@ -12,7 +12,7 @@ describe("French i18n copy", () => {
     const copy = flattenStrings(fr).join("\n");
 
     expect(copy).not.toMatch(
-      /\b(Generer|Reinitialisation|Reunion|deconnecter|Pret|ECOULE|MODELE|Echouees|Reussies|Evaluee|Mesuree|Metrique|Crediter|credites|generee|echec)\b/
+      /\b(Generer|Reinitialisation|Reunion|deconnecter|Pret|ECOULE|MODELE|Echouees|Reussies|Evaluee|Mesuree|Metrique|Crediter|credites|generee|echec|Credits|francais)\b/
     );
   });
 });
