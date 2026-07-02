@@ -133,5 +133,20 @@ describe("validateTranscriptForTts", () => {
       "monologue",
       "Speaker 1: Bonjour tout le monde."
     )).toThrow(TranscriptValidationError);
+    expect(() => validateTranscriptForTts(
+      "monologue",
+      "Sarah: Bonjour tout le monde."
+    )).toThrow(TranscriptValidationError);
+  });
+
+  it("accepts prose colons in monologue mode (phase 7 harness finding)", () => {
+    expect(() => validateTranscriptForTts(
+      "monologue",
+      "Claire posa sa valise sur le quai et regarda l'horloge : six heures dix."
+    )).not.toThrow();
+    expect(() => validateTranscriptForTts(
+      "monologue",
+      "Some employees enjoy the flexibility: they can start earlier."
+    )).not.toThrow();
   });
 });

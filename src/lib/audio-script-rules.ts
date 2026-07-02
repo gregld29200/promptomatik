@@ -64,9 +64,20 @@ export interface ScriptLintFinding {
 }
 
 const SPEAKER_LABEL_RE = /^(Speaker|Locuteur)\s*([0-9]+)\s*:/i;
-const ANY_LABEL_RE = /^([^:\n]{1,80}):/;
+const ANY_LABEL_RE = /^([^:\n]{1,40}?)\s*:/;
 const TAG_RE = /\[[^\]]+]/g;
 const WORDS_PER_SECOND = 2.5;
+
+// A colon only marks a speaker label when the prefix is short (1-3 words,
+// e.g. "Sarah", "M. Dupont", "Speaker 1"). Prose colons — "regarda
+// l'horloge : six heures dix", "the flexibility: they can..." — are
+// legitimate script content and must not be treated as labels.
+export function speakerLabelPrefix(line: string): string | null {
+  const prefix = line.match(ANY_LABEL_RE)?.[1]?.trim();
+  if (!prefix || prefix.startsWith("[")) return null;
+  const words = prefix.split(/\s+/).filter(Boolean);
+  return words.length >= 1 && words.length <= 3 ? prefix : null;
+}
 
 function wordsIn(text: string): number {
   return text.replace(TAG_RE, " ").trim().match(/\S+/g)?.length ?? 0;
@@ -110,7 +121,7 @@ export function lintAudioScript(script: string, mode: AudioModeForRules): Script
     const line = rawLine.trim();
     if (!line) return;
     const lineNumber = index + 1;
-    const label = line.match(ANY_LABEL_RE)?.[1]?.trim();
+    const label = speakerLabelPrefix(line);
     const knownSpeaker = label ? normalizedKnownSpeaker(`${label}:`) : null;
 
     if (mode === "dialogue") {

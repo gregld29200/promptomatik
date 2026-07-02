@@ -7,6 +7,7 @@ import {
   type AudioDirection,
   type AudioMode,
 } from "./audio-config";
+import { speakerLabelPrefix } from "../../src/lib/audio-script-rules";
 
 export interface CompileDirectionInput {
   direction: AudioDirection;
@@ -48,7 +49,7 @@ export function validateTranscriptForTts(mode: AudioMode, script: string): void 
     return;
   }
 
-  const labelled = lines.find((line) => /^[^:\n]{1,80}:/.test(line));
+  const labelled = lines.find((line) => speakerLabelPrefix(line) !== null);
   if (labelled) {
     throw new TranscriptValidationError(
       `Monologue transcript must not contain speaker labels before TTS. Invalid line: ${labelled}`
