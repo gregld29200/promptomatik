@@ -176,6 +176,8 @@
     "preview_empty": "Les tours de parole et les tags audio apparaîtront ici.",
     "level": "Niveau",
     "accent": "Accent",
+    "accent_detail": "Précision d'accent (libre)",
+    "accent_detail_placeholder": "Ville, région ou langue : Marseille, andalou, allemand...",
     "pace": "Rythme",
     "style": "Style",
     "scene": "Scène",

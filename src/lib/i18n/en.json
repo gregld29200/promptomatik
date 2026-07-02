@@ -176,6 +176,8 @@
     "preview_empty": "Speaker turns and audio tags will appear here.",
     "level": "Level",
     "accent": "Accent",
+    "accent_detail": "Accent refinement (free text)",
+    "accent_detail_placeholder": "City, region, or language: Marseille, Andalusian, German...",
     "pace": "Pace",
     "style": "Style",
     "scene": "Scene",

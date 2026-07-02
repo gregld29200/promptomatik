@@ -952,3 +952,33 @@ parity across the ENTIRE migration chain (e.g. compare
 `sqlite_master` against local), not just the migration added by the
 current feature. The repo's `db:migrate` script is local-only, which
 makes this drift easy to create.
+
+## Post-launch fix - missing accent free-text refinement (2026-07-02)
+
+Reported by Greg minutes after launch: accent presets are limited to
+FR/EN while the TTS model speaks many more languages - customization
+needed.
+
+Finding: this was a missed PRD requirement, not a new feature. REQ-3.1/3.3
+specify "Accent (preset list + free-text refinement, e.g. city)... Free-text
+refinement is appended verbatim." The compiler and API types supported
+`accentDetail` since Phase 2 ("...English, specifically {detail}"), but the
+input was never built into the Direction zone - and the acceptance
+walkthrough verified the compiler path, not the UI input. Walkthrough
+correction noted.
+
+Fix:
+- Added the free-text input under the Accent select: label "Précision
+  d'accent (libre)" / "Accent refinement (free text)", placeholder
+  suggesting city/region/language, maxLength 120.
+- Wired into direction state; flows through direction_json to the
+  compiler verbatim (existing unit-tested path). Duplicate-settings
+  restores it automatically.
+- FR/EN strings added; `.field input` styled like selects.
+- Verified E2E on local dev: Spanish monologue draft with
+  `accentDetail: "accent andalou"` persisted to the job row; spoken
+  language follows the script text (model behavior), presets/refinement
+  shape accent and delivery.
+- Screenshot: `docs/audio-studio-screenshots/phase8-accent-detail-field.png`
+
+Gate green (58 tests, build, audit); deployed to production.

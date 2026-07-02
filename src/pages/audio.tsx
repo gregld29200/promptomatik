@@ -257,6 +257,7 @@ export function AudioStudioPage() {
   const [direction, setDirection] = useState<AudioDirection>({
     level: "B1",
     accent: "Neutral international",
+    accentDetail: "",
     pace: "Natural classroom speed",
     style: "Business meeting",
     scene: "",
@@ -696,6 +697,16 @@ export function AudioStudioPage() {
               <select value={direction.accent} onChange={(event) => updateDirection("accent", event.target.value)}>
                 {ACCENTS.map((accent) => <option key={accent} value={accent}>{directionLabel(accent)}</option>)}
               </select>
+            </label>
+            <label className={s.field}>
+              <span>{t("audio.accent_detail")}</span>
+              <input
+                type="text"
+                value={direction.accentDetail ?? ""}
+                onChange={(event) => updateDirection("accentDetail", event.target.value)}
+                placeholder={t("audio.accent_detail_placeholder")}
+                maxLength={120}
+              />
             </label>
             <label className={s.field}>
               <span>{t("audio.pace")}</span>

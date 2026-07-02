@@ -610,6 +610,7 @@
 }
 
 .field select,
+.field input,
 .field textarea {
   width: 100%;
   min-height: 44px;
