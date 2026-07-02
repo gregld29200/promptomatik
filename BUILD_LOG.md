@@ -621,3 +621,43 @@ Phase 5 is re-closed after amendments. Phase 6 may begin.
 - [ ] Human review by Greg.
 
 Phase 6 awaits human review before Phase 7.
+
+## Phase 6 review closeout - version control and caveats (2026-07-02)
+
+### Phase 6 review verdict
+
+Approved on substance by Greg:
+- REQ-8.2 header split (included + credits shown separately): approved.
+- Production voice-preview seed deferred to deployment: approved.
+- Blocker raised: the working tree for Phases 0-6 was never committed.
+
+### Retroactive commits
+
+The entire Audio Studio working tree was committed on 2026-07-02, grouped
+logically (not a reconstructed per-phase history; shared files were assigned
+to their dominant phase):
+
+- `30e6c16` phases 0-1 — migration, quota service, Vitest setup, R2/queue/TTS config
+- `5d796c4` phase 2 — TTS provider, direction compiler, splitter, assembly, smoke script
+- `b775c01` phase 3 — jobs API, queue consumer, voice catalog (includes phase 6 admin routes sharing `worker/routes/audio.ts`)
+- `065bff9` phase 4 — 3-zone studio frontend, i18n, FR lint test (includes phase 5/6 UI additions sharing these files)
+- `c3df701` phases 5-5b — prepare service, script rules, shared linter
+- `b0675ae` phase 6 — admin metrics/credits, dashboard tab, voice preview seed, build log
+
+`git status` verified clean after the final commit.
+
+### Operating checklist change (from review)
+
+The phase gate is now four checks, all required before a phase can be
+reported complete:
+
+1. `npm test`
+2. `npm run build`
+3. `npm audit --omit=dev`
+4. `git status` clean — all phase work committed
+
+### Phase 6 metrics caveat (from review)
+
+The failure rate and cost-per-hour figures on the admin dashboard are
+currently computed over only 7 local jobs and are NOT decision-grade.
+The Phase 7 pilot harness provides the go/no-go measurement set.
