@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Clock, Copy, FileAudio, HelpCircle, Lock, Settings2, Tags, Wand2, X } from "lucide-react";
+import { Clock, Copy, FileAudio, HelpCircle, Lock, Tags, Wand2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { GenerationConsole } from "@/components/audio/generation-console";
@@ -275,7 +275,6 @@ export function AudioStudioPage() {
   const [prepareError, setPrepareError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [speakerConfigOpen, setSpeakerConfigOpen] = useState<string | null>(null);
 
   const estimate = useMemo(() => estimateSeconds(script), [script]);
   const lintFindings = useMemo(() => lintAudioScript(script, mode), [script, mode]);
@@ -334,6 +333,13 @@ export function AudioStudioPage() {
     setDirection((prev) => ({ ...prev, [key]: value }));
   }
 
+  function updateSpeakerField(slot: string, field: keyof AudioSpeakerDirection, value: string) {
+    if (slot === "Speaker 1" && field !== "notes") {
+      updateDirection(field as "accent" | "accentDetail" | "style", value);
+    }
+    updateSpeakerDirection(slot, field, value);
+  }
+
   function updateSpeakerDirection(slot: string, field: keyof AudioSpeakerDirection, value: string) {
     setDirection((prev) => {
       const entry: AudioSpeakerDirection = { ...prev.speakers?.[slot] };
@@ -350,10 +356,6 @@ export function AudioStudioPage() {
       }
       return { ...prev, speakers: Object.keys(speakers).length > 0 ? speakers : undefined };
     });
-  }
-
-  function speakerHasOverrides(slot: string) {
-    return Object.keys(direction.speakers?.[slot] ?? {}).length > 0;
   }
 
   function clearPrepareReview() {
@@ -710,33 +712,81 @@ export function AudioStudioPage() {
               </select>
             </label>
             <label className={s.field}>
-              <span>{t("audio.accent")}</span>
-              <select value={direction.accent} onChange={(event) => updateDirection("accent", event.target.value)}>
-                {ACCENTS.map((accent) => <option key={accent} value={accent}>{directionLabel(accent)}</option>)}
-              </select>
-            </label>
-            <label className={s.field}>
-              <span>{t("audio.accent_detail")}</span>
-              <input
-                type="text"
-                value={direction.accentDetail ?? ""}
-                onChange={(event) => updateDirection("accentDetail", event.target.value)}
-                placeholder={t("audio.accent_detail_placeholder")}
-                maxLength={120}
-              />
-            </label>
-            <label className={s.field}>
               <span>{t("audio.pace")}</span>
               <select value={direction.pace} onChange={(event) => updateDirection("pace", event.target.value)}>
                 {PACES.map((pace) => <option key={pace} value={pace}>{directionLabel(pace)}</option>)}
               </select>
             </label>
-            <label className={s.field}>
-              <span>{t("audio.style")}</span>
-              <select value={direction.style} onChange={(event) => updateDirection("style", event.target.value)}>
-                {STYLES.map((style) => <option key={style} value={style}>{directionLabel(style)}</option>)}
-              </select>
-            </label>
+            {mode === "monologue" ? (
+              <>
+                <label className={s.field}>
+                  <span>{t("audio.accent")}</span>
+                  <select value={direction.accent} onChange={(event) => updateDirection("accent", event.target.value)}>
+                    {ACCENTS.map((accent) => <option key={accent} value={accent}>{directionLabel(accent)}</option>)}
+                  </select>
+                </label>
+                <label className={s.field}>
+                  <span>{t("audio.accent_detail")}</span>
+                  <input
+                    type="text"
+                    value={direction.accentDetail ?? ""}
+                    onChange={(event) => updateDirection("accentDetail", event.target.value)}
+                    placeholder={t("audio.accent_detail_placeholder")}
+                    maxLength={120}
+                  />
+                </label>
+                <label className={s.field}>
+                  <span>{t("audio.style")}</span>
+                  <select value={direction.style} onChange={(event) => updateDirection("style", event.target.value)}>
+                    {STYLES.map((style) => <option key={style} value={style}>{directionLabel(style)}</option>)}
+                  </select>
+                </label>
+              </>
+            ) : (
+              DIALOGUE_SLOTS.map((slot) => (
+                <fieldset key={slot} className={s.speakerGroup}>
+                  <legend>{speakerDisplay(slot)}</legend>
+                  <label className={s.field}>
+                    <span>{t("audio.accent")}</span>
+                    <select
+                      value={direction.speakers?.[slot]?.accent ?? direction.accent}
+                      onChange={(event) => updateSpeakerField(slot, "accent", event.target.value)}
+                    >
+                      {ACCENTS.map((accent) => <option key={accent} value={accent}>{directionLabel(accent)}</option>)}
+                    </select>
+                  </label>
+                  <label className={s.field}>
+                    <span>{t("audio.accent_detail")}</span>
+                    <input
+                      type="text"
+                      value={direction.speakers?.[slot]?.accentDetail ?? (slot === "Speaker 1" ? direction.accentDetail ?? "" : "")}
+                      onChange={(event) => updateSpeakerField(slot, "accentDetail", event.target.value)}
+                      placeholder={t("audio.accent_detail_placeholder")}
+                      maxLength={120}
+                    />
+                  </label>
+                  <label className={s.field}>
+                    <span>{t("audio.style")}</span>
+                    <select
+                      value={direction.speakers?.[slot]?.style ?? direction.style}
+                      onChange={(event) => updateSpeakerField(slot, "style", event.target.value)}
+                    >
+                      {STYLES.map((style) => <option key={style} value={style}>{directionLabel(style)}</option>)}
+                    </select>
+                  </label>
+                  <label className={s.field}>
+                    <span>{t("audio.speaker_notes")}</span>
+                    <input
+                      type="text"
+                      value={direction.speakers?.[slot]?.notes ?? ""}
+                      onChange={(event) => updateSpeakerField(slot, "notes", event.target.value)}
+                      placeholder={t("audio.speaker_notes_placeholder")}
+                      maxLength={200}
+                    />
+                  </label>
+                </fieldset>
+              ))
+            )}
             <label className={s.field}>
               <span>{t("audio.scene")}</span>
               <textarea
@@ -754,26 +804,6 @@ export function AudioStudioPage() {
             </div>
 
             <VoiceCasting voices={catalog} mode={mode} selected={voices} onChange={setVoices} />
-
-            {mode === "dialogue" && (
-              <div className={s.speakerDirectionRow} role="group" aria-label={t("audio.speaker_direction_title")}>
-                <span>{t("audio.speaker_direction_title")}</span>
-                {DIALOGUE_SLOTS.map((slot) => (
-                  <button
-                    key={slot}
-                    type="button"
-                    className={s.secondaryAction}
-                    onClick={() => setSpeakerConfigOpen(slot)}
-                  >
-                    <Settings2 size={15} aria-hidden />
-                    {speakerDisplay(slot)}
-                    {speakerHasOverrides(slot) && (
-                      <em className={s.speakerCustomized}>{t("audio.speaker_customized")}</em>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
 
             <div className={s.qualityRow}>
               <div className={s.segmented} aria-label={t("audio.quality")}>
@@ -845,71 +875,6 @@ export function AudioStudioPage() {
             </div>
           )}
         </section>
-
-        {speakerConfigOpen && (
-          <div className={s.helpOverlay} role="dialog" aria-modal="true" aria-labelledby="speaker-config-title">
-            <div className={s.helpPanel}>
-              <div className={s.prepareHead}>
-                <div>
-                  <h3 id="speaker-config-title">
-                    {t("audio.speaker_dialog_title", { speaker: speakerDisplay(speakerConfigOpen) })}
-                  </h3>
-                  <p>{t("audio.speaker_dialog_intro")}</p>
-                </div>
-                <button type="button" className={s.iconButton} onClick={() => setSpeakerConfigOpen(null)} aria-label={t("common.close")}>
-                  <X size={16} aria-hidden />
-                </button>
-              </div>
-              <div className={s.speakerConfigFields}>
-                <label className={s.field}>
-                  <span>{t("audio.accent")}</span>
-                  <select
-                    value={direction.speakers?.[speakerConfigOpen]?.accent ?? ""}
-                    onChange={(event) => updateSpeakerDirection(speakerConfigOpen, "accent", event.target.value)}
-                  >
-                    <option value="">{t("audio.speaker_inherit")}</option>
-                    {ACCENTS.map((accent) => <option key={accent} value={accent}>{directionLabel(accent)}</option>)}
-                  </select>
-                </label>
-                <label className={s.field}>
-                  <span>{t("audio.accent_detail")}</span>
-                  <input
-                    type="text"
-                    value={direction.speakers?.[speakerConfigOpen]?.accentDetail ?? ""}
-                    onChange={(event) => updateSpeakerDirection(speakerConfigOpen, "accentDetail", event.target.value)}
-                    placeholder={t("audio.accent_detail_placeholder")}
-                    maxLength={120}
-                  />
-                </label>
-                <label className={s.field}>
-                  <span>{t("audio.style")}</span>
-                  <select
-                    value={direction.speakers?.[speakerConfigOpen]?.style ?? ""}
-                    onChange={(event) => updateSpeakerDirection(speakerConfigOpen, "style", event.target.value)}
-                  >
-                    <option value="">{t("audio.speaker_inherit")}</option>
-                    {STYLES.map((style) => <option key={style} value={style}>{directionLabel(style)}</option>)}
-                  </select>
-                </label>
-                <label className={s.field}>
-                  <span>{t("audio.speaker_notes")}</span>
-                  <textarea
-                    value={direction.speakers?.[speakerConfigOpen]?.notes ?? ""}
-                    onChange={(event) => updateSpeakerDirection(speakerConfigOpen, "notes", event.target.value)}
-                    placeholder={t("audio.speaker_notes_placeholder")}
-                    maxLength={200}
-                    rows={2}
-                  />
-                </label>
-              </div>
-              <div className={s.speakerConfigActions}>
-                <button type="button" className={s.secondaryAction} onClick={() => setSpeakerConfigOpen(null)}>
-                  {t("common.close")}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {helpOpen && (
           <div className={s.helpOverlay} role="dialog" aria-modal="true" aria-labelledby="audio-help-title">

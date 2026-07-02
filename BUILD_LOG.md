@@ -1055,3 +1055,34 @@ violated the hard "model names never in the UI" rule; the console now
 always shows Brouillon/Finale.
 
 Gate green: 63 tests, build, audit, clean tree. Deployed.
+
+## UX fix - per-speaker direction merged into the Direction zone (2026-07-02)
+
+Greg's review: "Direction" vs "Direction par locuteur" conflicted. Root
+causes identified before redesign: (1) two places claimed authority over
+the same fields (accent/style) with an inheritance rule that lived in a
+dialog subtitle, not in the structure; (2) identical field labels with
+different scopes; (3) hidden state - the screen could show a global
+accent while a speaker would actually voice another one; (4) per-speaker
+direction was placed in the casting zone (who) instead of the Direction
+zone (how); (5) "Hériter des réglages globaux" is developer vocabulary.
+
+New structure - one rule, visible in the layout, no hidden state:
+- Dialogue mode: the Direction zone shows the shared controls (Niveau,
+  Rythme, Scène) plus one always-visible fieldset per speaker
+  ("Locuteur 1" / "Locuteur 2"), each with Accent, Précision d'accent,
+  Style, and Façon de s'exprimer. What is displayed is exactly what will
+  be voiced. Speaker 1's accent/précision/style mirror into the global
+  direction fields so the compiled Director's Notes and the monologue
+  form stay coherent.
+- Monologue mode: the flat five-field form, unchanged behavior.
+- Removed: the "Direction par locuteur" row in the Cabine, the
+  per-speaker dialog, the "Personnalisé" badge, the "Hériter" options,
+  and their i18n keys and styles.
+- Backend, data model, and compiler unchanged - the same
+  direction.speakers overrides flow through.
+
+Verification: 63 tests green, build + audit green; browser check of both
+modes (dialogue shows two legended fieldsets, monologue collapses to the
+flat form), Speaker 1 -> global mirroring confirmed, FR/EN parity kept.
+Screenshot: docs/audio-studio-screenshots/phase8-direction-per-speaker-inline.png
