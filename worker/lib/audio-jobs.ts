@@ -2,7 +2,9 @@ import { nanoid } from "nanoid";
 import type { Env } from "../env";
 import {
   getTtsModelConfig,
-  modelForQuality,
+  modelChainForMode,
+  priceForModel,
+  audioCostUsd,
   type AudioDirection,
   type AudioMode,
   type AudioQuality,
@@ -20,7 +22,7 @@ import {
 } from "./audio-job-response";
 import { estimateAudioSeconds, normalizeSpeakerDirections, normalizeSpeakerLabels, normalizeVoiceMap, splitScriptIntoBlocks } from "./audio-script";
 import { chargeAudioQuota, precheckAudioQuota } from "./audio-quota";
-import { costForQuality, generateBlock, type GenerateBlockInput, type GenerateBlockResult } from "./tts-provider";
+import { generateBlock, TtsProviderError, type GenerateBlockInput, type GenerateBlockResult } from "./tts-provider";
 
 export type { CreateAudioJobInput } from "./audio-job-response";
 
@@ -236,7 +238,7 @@ async function generateSegment(
   if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
 
   const config = getTtsModelConfig(env);
-  const model = modelForQuality(config, row.quality);
+  const chain = modelChainForMode(config, row.mode);
   const direction = JSON.parse(row.direction_json) as AudioDirection;
   const voices = JSON.parse(row.voices_json) as Record<string, string>;
   const speakers = row.mode === "dialogue" ? Object.keys(voices) : ["solo"];
@@ -247,27 +249,45 @@ async function generateSegment(
     script: segment.text,
   });
 
-  const result = await provider.generateBlock({
-    apiKey: env.GEMINI_API_KEY,
-    model,
-    prompt,
-    mode: row.mode,
-    voices,
-  });
-  const key = `${row.r2_prefix ?? r2Prefix(row.id)}/seg-${segment.idx}.pcm`;
-  await env.MEDIA.put(key, result.pcm, {
-    httpMetadata: { contentType: "audio/L16" },
-  });
-  await env.DB.prepare(
-    `UPDATE audio_segments
-     SET status = 'ok',
-         duration_seconds = ?,
-         retry_count = ?,
-         r2_key = ?
-     WHERE job_id = ? AND idx = ?`
-  )
-    .bind(result.durationSeconds, result.retryCount, key, row.id, segment.idx)
-    .run();
+  let lastError: unknown;
+  for (let i = 0; i < chain.length; i += 1) {
+    const isLast = i === chain.length - 1;
+    try {
+      const result = await provider.generateBlock({
+        apiKey: env.GEMINI_API_KEY,
+        model: chain[i].model,
+        prompt,
+        mode: row.mode,
+        voices,
+        // Non-final models fail fast on a rate/quota 429 so we switch to the
+        // next model immediately; the final model keeps its normal backoff.
+        fastFailStatuses: isLast ? undefined : [429],
+      });
+      const key = `${row.r2_prefix ?? r2Prefix(row.id)}/seg-${segment.idx}.pcm`;
+      await env.MEDIA.put(key, result.pcm, {
+        httpMetadata: { contentType: "audio/L16" },
+      });
+      await env.DB.prepare(
+        `UPDATE audio_segments
+         SET status = 'ok',
+             duration_seconds = ?,
+             retry_count = ?,
+             last_error_status = ?,
+             model_used = ?,
+             r2_key = ?
+         WHERE job_id = ? AND idx = ?`
+      )
+        .bind(result.durationSeconds, result.retryCount, result.lastErrorStatus ?? null, result.model, key, row.id, segment.idx)
+        .run();
+      return;
+    } catch (error) {
+      lastError = error;
+      const is429 = error instanceof TtsProviderError && error.status === 429;
+      if (is429 && !isLast) continue;
+      throw error;
+    }
+  }
+  throw lastError;
 }
 
 async function assembleFinal(env: Env, row: AudioJobRow, regeneratedSegmentIdx?: number): Promise<void> {
@@ -297,8 +317,16 @@ async function assembleFinal(env: Env, row: AudioJobRow, regeneratedSegmentIdx?:
     : segments.find((segment) => segment.idx === regeneratedSegmentIdx)?.duration_seconds ?? actualSeconds;
   const retryCount = segments.reduce((sum, segment) => sum + segment.retry_count, 0);
   const config = getTtsModelConfig(env);
-  const model = modelForQuality(config, row.quality);
-  const apiCostUsd = costForQuality(config, row.quality, actualSeconds);
+  // Cost is summed per segment using each segment's actual model — a job may mix
+  // Pro ($20/1M) and Flash ($10/1M) blocks when the fallback chain kicked in.
+  // Silence inserted between blocks isn't billed, so we sum segment durations
+  // rather than the concatenated total.
+  const primaryModel = modelChainForMode(config, row.mode)[0].model;
+  const apiCostUsd = segments.reduce((sum, segment) => {
+    const segModel = segment.model_used ?? primaryModel;
+    return sum + audioCostUsd(segment.duration_seconds ?? 0, priceForModel(config, segModel));
+  }, 0);
+  const model = segments.find((segment) => segment.model_used)?.model_used ?? primaryModel;
   const prefix = row.r2_prefix ?? r2Prefix(row.id);
 
   await Promise.all([
@@ -354,10 +382,11 @@ export async function processAudioJob(
       try {
         await generateSegment(env, row, segment, provider);
       } catch (error) {
+        const status = error instanceof TtsProviderError ? error.status ?? null : null;
         await env.DB.prepare(
-          "UPDATE audio_segments SET status = 'failed' WHERE job_id = ? AND idx = ?"
+          "UPDATE audio_segments SET status = 'failed', last_error_status = ? WHERE job_id = ? AND idx = ?"
         )
-          .bind(jobId, segment.idx)
+          .bind(status, jobId, segment.idx)
           .run();
         throw error;
       }
@@ -412,6 +441,8 @@ export async function regenerateAudioSegment(
      SET status = 'pending',
          duration_seconds = NULL,
          retry_count = 0,
+         last_error_status = NULL,
+         model_used = NULL,
          r2_key = NULL
      WHERE job_id = ? AND idx = ?`
   )

@@ -30,9 +30,15 @@ export interface AudioDirection {
 export interface TtsModelConfig {
   draftModel: string;
   finalModel: string;
+  monologueModel: string;
   draftPricePer1MTokens: number;
   finalPricePer1MTokens: number;
   prepModel: string;
+}
+
+export interface TtsModelStep {
+  model: string;
+  pricePer1MTokens: number;
 }
 
 export const PCM_SAMPLE_RATE = 24_000;
@@ -43,6 +49,10 @@ export const AUDIO_TOKENS_PER_SECOND = 25;
 
 const DEFAULT_TTS_MODEL_DRAFT = "gemini-2.5-flash-preview-tts";
 const DEFAULT_TTS_MODEL_FINAL = "gemini-2.5-pro-preview-tts";
+// Monologue default: 3.1 Flash is fast and cheap, and its known weakness
+// (voice drift between speakers) never manifests with a single narrator.
+// This exact model id was verified working in the 2026-07-03 A/B test.
+const DEFAULT_TTS_MODEL_MONOLOGUE = "gemini-3.1-flash-tts-preview";
 const DEFAULT_LLM_MODEL_PREP = "gemini-2.5-flash";
 
 function readNumber(value: string | undefined, fallback: number): number {
@@ -55,6 +65,7 @@ export function getTtsModelConfig(env: Env): TtsModelConfig {
   return {
     draftModel: env.TTS_MODEL_DRAFT?.trim() || DEFAULT_TTS_MODEL_DRAFT,
     finalModel: env.TTS_MODEL_FINAL?.trim() || DEFAULT_TTS_MODEL_FINAL,
+    monologueModel: env.TTS_MODEL_MONOLOGUE?.trim() || DEFAULT_TTS_MODEL_MONOLOGUE,
     draftPricePer1MTokens: readNumber(env.TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT, 10),
     finalPricePer1MTokens: readNumber(env.TTS_PRICE_AUDIO_PER_1M_TOKENS_FINAL, 20),
     prepModel: env.LLM_MODEL_PREP?.trim() || DEFAULT_LLM_MODEL_PREP,
@@ -63,6 +74,27 @@ export function getTtsModelConfig(env: Env): TtsModelConfig {
 
 export function modelForQuality(config: TtsModelConfig, quality: AudioQuality): string {
   return quality === "draft" ? config.draftModel : config.finalModel;
+}
+
+// Per-model audio price. Only the Pro model is billed at the higher rate;
+// every Flash-tier model (2.5 Flash, 3.1 Flash) shares the lower rate.
+export function priceForModel(config: TtsModelConfig, model: string): number {
+  return model === config.finalModel ? config.finalPricePer1MTokens : config.draftPricePer1MTokens;
+}
+
+// Ordered model chain per mode. Each mode starts on its best-fit model and
+// falls back to 2.5 Flash when the primary hits a rate/quota limit — spreading
+// load across three separate per-model daily quotas (Pro 50, 2.5 Flash 100,
+// 3.1 Flash 100 = 250/day on Tier 1) instead of hammering one.
+//   Dialogue:  2.5 Pro    -> 2.5 Flash
+//   Monologue: 3.1 Flash  -> 2.5 Flash
+export function modelChainForMode(config: TtsModelConfig, mode: AudioMode): TtsModelStep[] {
+  const primary = mode === "dialogue" ? config.finalModel : config.monologueModel;
+  const chain: TtsModelStep[] = [{ model: primary, pricePer1MTokens: priceForModel(config, primary) }];
+  if (config.draftModel !== primary) {
+    chain.push({ model: config.draftModel, pricePer1MTokens: priceForModel(config, config.draftModel) });
+  }
+  return chain;
 }
 
 export function audioCostUsd(seconds: number, pricePer1MTokens: number): number {

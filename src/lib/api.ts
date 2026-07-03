@@ -765,6 +765,13 @@ export interface AudioAdminUserUsage {
   creditsRemaining: number;
 }
 
+export interface AudioAdminRateLimitPressure {
+  windowHours: number;
+  segmentsAttempted: number;
+  rateLimited: number;
+  gatewayErrors: number;
+}
+
 export interface AudioAdminMetrics {
   month: string;
   jobs: Record<AudioQuality | "overall", AudioAdminJobCounts>;
@@ -775,6 +782,7 @@ export interface AudioAdminMetrics {
     costPerGeneratedHourUsd: Record<AudioQuality, number | null>;
   };
   users: AudioAdminUserUsage[];
+  rateLimitPressure: AudioAdminRateLimitPressure;
 }
 
 export function getAudioAdminMetrics() {

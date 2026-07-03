@@ -34,6 +34,10 @@ export interface GenerateBlockInput {
   voices: VoiceMap;
   fetcher?: typeof fetch;
   backoffMs?: readonly number[];
+  // Statuses that should throw immediately instead of backing off — used by the
+  // model-fallback chain so a 429 switches to the next model without waiting out
+  // a backoff that a per-day quota limit would never clear anyway.
+  fastFailStatuses?: readonly number[];
 }
 
 export interface GenerateBlockResult {
@@ -41,6 +45,8 @@ export interface GenerateBlockResult {
   durationSeconds: number;
   retryCount: number;
   model: string;
+  /** HTTP status of the last retried-away error, if any (e.g. 429, 524). */
+  lastErrorStatus?: number;
 }
 
 export class TtsProviderError extends Error {
@@ -55,7 +61,7 @@ export class TtsProviderError extends Error {
 }
 
 const DEFAULT_BACKOFF_MS = [2_000, 8_000, 30_000] as const;
-const RETRYABLE_STATUSES = new Set([429, 500, 503]);
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504, 524]);
 
 function base64ToBytes(value: string): Uint8Array {
   const binary = atob(value);
@@ -159,6 +165,7 @@ async function requestBlock(input: GenerateBlockInput): Promise<Uint8Array> {
 
 export async function generateBlock(input: GenerateBlockInput): Promise<GenerateBlockResult> {
   const backoffMs = input.backoffMs ?? DEFAULT_BACKOFF_MS;
+  const fastFail = new Set(input.fastFailStatuses ?? []);
   let retryCount = 0;
   let lastError: unknown;
 
@@ -170,9 +177,12 @@ export async function generateBlock(input: GenerateBlockInput): Promise<Generate
         durationSeconds: pcm.byteLength / PCM_BYTES_PER_SECOND,
         retryCount,
         model: input.model,
+        lastErrorStatus: lastError instanceof TtsProviderError ? lastError.status : undefined,
       };
     } catch (error) {
       lastError = error;
+      const status = error instanceof TtsProviderError ? error.status : undefined;
+      if (status !== undefined && fastFail.has(status)) break;
       const retryable = error instanceof TtsProviderError && error.retryable;
       if (!retryable || attempt === backoffMs.length) break;
       await sleep(backoffMs[attempt]);

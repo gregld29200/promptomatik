@@ -40,6 +40,8 @@ export interface AudioSegmentRow {
   status: "pending" | "ok" | "failed";
   duration_seconds: number | null;
   retry_count: number;
+  last_error_status: number | null;
+  model_used: string | null;
   r2_key: string | null;
 }
 

@@ -77,6 +77,69 @@ describe("generateBlock", () => {
     expect(result.durationSeconds).toBe(0.5);
   });
 
+  it("retries gateway timeouts (524) before succeeding", async () => {
+    let attempts = 0;
+    const pcm = new Uint8Array(PCM_BYTES_PER_SECOND / 2);
+    const fetcher: typeof fetch = async () => {
+      attempts += 1;
+      return attempts === 1
+        ? new Response("upstream request timeout", { status: 524 })
+        : audioResponse(pcm);
+    };
+
+    const result = await generateBlock({
+      apiKey: "test-key",
+      model: "test-model",
+      mode: "monologue",
+      prompt: "Synthesize this.",
+      voices: { solo: "Kore" },
+      fetcher,
+      backoffMs: [0, 0, 0],
+    });
+
+    expect(result.retryCount).toBe(1);
+    expect(attempts).toBe(2);
+    expect(result.lastErrorStatus).toBe(524);
+  });
+
+  it("leaves lastErrorStatus undefined when nothing was retried", async () => {
+    const pcm = new Uint8Array(PCM_BYTES_PER_SECOND);
+    const fetcher: typeof fetch = async () => audioResponse(pcm);
+
+    const result = await generateBlock({
+      apiKey: "test-key",
+      model: "test-model",
+      mode: "monologue",
+      prompt: "Synthesize this.",
+      voices: { solo: "Kore" },
+      fetcher,
+      backoffMs: [0],
+    });
+
+    expect(result.lastErrorStatus).toBeUndefined();
+  });
+
+  it("fast-fails a 429 without backing off when the status is in fastFailStatuses", async () => {
+    let attempts = 0;
+    const fetcher: typeof fetch = async () => {
+      attempts += 1;
+      return Response.json({ error: { message: "quota" } }, { status: 429 });
+    };
+
+    await expect(generateBlock({
+      apiKey: "test-key",
+      model: "test-model",
+      mode: "monologue",
+      prompt: "Synthesize this.",
+      voices: { solo: "Kore" },
+      fetcher,
+      backoffMs: [0, 0, 0],
+      fastFailStatuses: [429],
+    })).rejects.toMatchObject({ status: 429 });
+    // No retries — the very first 429 breaks the loop.
+    expect(attempts).toBe(1);
+  });
+
   it("does not retry prohibited content", async () => {
     let attempts = 0;
     const fetcher: typeof fetch = async () => {

@@ -12,6 +12,7 @@ export interface Env {
   OPENROUTER_FALLBACK_MODEL?: string;
   TTS_MODEL_DRAFT?: string;
   TTS_MODEL_FINAL?: string;
+  TTS_MODEL_MONOLOGUE?: string;
   TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT?: string;
   TTS_PRICE_AUDIO_PER_1M_TOKENS_FINAL?: string;
   LLM_MODEL_PREP?: string;

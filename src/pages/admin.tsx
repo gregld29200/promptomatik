@@ -740,6 +740,29 @@ function AudioTab() {
       </Card>
 
       <Card>
+        <h3 className={s.sectionTitle}>{t("admin.audio_pressure_title")}</h3>
+        <p className={s.subtitle}>
+          {t("admin.audio_pressure_desc", { hours: String(metrics.rateLimitPressure.windowHours) })}
+        </p>
+        <table className={s.table}>
+          <tbody>
+            <tr>
+              <td>{t("admin.audio_pressure_attempted")}</td>
+              <td>{metrics.rateLimitPressure.segmentsAttempted}</td>
+            </tr>
+            <tr>
+              <td>{t("admin.audio_pressure_rate_limited")}</td>
+              <td>{metrics.rateLimitPressure.rateLimited}</td>
+            </tr>
+            <tr>
+              <td>{t("admin.audio_pressure_gateway")}</td>
+              <td>{metrics.rateLimitPressure.gatewayErrors}</td>
+            </tr>
+          </tbody>
+        </table>
+      </Card>
+
+      <Card>
         <h3 className={s.sectionTitle}>{t("admin.audio_users_title")}</h3>
         {result && (
           <div className={`${s.inviteResult} ${result.type === "success" ? s.inviteSuccess : s.inviteError}`}>

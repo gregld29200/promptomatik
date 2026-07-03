@@ -5,7 +5,8 @@ import worker from "../index";
 import type { Env } from "../env";
 import { createSession, type SessionData } from "./session";
 import { AUDIO_INCLUDED_SECONDS_PER_MONTH } from "./audio-quota";
-import { PCM_BYTES_PER_SECOND } from "./audio-config";
+import { PCM_BYTES_PER_SECOND, getTtsModelConfig } from "./audio-config";
+import { TtsProviderError } from "./tts-provider";
 import {
   assembleAudioJob,
   createAudioJob,
@@ -67,6 +68,8 @@ const TEST_SCHEMA_STATEMENTS = [
     CHECK (status IN ('pending','ok','failed')),
   duration_seconds REAL,
   retry_count INTEGER NOT NULL DEFAULT 0,
+  last_error_status INTEGER,
+  model_used TEXT,
   r2_key TEXT,
   PRIMARY KEY (job_id, idx),
   FOREIGN KEY (job_id) REFERENCES audio_jobs(id) ON DELETE CASCADE
@@ -208,6 +211,42 @@ describe("audio job lifecycle", () => {
     expect(await ledgerRows(job.id)).toEqual([
       { source: "included", reason: "generation", delta_seconds: -2 },
     ]);
+  });
+
+  it("falls back to the next model when the primary is rate-limited (429)", async () => {
+    const userId = "fallback-user";
+    await seedParticipant(userId);
+    const job = await createBasicJob(userId);
+
+    const config = getTtsModelConfig(testEnv);
+    const attempted: string[] = [];
+    const provider: AudioGenerationProvider = {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        // The monologue primary (3.1 Flash) is over quota; the 2.5 Flash
+        // fallback has headroom.
+        if (input.model === config.monologueModel) {
+          throw new TtsProviderError("Rate limited.", true, 429);
+        }
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    };
+
+    await processAudioJob(testEnv, job.id, provider);
+    await assembleAudioJob(testEnv, job.id);
+
+    const row = await testEnv.DB.prepare("SELECT status FROM audio_jobs WHERE id = ?")
+      .bind(job.id)
+      .first<{ status: string }>();
+    const segment = await testEnv.DB.prepare(
+      "SELECT status, model_used FROM audio_segments WHERE job_id = ? AND idx = 0"
+    )
+      .bind(job.id)
+      .first<{ status: string; model_used: string }>();
+
+    expect(attempted).toEqual([config.monologueModel, config.draftModel]);
+    expect(row?.status).toBe("ready");
+    expect(segment?.model_used).toBe(config.draftModel);
   });
 
   it("marks a failed block failed and does not charge quota", async () => {

@@ -51,6 +51,20 @@ const TEST_SCHEMA_STATEMENTS = [
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 )`,
+  `CREATE TABLE audio_segments (
+  job_id TEXT NOT NULL,
+  idx INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','ok','failed')),
+  duration_seconds REAL,
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  last_error_status INTEGER,
+  model_used TEXT,
+  r2_key TEXT,
+  PRIMARY KEY (job_id, idx),
+  FOREIGN KEY (job_id) REFERENCES audio_jobs(id) ON DELETE CASCADE
+)`,
   `CREATE TABLE quota_ledger (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id TEXT NOT NULL,
@@ -168,6 +182,40 @@ describe("audio admin metrics", () => {
     // final: $0.06 for 120s -> $1.80 per generated hour
     expect(metrics.cost.costPerGeneratedHourUsd.final).toBeCloseTo(1.8);
     expect(metrics.cost.costPerGeneratedHourUsd.draft).toBeCloseTo(0.0075 / (30 / 3600));
+  });
+
+  it("surfaces rate-limit and gateway-error pressure from recent segment attempts", async () => {
+    await seedUser("pressure-user");
+    await seedJob({ id: "recent-job", userId: "pressure-user", quality: "final", status: "ready" });
+    await seedJob({ id: "stale-job", userId: "pressure-user", quality: "final", status: "ready" });
+    await testEnv.DB.prepare(
+      "UPDATE audio_jobs SET created_at = ? WHERE id = 'stale-job'"
+    ).bind("2020-01-01 00:00:00").run();
+
+    await testEnv.DB.batch([
+      testEnv.DB.prepare(
+        "INSERT INTO audio_segments (job_id, idx, text, status, last_error_status) VALUES ('recent-job', 0, 'a', 'ok', 429)"
+      ),
+      testEnv.DB.prepare(
+        "INSERT INTO audio_segments (job_id, idx, text, status, last_error_status) VALUES ('recent-job', 1, 'b', 'failed', 524)"
+      ),
+      testEnv.DB.prepare(
+        "INSERT INTO audio_segments (job_id, idx, text, status, last_error_status) VALUES ('recent-job', 2, 'c', 'ok', NULL)"
+      ),
+      // Outside the 24h window — must not count.
+      testEnv.DB.prepare(
+        "INSERT INTO audio_segments (job_id, idx, text, status, last_error_status) VALUES ('stale-job', 0, 'd', 'ok', 429)"
+      ),
+    ]);
+
+    const metrics = await getAudioAdminMetrics(testEnv);
+
+    expect(metrics.rateLimitPressure).toEqual({
+      windowHours: 24,
+      segmentsAttempted: 3,
+      rateLimited: 1,
+      gatewayErrors: 1,
+    });
   });
 
   it("reports charged seconds and per-user usage from the ledger", async () => {

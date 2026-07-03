@@ -24,6 +24,13 @@ export interface AudioUserUsage {
   creditsRemaining: number;
 }
 
+export interface AudioRateLimitPressure {
+  windowHours: number;
+  segmentsAttempted: number;
+  rateLimited: number;
+  gatewayErrors: number;
+}
+
 export interface AudioAdminMetrics {
   month: string;
   jobs: Record<AudioQuality | "overall", AudioJobCounts>;
@@ -34,6 +41,7 @@ export interface AudioAdminMetrics {
     costPerGeneratedHourUsd: Record<AudioQuality, number | null>;
   };
   users: AudioUserUsage[];
+  rateLimitPressure: AudioRateLimitPressure;
 }
 
 function emptyCounts(): AudioJobCounts {
@@ -62,11 +70,18 @@ function isQuality(value: string): value is AudioQuality {
   return value === "draft" || value === "final";
 }
 
+const RATE_LIMIT_WINDOW_HOURS = 24;
+const GATEWAY_ERROR_STATUSES = [500, 502, 503, 504, 524];
+
 export async function getAudioAdminMetrics(env: Env, now = new Date()): Promise<AudioAdminMetrics> {
   const month = now.toISOString().slice(0, 7);
   const monthStart = `${month}-01 00:00:00`;
+  const rateLimitWindowStart = new Date(now.getTime() - RATE_LIMIT_WINDOW_HOURS * 60 * 60 * 1000)
+    .toISOString()
+    .replace("T", " ")
+    .slice(0, 19);
 
-  const [countRows, speedRows, costRows, chargedRow, userRows] = await Promise.all([
+  const [countRows, speedRows, costRows, chargedRow, userRows, pressureRow] = await Promise.all([
     env.DB.prepare(
       `SELECT quality,
               COUNT(*) AS total,
@@ -125,6 +140,15 @@ export async function getAudioAdminMetrics(env: Env, now = new Date()): Promise<
       credits_used: number;
       credits_remaining: number;
     }>(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS attempted,
+              SUM(s.last_error_status = 429) AS rate_limited,
+              SUM(s.last_error_status IN (${GATEWAY_ERROR_STATUSES.join(",")})) AS gateway_errors
+       FROM audio_segments s
+       JOIN audio_jobs j ON j.id = s.job_id
+       WHERE s.status IN ('ok', 'failed')
+         AND j.created_at >= ?`
+    ).bind(rateLimitWindowStart).first<{ attempted: number; rate_limited: number; gateway_errors: number }>(),
   ]);
 
   const jobs: AudioAdminMetrics["jobs"] = {
@@ -178,6 +202,12 @@ export async function getAudioAdminMetrics(env: Env, now = new Date()): Promise<
       creditsUsed: row.credits_used,
       creditsRemaining: row.credits_remaining,
     })),
+    rateLimitPressure: {
+      windowHours: RATE_LIMIT_WINDOW_HOURS,
+      segmentsAttempted: pressureRow?.attempted ?? 0,
+      rateLimited: pressureRow?.rate_limited ?? 0,
+      gatewayErrors: pressureRow?.gateway_errors ?? 0,
+    },
   };
 }
 
