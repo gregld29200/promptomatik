@@ -1525,3 +1525,26 @@ coherent; 85 tests green (4 snapshots updated); deployed d45105d4; his
 exact take regenerated through the fixed pipeline in production (job
 tUsp3VhZ, ready, 13s, 0 retries) for an A/B listen against the flat
 original.
+
+## Audio - doc conformity check + free accent overrides preset (2026-07-03)
+
+### Conformity vs ai.google.dev/gemini-api/docs/speech-generation
+Verified point by point: our prompt structure (Audio Profile / Scene /
+Director's Notes / Transcript), inline English tags, per-speaker style
+lines, <=90s block splitting, retry-on-text-return, and auto language
+detection all match current official guidance. One known, deliberate
+gap: Google now recommends the Interactions API (GA) over
+generateContent for TTS; we remain on generateContent (Phase 2
+decision, isolated in tts-provider.ts precisely so this migration is a
+contained chantier). Logged as a watch item - functional today.
+gemini-3.1-flash-tts-preview supports streaming (future option).
+
+### Free accent replaces the preset (product decision, Greg)
+The preset + "specifically {detail}" combination confused users. New
+semantics: when the free accent field is filled, it fully REPLACES the
+preset in the compiled prompt (monologue, dialogue global, and
+per-speaker paths all share accentPhrase()). UI: labels renamed
+("Accent libre (remplace le préréglage)" / "Custom accent (overrides
+the preset)"), the preset select renders muted when a free accent is
+set, field help + guide updated. Snapshot fixtures updated to realistic
+override text. 85 tests green.

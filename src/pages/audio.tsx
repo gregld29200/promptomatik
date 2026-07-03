@@ -797,7 +797,11 @@ export function AudioStudioPage() {
               <>
                 <label className={s.field}>
                   <span>{t("audio.accent")} {helpDot("accent")}</span>
-                  <select value={direction.accent} onChange={(event) => updateDirection("accent", event.target.value)}>
+                  <select
+                    className={direction.accentDetail?.trim() ? s.inheritedValue : ""}
+                    value={direction.accent}
+                    onChange={(event) => updateDirection("accent", event.target.value)}
+                  >
                     {ACCENTS.map((accent) => <option key={accent} value={accent}>{directionLabel(accent)}</option>)}
                   </select>
                   {helpText("accent", "audio.param_help_accent")}
@@ -839,7 +843,13 @@ export function AudioStudioPage() {
                   <label className={s.field}>
                     <span>{t("audio.accent")} {helpDot(`${slot}-accent`)}</span>
                     <select
-                      className={direction.speakers?.[slot]?.accent ? "" : s.inheritedValue}
+                      className={
+                        (direction.speakers?.[slot]?.accentDetail ?? (slot === "Speaker 1" ? direction.accentDetail : ""))?.trim()
+                          ? s.inheritedValue
+                          : direction.speakers?.[slot]?.accent
+                            ? ""
+                            : s.inheritedValue
+                      }
                       value={direction.speakers?.[slot]?.accent ?? direction.accent}
                       onChange={(event) => updateSpeakerField(slot, "accent", event.target.value)}
                     >

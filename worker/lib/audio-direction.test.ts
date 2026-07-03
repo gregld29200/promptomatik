@@ -48,7 +48,7 @@ describe("compileDirection", () => {
         direction: {
           level: "B2",
           accent: "British",
-          accentDetail: "Croydon",
+          accentDetail: "a light Croydon accent",
           pace: "Business meeting speed",
           style: "Business meeting",
         },
@@ -64,7 +64,7 @@ describe("compileDirection", () => {
 
       DIRECTOR'S NOTES:
       Style: Natural professional conversation with attentive turn-taking.
-      Accent: British English, specifically Croydon.
+      Accent: a light Croydon accent.
       Pacing: Business meeting speed with realistic professional rhythm. Close to natural pace, realistic rhythm.
       Clarity: Natural but clear; reduced forms allowed.
       Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.
@@ -89,7 +89,7 @@ describe("compileDirection", () => {
           speakers: {
             "Speaker 1": {
               accent: "French-accented English",
-              accentDetail: "a learner from Lyon",
+              accentDetail: "English with a French accent, a learner from Lyon",
               notes: "hesitates and searches for words",
             },
             "Speaker 2": {
@@ -104,7 +104,7 @@ describe("compileDirection", () => {
       transcript, exactly as written, following the bracketed audio tags.
 
       AUDIO PROFILE:
-      Speaker 1: A clear, balanced classroom delivery focused on comprehension. Accent: English spoken with a French accent, specifically a learner from Lyon. Manner of speaking: hesitates and searches for words.
+      Speaker 1: A clear, balanced classroom delivery focused on comprehension. Accent: English with a French accent, a learner from Lyon. Manner of speaking: hesitates and searches for words.
       Speaker 2: Objective, measured, calm, and consistent.
 
       DIRECTOR'S NOTES:

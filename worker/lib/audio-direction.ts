@@ -28,10 +28,12 @@ function trimOptional(value: string | undefined): string | undefined {
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
 }
 
+// The free accent text, when provided, REPLACES the preset entirely
+// (product decision 2026-07-03: two combined fields were confusing).
 function accentPhrase(accent: string, accentDetail: string | undefined): string {
-  const base = expandPreset(ACCENT_EXPANSIONS, accent).replace(/\.+$/, "");
   const detail = trimOptional(accentDetail);
-  return `${base}${detail ? `, specifically ${detail}` : ""}`;
+  if (detail) return detail.replace(/\.+$/, "");
+  return expandPreset(ACCENT_EXPANSIONS, accent).replace(/\.+$/, "");
 }
 
 function audioProfile(mode: AudioMode, speakers: string[], direction: AudioDirection): string {
