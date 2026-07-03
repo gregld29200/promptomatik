@@ -9,6 +9,7 @@ import { profile } from "./routes/profile";
 import { templates } from "./routes/templates";
 import { jobs } from "./routes/jobs";
 import { audio } from "./routes/audio";
+import { stripe } from "./routes/stripe";
 import { handleInterviewJobBatch } from "./lib/interview-jobs";
 import { handleAudioJobBatch } from "./lib/audio-jobs";
 
@@ -23,6 +24,7 @@ app.route("/api/admin", admin);
 app.route("/api/templates", templates);
 app.route("/api/jobs", jobs);
 app.route("/api/audio", audio);
+app.route("/api/stripe", stripe);
 
 app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
 

@@ -279,10 +279,32 @@ export function AudioStudioPage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [editorCollapsed, setEditorCollapsed] = useState(false);
   const [openHelp, setOpenHelp] = useState<string | null>(null);
+  const [creditPacks, setCreditPacks] = useState<api.CreditPack[]>([]);
+  const [buyOpen, setBuyOpen] = useState(false);
+  const [buyingPack, setBuyingPack] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeJob?.status === "ready") setEditorCollapsed(true);
   }, [activeJob?.status]);
+
+  // Stripe Checkout return: show the outcome, then refresh the quota twice -
+  // the webhook that credits the minutes can land after the redirect.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("checkout");
+    if (!status) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    if (status === "success") {
+      setNotice(t("audio.checkout_success"));
+      const refresh = () => api.getAudioQuota().then((res) => { if (res.data) setQuota(res.data); });
+      const timers = [setTimeout(refresh, 2000), setTimeout(refresh, 6000)];
+      return () => timers.forEach(clearTimeout);
+    }
+    if (status === "cancelled") {
+      setNotice(t("audio.checkout_cancelled"));
+    }
+  }, []);
 
   const estimate = useMemo(() => estimateSeconds(script), [script]);
   const lintFindings = useMemo(() => lintAudioScript(script, mode), [script, mode]);
@@ -326,12 +348,14 @@ export function AudioStudioPage() {
   }, [activeJob]);
 
   async function refreshAudioData() {
-    const [quotaRes, voicesRes, jobsRes] = await Promise.all([
+    const [quotaRes, voicesRes, jobsRes, packsRes] = await Promise.all([
       api.getAudioQuota(),
       api.getAudioVoices(),
       api.getAudioJobs(8),
+      api.getCreditPacks(),
     ]);
     if (quotaRes.data) setQuota(quotaRes.data);
+    if (packsRes.data) setCreditPacks(packsRes.data.packs);
     if (voicesRes.data) setCatalog(voicesRes.data.voices);
     if (jobsRes.data) setHistory(jobsRes.data.jobs);
     setHistoryLoading(false);
@@ -413,6 +437,17 @@ export function AudioStudioPage() {
       textarea.focus();
       textarea.setSelectionRange(start + tag.length, start + tag.length);
     });
+  }
+
+  async function buyPack(packId: string) {
+    setBuyingPack(packId);
+    const res = await api.startCreditCheckout(packId);
+    if (res.data?.url) {
+      window.location.href = res.data.url;
+      return;
+    }
+    setBuyingPack(null);
+    setError(res.error?.error ?? t("common.error"));
   }
 
   async function generate() {
@@ -566,6 +601,11 @@ export function AudioStudioPage() {
                 <em className={s.quotaCreditsChip}>
                   {t("audio.quota_credits", { minutes: String(Math.max(1, Math.floor(quota.credits / 60))) })}
                 </em>
+              )}
+              {creditPacks.length > 0 && (
+                <button type="button" className={s.buyLink} onClick={() => setBuyOpen(true)}>
+                  {t("audio.buy_credits")}
+                </button>
               )}
             </div>
           </div>
@@ -902,11 +942,18 @@ export function AudioStudioPage() {
             {quotaBlocked && (
               <p className={s.warning}>
                 {t("audio.quota_blocked")}{" "}
-                <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t("audio.quota_blocked_mail_subject"))}`}>
-                  {t("audio.quota_blocked_cta")}
-                </a>
+                {creditPacks.length > 0 ? (
+                  <button type="button" className={s.warningAction} onClick={() => setBuyOpen(true)}>
+                    {t("audio.buy_credits")}
+                  </button>
+                ) : (
+                  <a href={`mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(t("audio.quota_blocked_mail_subject"))}`}>
+                    {t("audio.quota_blocked_cta")}
+                  </a>
+                )}
               </p>
             )}
+            {notice && <p className={s.notice}>{notice}</p>}
             {error && <p className={s.error}>{error}</p>}
 
             <GenerationConsole job={activeJob} elapsedSeconds={elapsed} />
@@ -958,6 +1005,46 @@ export function AudioStudioPage() {
             </div>
           )}
         </section>
+
+        {buyOpen && (
+          <div className={s.helpOverlay} role="dialog" aria-modal="true" aria-labelledby="buy-credits-title">
+            <div className={s.helpPanel}>
+              <div className={s.prepareHead}>
+                <div>
+                  <h3 id="buy-credits-title">{t("audio.buy_title")}</h3>
+                  <p>{t("audio.buy_intro")}</p>
+                </div>
+                <button type="button" className={s.iconButton} onClick={() => setBuyOpen(false)} aria-label={t("common.close")}>
+                  <X size={16} aria-hidden />
+                </button>
+              </div>
+              <div className={s.packGrid}>
+                {creditPacks.map((pack) => (
+                  <div key={pack.id} className={s.packCard}>
+                    <strong>{t("audio.buy_pack_minutes", { minutes: String(pack.minutes) })}</strong>
+                    <span className={s.packPrice}>
+                      {pack.amountCents !== null && pack.currency
+                        ? (pack.amountCents / 100).toLocaleString(getLanguage() === "fr" ? "fr-FR" : "en-US", {
+                            style: "currency",
+                            currency: pack.currency.toUpperCase(),
+                          })
+                        : "—"}
+                    </span>
+                    <button
+                      type="button"
+                      className={s.primary}
+                      disabled={buyingPack !== null}
+                      onClick={() => void buyPack(pack.id)}
+                    >
+                      {buyingPack === pack.id ? t("common.loading") : t("audio.buy_cta")}
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className={s.buyNote}>{t("audio.buy_secure_note")}</p>
+            </div>
+          </div>
+        )}
 
         {helpOpen && (
           <div className={s.helpOverlay} role="dialog" aria-modal="true" aria-labelledby="audio-help-title">

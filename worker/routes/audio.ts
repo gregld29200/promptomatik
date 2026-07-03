@@ -17,6 +17,7 @@ import {
 } from "../lib/audio-jobs";
 import { AUDIO_VOICES, isAudioVoiceName } from "../lib/audio-voices";
 import { getAudioAdminMetrics, grantAudioCredits } from "../lib/audio-metrics";
+import { createCheckoutSession, packsWithPrices, stripeConfigured } from "../lib/audio-credits";
 
 type AudioEnv = { Bindings: Env; Variables: { session: SessionData } };
 
@@ -185,6 +186,33 @@ audio.get("/jobs/:id/download/:file", requireParticipant, async (c) => {
       "Content-Disposition": `attachment; filename="${file}"`,
     },
   });
+});
+
+// ---- Credit purchases (Stripe Checkout, V1.5) ----
+
+audio.get("/credits/packs", requireParticipant, async (c) => {
+  if (!stripeConfigured(c.env)) {
+    return c.json({ packs: [] });
+  }
+  return c.json({ packs: await packsWithPrices(c.env) });
+});
+
+audio.post("/credits/checkout", requireParticipant, async (c) => {
+  if (!stripeConfigured(c.env)) {
+    return c.json({ error: "Credit purchase is not available yet." }, 503);
+  }
+  const session = c.get("session");
+  const body = await c.req.json<{ packId?: unknown }>().catch(() => ({} as { packId?: unknown }));
+  if (typeof body.packId !== "string") {
+    return c.json({ error: "packId is required." }, 400);
+  }
+
+  const origin = c.env.APP_URL ?? new URL(c.req.url).origin;
+  const result = await createCheckoutSession(c.env, session.userId, body.packId, origin);
+  if ("error" in result) {
+    return c.json({ error: result.error }, result.status);
+  }
+  return c.json({ url: result.url });
 });
 
 // ---- Admin (PRD §7.8) ----

@@ -279,7 +279,15 @@
     "guide_generation_2": "The estimate comes from the word count; your quota is charged on the actual generated duration, shown afterwards in the player (Estimated · actual).",
     "guide_generation_3": "A long take is generated in blocks. In the player, click a block to regenerate only that one — only that block is charged.",
     "guide_generation_4": "Audio files expire after 7 days; the script and settings stay in the history — \"Duplicate\" reloads them in one click.",
-    "quota_remaining_caption": "remaining this month"
+    "quota_remaining_caption": "remaining this month",
+    "buy_credits": "Buy minutes",
+    "buy_title": "Buy minutes",
+    "buy_intro": "Purchased minutes never expire and top up your 60 included monthly minutes.",
+    "buy_pack_minutes": "{{minutes}} min",
+    "buy_cta": "Continue to payment",
+    "buy_secure_note": "Secure payment by Stripe. Receipt sent by email.",
+    "checkout_success": "Payment confirmed — your minutes will be credited in a few seconds.",
+    "checkout_cancelled": "Payment cancelled — nothing was charged."
   },
   "profile": {
     "title": "My teaching profile",

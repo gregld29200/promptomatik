@@ -279,7 +279,15 @@
     "guide_generation_2": "L'estimation est calculée sur le nombre de mots ; le quota est débité sur la durée réellement générée, affichée après coup dans le lecteur (Estimé · réel).",
     "guide_generation_3": "Une prise longue est générée en blocs. Dans le lecteur, cliquez un bloc pour ne régénérer que lui — seul ce bloc est débité.",
     "guide_generation_4": "Les fichiers audio expirent après 7 jours ; le script et les réglages restent dans l'historique — « Dupliquer » les recharge en un clic.",
-    "quota_remaining_caption": "restantes ce mois"
+    "quota_remaining_caption": "restantes ce mois",
+    "buy_credits": "Acheter des minutes",
+    "buy_title": "Acheter des minutes",
+    "buy_intro": "Les minutes achetées ne périment pas et complètent vos 60 minutes mensuelles incluses.",
+    "buy_pack_minutes": "{{minutes}} min",
+    "buy_cta": "Continuer vers le paiement",
+    "buy_secure_note": "Paiement sécurisé par Stripe. Reçu envoyé par e-mail.",
+    "checkout_success": "Paiement confirmé — vos minutes seront créditées dans quelques secondes.",
+    "checkout_cancelled": "Paiement annulé — rien n'a été débité."
   },
   "profile": {
     "title": "Mon profil enseignant",

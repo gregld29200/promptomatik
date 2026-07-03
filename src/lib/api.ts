@@ -720,6 +720,26 @@ export function regenerateAudioSegment(jobId: string, segmentIdx: number) {
   });
 }
 
+// ---- Audio Studio credit purchases ----
+
+export interface CreditPack {
+  id: string;
+  minutes: number;
+  amountCents: number | null;
+  currency: string | null;
+}
+
+export function getCreditPacks() {
+  return request<{ packs: CreditPack[] }>("/api/audio/credits/packs");
+}
+
+export function startCreditCheckout(packId: string) {
+  return request<{ url: string }>("/api/audio/credits/checkout", {
+    method: "POST",
+    body: JSON.stringify({ packId }),
+  });
+}
+
 // ---- Audio Studio admin ----
 
 export interface AudioAdminJobCounts {

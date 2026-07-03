@@ -1186,3 +1186,66 @@ moved to the tooltip. `aria-live` kept; `quota_minutes` key retired for
 `quota_remaining_caption`.
 
 Gate: 65 tests, build, audit green.
+
+## Stripe credit purchases - V1.5 build (2026-07-03)
+
+Greg's decisions: two packs only (60 min / 9 EUR, 180 min / 24 EUR),
+Bibliothèque = option (a) (history moves to its own page - next
+chantier), purchases stay participant-only. New model element noted for
+a follow-up decision: the included 60 min/month is a 1-year inclusion
+per participant (needs an `included_until` date and an anchor decision -
+account creation vs cohort date). Credits themselves never expire.
+
+### Built (live in production, inert until Stripe keys are configured)
+
+- Migration 0012 (applied local + remote): `quota_ledger` rebuilt with
+  the `credit_purchase` reason and a `stripe_ref` column; new
+  `stripe_events` table for webhook idempotency. Data-integrity check
+  after the remote rebuild: production had zero audio jobs/balances, so
+  the empty ledger post-rebuild is expected - nothing was lost.
+- `worker/lib/audio-credits.ts`: pack catalog (minutes fixed in code,
+  prices read live from Stripe so dashboard price changes need no
+  redeploy), Checkout Session creation via Stripe REST (form-encoded,
+  automatic_tax enabled), webhook signature verification (HMAC-SHA256
+  via WebCrypto, 5-minute tolerance, timing-safe compare), and the
+  idempotent grant (stripe_events insert is the lock; grant = balance
+  upsert + credit_purchase ledger row with the Checkout Session id).
+- Routes: `GET /api/audio/credits/packs` and
+  `POST /api/audio/credits/checkout` behind `requireParticipant`
+  (purchases cannot bypass the tier gate); `POST /api/stripe/webhook`
+  signature-verified, 503 while unconfigured.
+- UI: "Acheter des minutes" button on the quota gauge and in the
+  blocked-generation state (replacing the mailto when Stripe is
+  configured; mailto remains the fallback), a purchase modal with the
+  two pack cards and live prices, Checkout redirect, and a return
+  handler (?checkout=success|cancelled) that shows the outcome and
+  refreshes the quota twice to absorb webhook latency. The entire
+  purchase UI is hidden until packs are configured.
+- Config: `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` (secrets),
+  `STRIPE_PRICE_PACK_60` + `STRIPE_PRICE_PACK_180` (vars).
+
+### Verification
+
+- `npm test`: 73 tests (8 new - config gating, checkout payload,
+  signature accept/reject/stale, idempotent grant + replay, unpaid and
+  foreign event types, free-tier 403 on both routes, unconfigured
+  packs empty).
+- Local E2E against `wrangler dev` with test vars: signed webhook ->
+  200 + one grant; replay -> 200 + no double grant (single
+  stripe_events row); bad signature -> 400; quota endpoint reflected
+  +3600s credits; purchase modal renders both packs.
+- Deployed version `2bc7d707`; production webhook answers 503
+  (unconfigured guard) and the purchase UI stays hidden.
+
+### To go live (Greg, in the Stripe dashboard)
+
+1. Create the two products/prices (60 min - 9 EUR, 180 min - 24 EUR),
+   ideally with Stripe Tax enabled on the account.
+2. Add the webhook endpoint `https://promptomatik.com/api/stripe/webhook`
+   listening to `checkout.session.completed`; copy its signing secret.
+3. Provide: `sk_...` secret key, `whsec_...` signing secret, and the two
+   `price_...` ids. Then:
+   `wrangler secret put STRIPE_SECRET_KEY`, `wrangler secret put
+   STRIPE_WEBHOOK_SECRET`, and the two price ids as vars + redeploy.
+   Test mode first (sk_test/whsec test + card 4242 4242 4242 4242),
+   then switch to live keys.
