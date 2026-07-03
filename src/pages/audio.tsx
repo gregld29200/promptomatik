@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Clock, Copy, FileAudio, HelpCircle, Lock, Tags, Wand2, X } from "lucide-react";
+import { Clock, Copy, FileAudio, HelpCircle, Info, Lock, Tags, Wand2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { GenerationConsole } from "@/components/audio/generation-console";
@@ -283,6 +283,7 @@ export function AudioStudioPage() {
   const [preparing, setPreparing] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [editorCollapsed, setEditorCollapsed] = useState(false);
+  const [openHelp, setOpenHelp] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeJob?.status === "ready") setEditorCollapsed(true);
@@ -343,6 +344,28 @@ export function AudioStudioPage() {
 
   function updateDirection<Key extends keyof AudioDirection>(key: Key, value: AudioDirection[Key]) {
     setDirection((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function helpDot(id: string) {
+    return (
+      <button
+        type="button"
+        className={s.helpDot}
+        aria-label={t("audio.param_help_aria")}
+        aria-expanded={openHelp === id}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpenHelp((prev) => (prev === id ? null : id));
+        }}
+      >
+        <Info size={13} aria-hidden />
+      </button>
+    );
+  }
+
+  function helpText(id: string, key: string) {
+    return openHelp === id ? <p className={s.fieldHelp}>{t(key)}</p> : null;
   }
 
   function updateSpeakerField(slot: string, field: keyof AudioSpeakerDirection, value: string) {
@@ -716,30 +739,36 @@ export function AudioStudioPage() {
           <section className={s.zone}>
             <div className={s.zoneTitle}>
               <h2>{t("audio.direction_zone")}</h2>
+              <button type="button" className={s.zoneHelp} onClick={() => setHelpOpen(true)} aria-label={t("audio.help_title")}>
+                <HelpCircle size={15} aria-hidden />
+              </button>
             </div>
 
             <label className={s.field}>
-              <span>{t("audio.level")}</span>
+              <span>{t("audio.level")} {helpDot("level")}</span>
               <select value={direction.level} onChange={(event) => updateDirection("level", event.target.value as CefrLevel)}>
                 {LEVELS.map((level) => <option key={level}>{level}</option>)}
               </select>
+              {helpText("level", "audio.param_help_level")}
             </label>
             <label className={s.field}>
-              <span>{t("audio.pace")}</span>
+              <span>{t("audio.pace")} {helpDot("pace")}</span>
               <select value={direction.pace} onChange={(event) => updateDirection("pace", event.target.value)}>
                 {PACES.map((pace) => <option key={pace} value={pace}>{directionLabel(pace)}</option>)}
               </select>
+              {helpText("pace", "audio.param_help_pace")}
             </label>
             {mode === "monologue" ? (
               <>
                 <label className={s.field}>
-                  <span>{t("audio.accent")}</span>
+                  <span>{t("audio.accent")} {helpDot("accent")}</span>
                   <select value={direction.accent} onChange={(event) => updateDirection("accent", event.target.value)}>
                     {ACCENTS.map((accent) => <option key={accent} value={accent}>{directionLabel(accent)}</option>)}
                   </select>
+                  {helpText("accent", "audio.param_help_accent")}
                 </label>
                 <label className={s.field}>
-                  <span>{t("audio.accent_detail")}</span>
+                  <span>{t("audio.accent_detail")} {helpDot("accent_detail")}</span>
                   <input
                     type="text"
                     value={direction.accentDetail ?? ""}
@@ -747,15 +776,17 @@ export function AudioStudioPage() {
                     placeholder={t("audio.accent_detail_placeholder")}
                     maxLength={120}
                   />
+                  {helpText("accent_detail", "audio.param_help_accent_detail")}
                 </label>
                 <label className={s.field}>
-                  <span>{t("audio.style")}</span>
+                  <span>{t("audio.style")} {helpDot("style")}</span>
                   <select value={direction.style} onChange={(event) => updateDirection("style", event.target.value)}>
                     {STYLES.map((style) => <option key={style} value={style}>{directionLabel(style)}</option>)}
                   </select>
+                  {helpText("style", "audio.param_help_style")}
                 </label>
                 <label className={s.field}>
-                  <span>{t("audio.speaker_notes")}</span>
+                  <span>{t("audio.speaker_notes")} {helpDot("notes")}</span>
                   <input
                     type="text"
                     value={direction.notes ?? ""}
@@ -763,6 +794,7 @@ export function AudioStudioPage() {
                     placeholder={t("audio.speaker_notes_placeholder")}
                     maxLength={200}
                   />
+                  {helpText("notes", "audio.param_help_notes")}
                 </label>
               </>
             ) : (
@@ -770,7 +802,7 @@ export function AudioStudioPage() {
                 <fieldset key={slot} className={s.speakerGroup}>
                   <legend>{speakerDisplay(slot)}</legend>
                   <label className={s.field}>
-                    <span>{t("audio.accent")}</span>
+                    <span>{t("audio.accent")} {helpDot(`${slot}-accent`)}</span>
                     <select
                       className={direction.speakers?.[slot]?.accent ? "" : s.inheritedValue}
                       value={direction.speakers?.[slot]?.accent ?? direction.accent}
@@ -778,9 +810,10 @@ export function AudioStudioPage() {
                     >
                       {ACCENTS.map((accent) => <option key={accent} value={accent}>{directionLabel(accent)}</option>)}
                     </select>
+                    {helpText(`${slot}-accent`, "audio.param_help_accent")}
                   </label>
                   <label className={s.field}>
-                    <span>{t("audio.accent_detail")}</span>
+                    <span>{t("audio.accent_detail")} {helpDot(`${slot}-accent_detail`)}</span>
                     <input
                       type="text"
                       value={direction.speakers?.[slot]?.accentDetail ?? (slot === "Speaker 1" ? direction.accentDetail ?? "" : "")}
@@ -788,9 +821,10 @@ export function AudioStudioPage() {
                       placeholder={t("audio.accent_detail_placeholder")}
                       maxLength={120}
                     />
+                    {helpText(`${slot}-accent_detail`, "audio.param_help_accent_detail")}
                   </label>
                   <label className={s.field}>
-                    <span>{t("audio.style")}</span>
+                    <span>{t("audio.style")} {helpDot(`${slot}-style`)}</span>
                     <select
                       className={direction.speakers?.[slot]?.style ? "" : s.inheritedValue}
                       value={direction.speakers?.[slot]?.style ?? direction.style}
@@ -798,9 +832,10 @@ export function AudioStudioPage() {
                     >
                       {STYLES.map((style) => <option key={style} value={style}>{directionLabel(style)}</option>)}
                     </select>
+                    {helpText(`${slot}-style`, "audio.param_help_style")}
                   </label>
                   <label className={s.field}>
-                    <span>{t("audio.speaker_notes")}</span>
+                    <span>{t("audio.speaker_notes")} {helpDot(`${slot}-notes`)}</span>
                     <input
                       type="text"
                       value={direction.speakers?.[slot]?.notes ?? ""}
@@ -808,29 +843,34 @@ export function AudioStudioPage() {
                       placeholder={t("audio.speaker_notes_placeholder")}
                       maxLength={200}
                     />
+                    {helpText(`${slot}-notes`, "audio.param_help_notes")}
                   </label>
                 </fieldset>
               ))
             )}
             <label className={s.field}>
-              <span>{t("audio.scene")}</span>
+              <span>{t("audio.scene")} {helpDot("scene")}</span>
               <textarea
                 value={direction.scene ?? ""}
                 onChange={(event) => updateDirection("scene", event.target.value)}
                 placeholder={t("audio.scene_placeholder")}
               />
+              {helpText("scene", "audio.param_help_scene")}
             </label>
           </section>
 
           <section className={s.zone}>
             <div className={s.zoneTitle}>
               <h2>{t("audio.booth_zone")}</h2>
-              <span>{quality === "final" ? t("audio.final") : t("audio.draft")}</span>
+              <button type="button" className={s.zoneHelp} onClick={() => setHelpOpen(true)} aria-label={t("audio.help_title")}>
+                <HelpCircle size={15} aria-hidden />
+              </button>
             </div>
 
             <VoiceCasting voices={catalog} mode={mode} selected={voices} onChange={setVoices} />
 
             <div className={s.qualityRow}>
+              {helpDot("quality")}
               <div className={s.segmented} aria-label={t("audio.quality")}>
                 {(["draft", "final"] as const).map((option) => (
                   <button
@@ -848,6 +888,7 @@ export function AudioStudioPage() {
                 {t("audio.generate")}
               </button>
             </div>
+            {helpText("quality", "audio.param_help_quality")}
 
             {quotaBlocked && (
               <p className={s.warning}>
@@ -921,12 +962,27 @@ export function AudioStudioPage() {
                   <X size={16} aria-hidden />
                 </button>
               </div>
+              <h4 className={s.helpSection}>{t("audio.help_script_title")}</h4>
               <ul className={s.helpList}>
                 <li>{t("audio.help_speakers")}</li>
                 <li>{t("audio.help_tags")}</li>
                 <li>{t("audio.help_stage")}</li>
                 <li>{t("audio.help_direction")}</li>
                 <li>{t("audio.help_dictation")}</li>
+              </ul>
+              <h4 className={s.helpSection}>{t("audio.guide_direction_title")}</h4>
+              <ul className={s.helpList}>
+                <li>{t("audio.guide_direction_1")}</li>
+                <li>{t("audio.guide_direction_2")}</li>
+                <li>{t("audio.guide_direction_3")}</li>
+                <li>{t("audio.guide_direction_4")}</li>
+              </ul>
+              <h4 className={s.helpSection}>{t("audio.guide_generation_title")}</h4>
+              <ul className={s.helpList}>
+                <li>{t("audio.guide_generation_1")}</li>
+                <li>{t("audio.guide_generation_2")}</li>
+                <li>{t("audio.guide_generation_3")}</li>
+                <li>{t("audio.guide_generation_4")}</li>
               </ul>
               <div className={s.helpTags} aria-label={t("audio.help_supported_tags")}>
                 <strong>{t("audio.help_supported_tags")}</strong>

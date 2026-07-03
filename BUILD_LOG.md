@@ -1132,3 +1132,31 @@ Not covered by this audit pass (flagged for later): mobile layout and
 the admin Audio tab.
 
 Gate: 65 tests, build, audit green; browser-verified both states.
+
+## UX - explicit parameter guides at the point of use (2026-07-03)
+
+Requested by Greg: users need to understand the difference and purpose
+of each direction parameter, with easily discoverable, clear-not-clever
+explanations. Three layers shipped:
+
+1. Field-level help: an (i) dot on every direction parameter (Niveau,
+   Rythme, Accent, Précision, Style, Façon de s'exprimer, Scène - in
+   both monologue and per-speaker forms - plus the Brouillon/Finale
+   toggle). Clicking expands a 1-2 sentence explanation inline under the
+   field: what it does, what it does NOT do, one example. One open at a
+   time; no floating popovers (mobile-safe, no positioning logic).
+   12 help dots in dialogue mode.
+2. Disambiguation of the confusable pairs, written into the copy:
+   Niveau vs Rythme (tempo vs articulation/liaisons), Style vs Façon de
+   s'exprimer (tested persona vs free note), Accent vs Précision (broad
+   variety vs free refinement).
+3. The help panel became "Guide du studio" with three sections: Bien
+   écrire pour l'audio (existing content), Diriger la voix (the pairs +
+   per-speaker direction), Générer sans surprise (Brouillon/Finale,
+   estimated vs charged, per-block regeneration, 7-day expiry). Reachable
+   from all three zones: the existing Script-zone button (relabelled
+   "Guide du studio") plus small (?) buttons in the Direction and Cabine
+   zone titles. Generic intro replacing the script-specific one.
+
+21 new i18n keys (FR + EN), parity kept. No backend changes.
+Gate: 65 tests, build, audit green; browser-verified FR + EN.

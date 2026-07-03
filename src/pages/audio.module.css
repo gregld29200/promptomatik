@@ -816,3 +816,61 @@
 .historyStatusFailed {
   color: var(--color-error);
 }
+
+.helpDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin-left: 0.15rem;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--studio-teal);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.helpDot:hover,
+.helpDot[aria-expanded="true"] {
+  color: var(--color-navy-800);
+}
+
+.fieldHelp {
+  margin: 0.15rem 0 0;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--studio-slate);
+  background: rgba(133, 162, 163, 0.12);
+  border-left: 2px solid var(--studio-teal);
+  border-radius: 0 6px 6px 0;
+}
+
+.zoneHelp {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--studio-teal);
+  cursor: pointer;
+}
+
+.zoneHelp:hover {
+  color: var(--color-navy-800);
+}
+
+.helpSection {
+  margin: 1.1rem 0 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-navy-800);
+}
