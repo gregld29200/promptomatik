@@ -287,7 +287,18 @@
     "buy_cta": "Continue to payment",
     "buy_secure_note": "Secure payment by Stripe. Receipt sent by email.",
     "checkout_success": "Payment confirmed — your minutes will be credited in a few seconds.",
-    "checkout_cancelled": "Payment cancelled — nothing was charged."
+    "checkout_cancelled": "Payment cancelled — nothing was charged.",
+    "recent_takes": "Recent takes",
+    "library_link": "Full library",
+    "library_title": "Audio library",
+    "library_intro": "All your takes. Audio files live 7 days; settings and scripts stay here and regenerate in one click.",
+    "library_expired": "Expired",
+    "library_open": "Open",
+    "library_regen": "Regenerate",
+    "library_regen_cost": "≈ {{time}} of quota",
+    "library_regen_confirm": "Confirm",
+    "library_duplicate": "Duplicate settings",
+    "library_load_more": "Load more"
   },
   "profile": {
     "title": "My teaching profile",

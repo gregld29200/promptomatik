@@ -686,8 +686,8 @@ export function getAudioVoices() {
   return request<{ voices: AudioVoice[] }>("/api/audio/voices");
 }
 
-export function getAudioJobs(limit = 10) {
-  return request<{ jobs: AudioJob[] }>(`/api/audio/jobs?limit=${limit}`);
+export function getAudioJobs(limit = 10, offset = 0) {
+  return request<{ jobs: AudioJob[] }>(`/api/audio/jobs?limit=${limit}&offset=${offset}`);
 }
 
 export function getAudioJob(id: string) {

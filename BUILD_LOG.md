@@ -1295,3 +1295,34 @@ custom domain from the worker and add a zone-level 301 rule
 promptomatik.com/* -> studio.teachinspire.me/$1. Reminder: Stripe
 webhook should be created on the NEW domain
 (https://studio.teachinspire.me/api/stripe/webhook).
+
+## Bibliothèque audio - history moves to its own page (2026-07-03)
+
+Greg's decision (option a): audio files keep the 7-day expiry; the
+history leaves the studio page for a dedicated library.
+
+### Built
+- New page /audio/library (participant-gated like the studio):
+  paginated list of all takes (20 per page, "Charger plus"), each row
+  showing title, mode · quality · duration, status (Prêt muted, in-
+  flight teal, failed red, "Expirée" terracotta once files are gone),
+  and relative expiry.
+- Row actions: alive takes get "Ouvrir" (loads settings + player in the
+  studio via /audio?job=<id>) and a direct MP3 download; expired or
+  failed takes get "Régénérer" - an inline confirmation showing the
+  quota cost, then a new job with the exact stored settings - and
+  "Dupliquer les réglages".
+- The studio page now shows the 3 most recent takes plus a "Toute la
+  bibliothèque" link: the page gets lighter (Greg's goal), the library
+  gets the room.
+- ?job=<id> loader in the studio restores a take's settings and, when
+  its files are still alive, its player.
+- Shared display helpers extracted to src/lib/audio-display.ts (used by
+  both pages); getAudioJobs gained offset pagination.
+- No backend changes: regeneration reuses POST /api/audio/jobs.
+
+### Verification
+- 73 tests, build, audit green.
+- Browser: studio shows 3 recent + link; library lists 20 rows with
+  correct statuses and actions; "Ouvrir" lands in the studio with the
+  script restored and the player mounted; FR/EN parity kept.

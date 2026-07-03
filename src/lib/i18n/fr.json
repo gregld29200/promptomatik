@@ -287,7 +287,18 @@
     "buy_cta": "Continuer vers le paiement",
     "buy_secure_note": "Paiement sécurisé par Stripe. Reçu envoyé par e-mail.",
     "checkout_success": "Paiement confirmé — vos minutes seront créditées dans quelques secondes.",
-    "checkout_cancelled": "Paiement annulé — rien n'a été débité."
+    "checkout_cancelled": "Paiement annulé — rien n'a été débité.",
+    "recent_takes": "Prises récentes",
+    "library_link": "Toute la bibliothèque",
+    "library_title": "Bibliothèque audio",
+    "library_intro": "Toutes vos prises. Les fichiers audio vivent 7 jours ; les réglages et scripts restent ici et se régénèrent en un clic.",
+    "library_expired": "Expirée",
+    "library_open": "Ouvrir",
+    "library_regen": "Régénérer",
+    "library_regen_cost": "≈ {{time}} de quota",
+    "library_regen_confirm": "Confirmer",
+    "library_duplicate": "Dupliquer les réglages",
+    "library_load_more": "Charger plus"
   },
   "profile": {
     "title": "Mon profil enseignant",

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Copy, FileAudio, HelpCircle, Info, Lock, Tags, Wand2, X } from "lucide-react";
+import { Link } from "react-router";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { GenerationConsole } from "@/components/audio/generation-console";
@@ -10,6 +11,7 @@ import { getLanguage, t } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import { SUPPORTED_AUDIO_TAGS, lintAudioScript } from "@/lib/audio-script-rules";
 import type { AudioDirection, AudioJob, AudioMode, AudioQuality, AudioSpeakerDirection, AudioVoice, CefrLevel } from "@/lib/api";
+import { expiresLabel, formatShort, isExpired, modeLabel, qualityLabel, scriptTitle, stripTags } from "@/lib/audio-display";
 import s from "./audio.module.css";
 
 // V1 credit purchase entry point (REQ-8.3): a mailto stub. Stripe is V1.5.
@@ -66,27 +68,9 @@ const PREPARE_TYPE_TO_GROUP: Record<api.AudioPrepareChange["type"], (typeof PREP
   cleanup: "cleanup",
 };
 
-function stripTags(text: string) {
-  return text.replace(/\[[^\]]+\]/g, " ");
-}
-
 function estimateSeconds(script: string) {
   const words = stripTags(script).trim().split(/\s+/).filter(Boolean).length;
   return Math.ceil(words / 2.5);
-}
-
-function expiresLabel(expiresAt: string | null) {
-  if (!expiresAt) return "";
-  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
-  if (days <= 0) return t("audio.expires_today");
-  return t("audio.expires_in_days", { days: String(days) });
-}
-
-function formatShort(seconds: number) {
-  const safe = Math.max(0, Math.ceil(seconds));
-  const minutes = Math.floor(safe / 60);
-  const rest = safe % 60;
-  return minutes > 0 ? `${minutes} min ${rest}s` : `${rest}s`;
 }
 
 function speakerLabels(script: string) {
@@ -226,24 +210,6 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
-function scriptTitle(script: string) {
-  const clean = stripTags(script)
-    .replace(/^(Speaker|Locuteur)\s+\d+\s*:/gim, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!clean) return t("audio.untitled");
-  const words = clean.split(" ").slice(0, 8).join(" ");
-  return clean.split(" ").length > 8 ? `${words}...` : words;
-}
-
-function qualityLabel(quality: AudioQuality) {
-  return quality === "final" ? t("audio.final") : t("audio.draft");
-}
-
-function modeLabel(mode: AudioMode) {
-  return mode === "dialogue" ? t("audio.dialogue") : t("audio.monologue");
-}
-
 export function AudioStudioPage() {
   const { isParticipant } = useAuth();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -287,6 +253,26 @@ export function AudioStudioPage() {
   useEffect(() => {
     if (activeJob?.status === "ready") setEditorCollapsed(true);
   }, [activeJob?.status]);
+
+  // Arriving from the library with ?job=<id>: restore that take's settings
+  // and, if its files are still alive, its player.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const jobId = params.get("job");
+    if (!jobId) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    void api.getAudioJob(jobId).then((res) => {
+      if (!res.data) return;
+      const job = res.data.job;
+      setMode(job.mode);
+      setQuality(job.quality);
+      updateScript(job.script);
+      setDirection(job.direction);
+      setVoices((prev) => ({ ...prev, ...job.voices }));
+      if (job.status === "ready" && !isExpired(job)) setActiveJob(job);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Stripe Checkout return: show the outcome, then refresh the quota twice -
   // the webhook that credits the minutes can land after the redirect.
@@ -972,7 +958,10 @@ export function AudioStudioPage() {
 
         <section className={s.history}>
           <div className={s.zoneTitle}>
-            <h2>{t("audio.history")}</h2>
+            <h2>{t("audio.recent_takes")}</h2>
+            <Link to="/audio/library" className={s.libraryLink}>
+              {t("audio.library_link")}
+            </Link>
           </div>
           {historyLoading ? (
             <div className={s.skeletons} aria-label={t("audio.history_loading")}>
@@ -984,7 +973,7 @@ export function AudioStudioPage() {
             <p className={s.emptyHistory}>{t("audio.history_empty")}</p>
           ) : (
             <div className={s.historyRows}>
-              {history.map((job) => (
+              {history.slice(0, 3).map((job) => (
                 <button key={job.id} type="button" onClick={() => void duplicateSettings(job)} className={s.historyRow}>
                   <span className={s.historyTitle}>{scriptTitle(job.script)}</span>
                   <span className={s.historyMeta}>{modeLabel(job.mode)} · {qualityLabel(job.quality)}</span>
