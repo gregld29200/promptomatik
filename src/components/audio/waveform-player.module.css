@@ -181,3 +181,23 @@
     flex-direction: column;
   }
 }
+
+.blockBoundary {
+  stroke: rgba(44, 61, 87, 0.35);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+}
+
+.blockHint {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #6b7280);
+}
+
+.estActual {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-text-muted, #6b7280);
+}

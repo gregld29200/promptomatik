@@ -1099,3 +1099,36 @@ s'exprimer" note; monologue mode now has the same field.
 - UI: the field appears after Style in the monologue Direction form,
   reusing the existing FR/EN labels.
 - Tests: compiler note test + normalizer trim/cap/drop tests (65 total).
+
+## Design audit + fixes - Interface Craft critique (2026-07-03)
+
+Ran the Interface Craft design-critique methodology on the studio (empty
+dialogue state + ready-player state). Full critique delivered to Greg;
+the five ranked opportunities were approved and applied:
+
+1. Welcoming empty state: the red "À corriger avant génération" blocking
+   alert no longer renders while the script is untouched/empty (the
+   disabled Generate button and the paste hint carry the state), and the
+   "env. 0s" estimate is hidden until there is a script. Lint display is
+   unchanged as soon as any text exists; server-side lint untouched.
+2. Per-block regeneration discoverability: visible dashed boundary lines
+   between blocks on the waveform, plus a persistent hint under it
+   ("Cliquez un bloc de la forme d'onde pour le régénérer seul.") shown
+   until a block is selected.
+3. Speaker fieldset hierarchy: legends stepped up (0.88rem, navy) above
+   field labels; untouched per-speaker accent/style selects render muted
+   until explicitly set; "(LIBRE)" suffixes dropped from labels; clipped
+   placeholders shortened ("Ex. : Marseille, andalou" / "Ex. : hésite,
+   cherche ses mots").
+4. Estimate vs actual reconciliation: the player now shows
+   "Estimé {mm:ss} · réel {mm:ss}" under the playback time.
+5. Deduplication: the editor collapses to 110px once a take is ready
+   (re-expands on focus); history expiry dates are relative ("Expire
+   dans 7 j", absolute date on hover) and the status is visually muted
+   for Prêt, teal for in-flight, red for failed (status text kept on
+   every row per REQ-9.1).
+
+Not covered by this audit pass (flagged for later): mobile layout and
+the admin Audio tab.
+
+Gate: 65 tests, build, audit green; browser-verified both states.

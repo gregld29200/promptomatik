@@ -792,9 +792,27 @@
 
 .speakerGroup legend {
   padding: 0 0.4rem;
-  font-size: 0.78rem;
+  font-size: 0.88rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--studio-slate, var(--color-navy-800));
+  letter-spacing: 0.05em;
+  color: var(--color-navy-800);
+}
+
+.inheritedValue {
+  color: var(--color-text-muted);
+}
+
+.editorCollapsed {
+  min-height: 0;
+  height: 110px;
+  transition: height 0.2s ease;
+}
+
+.historyStatusActive {
+  color: var(--studio-teal);
+}
+
+.historyStatusFailed {
+  color: var(--color-error);
 }

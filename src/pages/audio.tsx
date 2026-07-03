@@ -80,6 +80,13 @@ function formatQuota(seconds: number) {
   return t("audio.quota_minutes", { minutes: String(minutes) });
 }
 
+function expiresLabel(expiresAt: string | null) {
+  if (!expiresAt) return "";
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
+  if (days <= 0) return t("audio.expires_today");
+  return t("audio.expires_in_days", { days: String(days) });
+}
+
 function formatShort(seconds: number) {
   const safe = Math.max(0, Math.ceil(seconds));
   const minutes = Math.floor(safe / 60);
@@ -275,6 +282,11 @@ export function AudioStudioPage() {
   const [prepareError, setPrepareError] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [editorCollapsed, setEditorCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (activeJob?.status === "ready") setEditorCollapsed(true);
+  }, [activeJob?.status]);
 
   const estimate = useMemo(() => estimateSeconds(script), [script]);
   const lintFindings = useMemo(() => lintAudioScript(script, mode), [script, mode]);
@@ -531,7 +543,7 @@ export function AudioStudioPage() {
           <section className={s.zone}>
             <div className={s.zoneTitle}>
               <h2>{t("audio.script_zone")}</h2>
-              <span>{t("audio.estimate", { time: formatShort(estimate) })}</span>
+              {script.trim() ? <span>{t("audio.estimate", { time: formatShort(estimate) })}</span> : null}
             </div>
 
             <div className={s.segmented} aria-label={t("audio.mode")}>
@@ -551,7 +563,8 @@ export function AudioStudioPage() {
               ref={textareaRef}
               value={script}
               onChange={(event: ChangeEvent<HTMLTextAreaElement>) => updateScript(event.target.value)}
-              className={s.editor}
+              className={`${s.editor} ${editorCollapsed ? s.editorCollapsed : ""}`}
+              onFocus={() => setEditorCollapsed(false)}
               placeholder={t("audio.script_placeholder")}
               aria-label={t("audio.script_zone")}
             />
@@ -591,7 +604,7 @@ export function AudioStudioPage() {
             </div>
             <p className={s.tagsNote}>{t("audio.tags_english_note")}</p>
 
-            {blockingFindings.length > 0 && (
+            {script.trim().length > 0 && blockingFindings.length > 0 && (
               <div className={s.lintPanel} role="alert">
                 <strong><Lock size={15} aria-hidden /> {t("audio.lint_blocking")}</strong>
                 {blockingFindings.map((finding) => (
@@ -759,6 +772,7 @@ export function AudioStudioPage() {
                   <label className={s.field}>
                     <span>{t("audio.accent")}</span>
                     <select
+                      className={direction.speakers?.[slot]?.accent ? "" : s.inheritedValue}
                       value={direction.speakers?.[slot]?.accent ?? direction.accent}
                       onChange={(event) => updateSpeakerField(slot, "accent", event.target.value)}
                     >
@@ -778,6 +792,7 @@ export function AudioStudioPage() {
                   <label className={s.field}>
                     <span>{t("audio.style")}</span>
                     <select
+                      className={direction.speakers?.[slot]?.style ? "" : s.inheritedValue}
                       value={direction.speakers?.[slot]?.style ?? direction.style}
                       onChange={(event) => updateSpeakerField(slot, "style", event.target.value)}
                     >
@@ -877,8 +892,16 @@ export function AudioStudioPage() {
                   <span className={s.historyTitle}>{scriptTitle(job.script)}</span>
                   <span className={s.historyMeta}>{modeLabel(job.mode)} · {qualityLabel(job.quality)}</span>
                   <strong>{formatShort(job.actualSeconds ?? job.estimatedSeconds)}</strong>
-                  <span className={s.historyStatus}>{t(`audio.status_${job.status}`)}</span>
-                  <small>{t("audio.expires_on", { date: formatDate(job.expiresAt) })}</small>
+                  <span
+                    className={`${s.historyStatus} ${
+                      job.status === "failed" ? s.historyStatusFailed : job.status !== "ready" ? s.historyStatusActive : ""
+                    }`}
+                  >
+                    {t(`audio.status_${job.status}`)}
+                  </span>
+                  <small title={job.expiresAt ? formatDate(job.expiresAt) : undefined}>
+                    {expiresLabel(job.expiresAt)}
+                  </small>
                   <Copy size={15} aria-hidden />
                 </button>
               ))}

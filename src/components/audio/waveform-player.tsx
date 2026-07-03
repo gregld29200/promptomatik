@@ -95,6 +95,14 @@ export function WaveformPlayer({
         </button>
         <div className={s.time}>
           {formatTime(currentTime)} / {formatTime(duration || job.actualSeconds || 0)}
+          {job.actualSeconds !== null && (
+            <small className={s.estActual}>
+              {t("audio.player_est_actual", {
+                estimated: formatTime(job.estimatedSeconds),
+                actual: formatTime(job.actualSeconds),
+              })}
+            </small>
+          )}
         </div>
         <div className={s.downloads}>
           {job.downloads?.mp3 && (
@@ -162,6 +170,10 @@ export function WaveformPlayer({
               />
             );
           })}
+          {blocks.slice(1).map((block) => {
+            const x = duration ? (block.startSeconds / duration) * 1000 : 0;
+            return <line key={`b-${block.idx}`} x1={x} x2={x} y1="8" y2="172" className={s.blockBoundary} />;
+          })}
           <line
             x1={duration ? (currentTime / duration) * 1000 : 0}
             x2={duration ? (currentTime / duration) * 1000 : 0}
@@ -171,6 +183,10 @@ export function WaveformPlayer({
           />
         </svg>
       </div>
+
+      {!selected && blocks.length > 0 && (
+        <p className={s.blockHint}>{t("audio.player_block_hint")}</p>
+      )}
 
       {selected && (
         <div className={s.selection}>
