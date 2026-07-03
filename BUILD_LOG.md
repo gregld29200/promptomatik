@@ -1482,3 +1482,12 @@ around.
 - Not yet exercised: a real OpenRouter generation through the deployed
   pipeline (first real run happens with the D2 UI, or on demand via
   curl).
+
+### D1 end-to-end proof (production, real OpenRouter call)
+Job QHhW9k3mCiWJ_T_ZaS8Te: B1 "professional small talk" source text ->
+completed in ~30s through the deployed queue. Three on-topic materials,
+one per learning stage: comprehension_quiz (reading, studio_academic),
+matching_exercise (vocabulary, modern_training), role_play_cards
+(speaking, teacher_student, warm_coaching). The ported prompt,
+normalization, validation, and job pipeline all work in production.
+D1 is complete; D2 (the /pdf UI) is next.
