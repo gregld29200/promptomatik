@@ -157,7 +157,6 @@
     "locked": "Audio Studio is included in the TeachInspire training: voice production, casting, quota, and downloads.",
     "eyebrow": "TeachInspire Audio Studio",
     "title": "Audio Studio",
-    "quota_minutes": "{{minutes}} min remaining this month",
     "quota_credits": "+ {{minutes}} min credits",
     "quota_loading": "Loading quota",
     "quota_reset": "Monthly reset is automatic",
@@ -279,7 +278,8 @@
     "guide_generation_1": "Draft = quick, cheap test. Final = top quality to share with learners.",
     "guide_generation_2": "The estimate comes from the word count; your quota is charged on the actual generated duration, shown afterwards in the player (Estimated · actual).",
     "guide_generation_3": "A long take is generated in blocks. In the player, click a block to regenerate only that one — only that block is charged.",
-    "guide_generation_4": "Audio files expire after 7 days; the script and settings stay in the history — \"Duplicate\" reloads them in one click."
+    "guide_generation_4": "Audio files expire after 7 days; the script and settings stay in the history — \"Duplicate\" reloads them in one click.",
+    "quota_remaining_caption": "remaining this month"
   },
   "profile": {
     "title": "My teaching profile",

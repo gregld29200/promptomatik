@@ -7,7 +7,7 @@
   --studio-muted: #688889;
   display: grid;
   gap: 1.35rem;
-  width: min(1360px, calc(100vw - 2rem));
+  width: min(1360px, 100%);
   margin: calc(var(--space-12) * -1) auto;
   padding: 1.4rem 0 2rem;
   color: var(--studio-slate);
@@ -45,14 +45,70 @@
 }
 
 .quota {
-  display: grid;
-  gap: 0.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
   min-width: 230px;
-  padding: 0.9rem 1rem;
+  padding: 0.8rem 1.1rem;
   border: 1px solid rgba(133, 162, 163, 0.36);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--studio-white);
   box-shadow: 0 12px 30px rgba(44, 61, 87, 0.08);
+}
+
+.quotaRing {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+}
+
+.quotaRingBg,
+.quotaRingFill {
+  fill: none;
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+
+.quotaRingBg {
+  stroke: rgba(133, 162, 163, 0.22);
+}
+
+.quotaRingFill {
+  stroke: var(--studio-teal);
+  transition: stroke-dasharray 0.6s ease;
+}
+
+.quotaRingLow {
+  stroke: var(--color-gold-500, #f1d263);
+}
+
+.quotaBody {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.quotaMinutes {
+  font-family: var(--font-display);
+  font-size: 1.45rem;
+  line-height: 1.1;
+  color: var(--color-navy-800);
+}
+
+.quotaBody > span {
+  font-size: 0.78rem;
+  color: var(--studio-muted);
+}
+
+.quotaCreditsChip {
+  justify-self: start;
+  margin-top: 0.2rem;
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(241, 210, 99, 0.28);
+  color: var(--color-navy-800);
 }
 
 .quota svg {
@@ -762,7 +818,7 @@
 
 @media (max-width: 720px) {
   .audioPage {
-    width: min(100%, calc(100vw - 1rem));
+    width: 100%;
     margin-top: calc(var(--space-8) * -1);
   }
 

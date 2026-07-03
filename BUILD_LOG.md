@@ -1160,3 +1160,29 @@ explanations. Three layers shipped:
 
 21 new i18n keys (FR + EN), parity kept. No backend changes.
 Gate: 65 tests, build, audit green; browser-verified FR + EN.
+
+## UI fixes - horizontal overflow + premium quota gauge (2026-07-03)
+
+Reported by Greg (screenshot at a ~760px window): no right margin, and
+the quota indicator felt plain.
+
+Root causes of the missing right margin (three stacked 100vw/breakpoint
+bugs, all producing horizontal overflow):
+1. The shell nav only collapsed to the hamburger at 640px while the full
+   link row needs ~860px - between the two, the nav overflowed the
+   document by ~110px. The collapse breakpoint is now 900px (small-mobile
+   logo/padding tweaks stay at 640px).
+2. `.mainWide` and `.audioPage` sized themselves with `100vw`, which
+   includes the scrollbar (~8px) and, for `.audioPage`,
+   `calc(100vw - 2rem)` exceeded its parent's content box by 40px. Both
+   now use `100%`.
+Verified: no horizontal overflow at 375px, 760px, and 1440px.
+
+Premium quota indicator: the plain clock-icon card is now a gauge card -
+an SVG progress ring showing the fraction of included minutes remaining
+(teal, gold below 25%), the minutes figure in Fraunces display type,
+muted caption, and a gold chip for credits when present. Reset note
+moved to the tooltip. `aria-live` kept; `quota_minutes` key retired for
+`quota_remaining_caption`.
+
+Gate: 65 tests, build, audit green.

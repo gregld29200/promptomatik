@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Clock, Copy, FileAudio, HelpCircle, Info, Lock, Tags, Wand2, X } from "lucide-react";
+import { Copy, FileAudio, HelpCircle, Info, Lock, Tags, Wand2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { GenerationConsole } from "@/components/audio/generation-console";
@@ -73,11 +73,6 @@ function stripTags(text: string) {
 function estimateSeconds(script: string) {
   const words = stripTags(script).trim().split(/\s+/).filter(Boolean).length;
   return Math.ceil(words / 2.5);
-}
-
-function formatQuota(seconds: number) {
-  const minutes = Math.max(0, Math.floor(seconds / 60));
-  return t("audio.quota_minutes", { minutes: String(minutes) });
 }
 
 function expiresLabel(expiresAt: string | null) {
@@ -550,15 +545,29 @@ export function AudioStudioPage() {
             <p className={s.eyebrow}>{t("audio.eyebrow")}</p>
             <h1>{t("audio.title")}</h1>
           </div>
-          <div className={s.quota} aria-live="polite">
-            <Clock size={18} aria-hidden />
-            <strong>
-              {quota ? formatQuota(quota.includedRemaining) : t("audio.quota_loading")}
-              {quota && quota.credits > 0
-                ? ` ${t("audio.quota_credits", { minutes: String(Math.max(1, Math.floor(quota.credits / 60))) })}`
-                : null}
-            </strong>
-            <span>{t("audio.quota_reset")}</span>
+          <div className={s.quota} aria-live="polite" title={t("audio.quota_reset")}>
+            <svg viewBox="0 0 36 36" className={s.quotaRing} aria-hidden>
+              <circle cx="18" cy="18" r="15.5" className={s.quotaRingBg} />
+              <circle
+                cx="18"
+                cy="18"
+                r="15.5"
+                className={`${s.quotaRingFill} ${quota && quota.includedRemaining / 3600 < 0.25 ? s.quotaRingLow : ""}`}
+                strokeDasharray={`${quota ? Math.max(0, Math.min(1, quota.includedRemaining / 3600)) * 97.4 : 0} 97.4`}
+                transform="rotate(-90 18 18)"
+              />
+            </svg>
+            <div className={s.quotaBody}>
+              <strong className={s.quotaMinutes}>
+                {quota ? `${Math.max(0, Math.floor(quota.includedRemaining / 60))} min` : "…"}
+              </strong>
+              <span>{t("audio.quota_remaining_caption")}</span>
+              {quota && quota.credits > 0 && (
+                <em className={s.quotaCreditsChip}>
+                  {t("audio.quota_credits", { minutes: String(Math.max(1, Math.floor(quota.credits / 60))) })}
+                </em>
+              )}
+            </div>
           </div>
         </header>
 

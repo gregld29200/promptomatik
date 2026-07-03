@@ -166,20 +166,14 @@
 }
 
 .mainWide {
-  max-width: min(1440px, 100vw);
+  max-width: min(1440px, 100%);
   background: #f8f7f2;
 }
 
 /* Responsive */
-@media (max-width: 640px) {
-  .logoImg {
-    height: calc(var(--text-xl) * 2.2);
-  }
-
-  .nav {
-    padding: var(--space-3) var(--space-4);
-  }
-
+/* The full nav (7 links + language switcher + logout) needs ~860px;
+   collapse to the hamburger well before it can overflow the viewport. */
+@media (max-width: 900px) {
   .navLinks {
     display: none;
   }
@@ -199,6 +193,16 @@
     padding: var(--space-2) 0 var(--space-4);
     z-index: 100;
     box-shadow: 0 8px 24px rgba(11, 23, 38, 0.2);
+  }
+}
+
+@media (max-width: 640px) {
+  .logoImg {
+    height: calc(var(--text-xl) * 2.2);
+  }
+
+  .nav {
+    padding: var(--space-3) var(--space-4);
   }
 
   .main {
