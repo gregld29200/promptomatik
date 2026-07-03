@@ -1,5 +1,7 @@
 export interface Env {
   DB: D1Database;
+  /** Browser Rendering (Documents module PDF output). */
+  BROWSER: Fetcher;
   SESSIONS: KVNamespace;
   MEDIA: R2Bucket;
   INTERVIEW_JOBS_QUEUE: Queue<{ jobId: string }>;

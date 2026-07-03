@@ -43,6 +43,9 @@
       "preview_id": "3678a6b34e5e4ab79cc93303fb091593"
     }
   ],
+  "browser": {
+    "binding": "BROWSER"
+  },
   "r2_buckets": [
     {
       "binding": "MEDIA",

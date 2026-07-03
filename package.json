@@ -16,6 +16,7 @@
 		"db:migrate": "npx wrangler d1 execute promptomatik-db --local --file=./migrations/0001_init-schema.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0002_add-is-active.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0003_replace-model-rec-with-tips.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0004_add-template-moderation.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0005_add-password-resets.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0006_add_interview_jobs.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0007_add-spanish-language.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0008_expand-interview-job-kinds.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0009_add-user-tier.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0010_invitations-self-serve.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0011_audio_studio.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0012_audio_credit_purchases.sql"
 	},
 	"dependencies": {
+		"@cloudflare/puppeteer": "^1.1.0",
 		"@fontsource-variable/dm-sans": "^5.2.8",
 		"@fontsource-variable/fraunces": "^5.2.9",
 		"@fontsource/inter": "^5.2.8",

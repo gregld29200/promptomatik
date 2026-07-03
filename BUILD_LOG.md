@@ -1394,3 +1394,45 @@ account; the live webhook was missing.
   (use a real card, then refund from the Stripe dashboard if desired -
   the refund path is not yet automated; charge.refunded handling is a
   documented V1.5+ follow-up in the credits plan).
+
+## Documents D0 - Browser Rendering spike: VERDICT NATIVE (2026-07-03)
+
+Goal: prove (or disprove) that native Chromium print CSS gives perfect
+page breaks on a representative teaching document, before committing to
+any pagination dependency.
+
+### Built
+- Browser Rendering binding (BROWSER) in wrangler.jsonc + env;
+  @cloudflare/puppeteer dependency.
+- worker/lib/documents-spike.ts: house print CSS v1 (@page A4,
+  break-inside: avoid on atomic units, break-after: avoid on headings,
+  orphans/widows 3, thead repetition, tr unsplittable) + a 5-page
+  fixture stressing every break scenario (long flowing article, 12
+  question+answer-line units, 8-row matching table, word bank, 10 gap
+  fills, 2 role cards), each atomic unit wrapped in tiny «Bn»/«En» text
+  markers for mechanical verification.
+- Admin-only POST /api/documents/spike-pdf (temporary - dies at D3).
+
+### Findings
+- Local dev does NOT implement the browser binding ("405: Not
+  implemented" from miniflare) - PDF work must be verified against the
+  deployed worker. Workflow note: temp admin session minted directly in
+  prod KV (wrangler kv key put, TTL 1h, deleted after) - KV eventual
+  consistency means ~60s before the session is readable at the edge.
+- Production render: 5-page PDF in 4.1s end-to-end (including browser
+  launch), 117 KB.
+- Mechanical check (pdftotext per page): 33/33 atomic units unsplit,
+  0 orphan headings, 0 missing markers.
+- Visual check (PDF read page by page): article flows with correct
+  orphan control, table header row repeats on the next page, page
+  numbers render via printToPDF footerTemplate, question/answer units
+  and role cards never split.
+
+### VERDICT
+Native Chromium fragmentation is sufficient. Paged.js is NOT needed.
+D4 (paginated WYSIWYG preview) reduces to "show the real PDF in the
+preview" if screen preview proves misleading - decision deferred to D3
+evidence. The house print CSS v1 becomes the base for the D1 renderer
+port.
+
+Gate: 73 tests, build, audit green.
