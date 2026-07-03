@@ -214,7 +214,9 @@ export function AudioStudioPage() {
   const { isParticipant } = useAuth();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [mode, setMode] = useState<AudioMode>("dialogue");
-  const [quality, setQuality] = useState<AudioQuality>("final");
+  // Single user-facing quality since 2026-07-03 (Greg): drafts on a cheaper
+  // model sound different from the final model, so they validate nothing.
+  const quality: AudioQuality = "final";
   const [script, setScript] = useState("");
   const [direction, setDirection] = useState<AudioDirection>({
     level: "B1",
@@ -265,7 +267,6 @@ export function AudioStudioPage() {
       if (!res.data) return;
       const job = res.data.job;
       setMode(job.mode);
-      setQuality(job.quality);
       updateScript(job.script);
       setDirection(job.direction);
       setVoices((prev) => ({ ...prev, ...job.voices }));
@@ -528,7 +529,6 @@ export function AudioStudioPage() {
 
   async function duplicateSettings(job: AudioJob) {
     setMode(job.mode);
-    setQuality(job.quality);
     updateScript(job.script);
     setDirection(job.direction);
     setVoices((prev) => ({ ...prev, ...job.voices }));
@@ -915,25 +915,11 @@ export function AudioStudioPage() {
             <VoiceCasting voices={catalog} mode={mode} selected={voices} onChange={setVoices} />
 
             <div className={s.qualityRow}>
-              {helpDot("quality")}
-              <div className={s.segmented} aria-label={t("audio.quality")}>
-                {(["draft", "final"] as const).map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={quality === option ? s.segmentedActive : ""}
-                    onClick={() => setQuality(option)}
-                  >
-                    {option === "draft" ? t("audio.draft") : t("audio.final")}
-                  </button>
-                ))}
-              </div>
               <button type="button" className={s.primary} disabled={!canGenerate} onClick={() => void generate()}>
                 <FileAudio size={17} aria-hidden />
                 {t("audio.generate")}
               </button>
             </div>
-            {helpText("quality", "audio.param_help_quality")}
 
             {quotaBlocked && (
               <p className={s.warning}>

@@ -1548,3 +1548,22 @@ per-speaker paths all share accentPhrase()). UI: labels renamed
 the preset)"), the preset select renders muted when a free accent is
 set, field help + guide updated. Snapshot fixtures updated to realistic
 override text. 85 tests green.
+
+## Audio - Draft removed from the user UI (2026-07-03)
+
+Greg's decision with the decisive argument: Draft and Final run on
+different models, so a draft is not a preview of the final - iterating
+on it validates nothing and double-spends quota. Single user-facing
+quality = predictable output ("what you hear is what learners hear").
+
+- UI: the Brouillon/Finale toggle and its help dot are gone; every user
+  generation, duplication, and library regeneration is Final. The
+  redundant quality label in the Cabine title is removed (a design-audit
+  leftover). Guide updated.
+- Backend unchanged: the quality field and the draft model stay for
+  internal tooling (smoke script, voice-preview seeding run on Flash
+  deliberately) and for historical rows (old Brouillon takes still label
+  correctly in the history).
+- param_help_quality i18n key retired (FR/EN parity kept).
+
+Gate: 85 tests, build, audit green; deployed.

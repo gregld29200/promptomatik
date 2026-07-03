@@ -49,7 +49,7 @@ export function AudioLibraryPage() {
     setError(null);
     const res = await api.createAudioJob({
       mode: job.mode,
-      quality: job.quality,
+      quality: "final",
       script: job.script,
       direction: job.direction,
       voices: job.voices,
