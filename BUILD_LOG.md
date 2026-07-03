@@ -1436,3 +1436,49 @@ evidence. The house print CSS v1 becomes the base for the D1 renderer
 port.
 
 Gate: 73 tests, build, audit green.
+
+## Documents D1 - faithful core port + async pipeline (2026-07-03)
+
+### Built
+- worker/lib/documents/: types.ts (zod schemas, 8 block types + 31
+  material types), input-context.ts (lesson-plan parsing, coverage
+  inference, anti-drift validation), system-prompt.ts, and
+  material-renderer.ts (3 presets, full HTML docs with answer keys) -
+  ported near-verbatim from RenderInspire. Two flagged branding changes:
+  prompt persona "RenderInspire" -> "TeachInspire Documents", brand mark
+  "RI" -> "TI", footer -> "TeachInspire Studio". zod added as a
+  dependency (assumed deviation, announced in the senior review).
+- worker/lib/documents/generate.ts: the LLM call ported with its
+  extract/normalize/retry/validate loop intact; process.env replaced by
+  an injected DocumentsLlmConfig (apiKey, model, fetcher) - testable and
+  Workers-native. Referer/title headers now identify TeachInspire.
+- Dedicated DOCS_MODEL var (default google/gemini-3.1-pro-preview) -
+  avoids the OPENROUTER_MODEL collision with the interview pipeline.
+- Migration 0013 (local + remote): document_jobs table, interview_jobs
+  shape. New document-jobs queue (created in prod) + producer/consumer
+  bindings + dispatch branch in the queue handler.
+- worker/lib/document-jobs.ts: create/enqueue, idempotent-ish consumer
+  (completed/failed rows are skipped), 30-word/15k-char validation with
+  stable error codes, injected generator for tests.
+- Routes: POST /api/documents/transform (participant, 202 + jobId),
+  GET /api/documents/jobs/:id (participant, ownership). Spike route kept
+  for D3.
+
+### Faithfulness note
+The port keeps the source's exact retry semantics: structure errors and
+validation failures retry once with corrective feedback; unparseable
+raw output fails immediately (no retry) - a test initially assumed
+otherwise and was corrected to match the source, not the other way
+around.
+
+### Verification
+- 85 tests (12 new: renderer all-blocks + escaping + branding, preset
+  order, fenced-JSON parse + alias normalization, retry-on-structure,
+  fail-on-non-JSON, request validation bounds, job lifecycle
+  completed/failed/ownership, route gating 403 free / 202 participant /
+  400 short content).
+- Build + audit green; deployed version c590f59d with document-jobs
+  producer + consumer live; unauth transform correctly 401.
+- Not yet exercised: a real OpenRouter generation through the deployed
+  pipeline (first real run happens with the D2 UI, or on demand via
+  curl).

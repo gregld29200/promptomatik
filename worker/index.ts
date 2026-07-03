@@ -11,6 +11,7 @@ import { jobs } from "./routes/jobs";
 import { audio } from "./routes/audio";
 import { stripe } from "./routes/stripe";
 import { documents } from "./routes/documents";
+import { handleDocumentJobBatch } from "./lib/document-jobs";
 import { handleInterviewJobBatch } from "./lib/interview-jobs";
 import { handleAudioJobBatch } from "./lib/audio-jobs";
 
@@ -33,6 +34,9 @@ app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
 export default {
   fetch: app.fetch,
   async queue(batch: MessageBatch, env: Env) {
+    if (batch.queue === "document-jobs") {
+      return handleDocumentJobBatch(batch as MessageBatch<{ jobId: string }>, env);
+    }
     if (batch.queue === "audio-generation") {
       return handleAudioJobBatch(
         batch as MessageBatch<{ jobId: string; segmentIdx?: number; action?: "generate" | "assemble" }>,

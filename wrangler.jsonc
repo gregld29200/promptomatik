@@ -22,6 +22,7 @@
     // invert per tier — this is cost routing, not a bug.
     "OPENROUTER_MODEL": "anthropic/claude-sonnet-4.6",
     "OPENROUTER_FALLBACK_MODEL": "moonshotai/kimi-k2.5",
+    "DOCS_MODEL": "google/gemini-3.1-pro-preview",
     "STRIPE_PRICE_PACK_60": "price_1Tp9T2RAS2gqu38Be86PfNkm",
     "STRIPE_PRICE_PACK_180": "price_1Tp9T2RAS2gqu38BW79nmvIe"
   },
@@ -61,6 +62,10 @@
       {
         "binding": "AUDIO_GENERATION_QUEUE",
         "queue": "audio-generation"
+      },
+      {
+        "binding": "DOCUMENT_JOBS_QUEUE",
+        "queue": "document-jobs"
       }
     ],
     "consumers": [
@@ -73,6 +78,13 @@
       },
       {
         "queue": "audio-generation",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "retry_delay": 5
+      },
+      {
+        "queue": "document-jobs",
         "max_batch_size": 1,
         "max_batch_timeout": 1,
         "max_retries": 3,
