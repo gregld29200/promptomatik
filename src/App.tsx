@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/lib/auth/protected-route";
+import { useParams } from "react-router";
 import { useLanguage } from "@/lib/i18n";
 import { OnboardingProvider } from "@/lib/onboarding/onboarding-context";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
@@ -34,7 +35,7 @@ export function App() {
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
-              path="/dashboard"
+              path="/prompts"
               element={
                 <ProtectedRoute>
                   <DashboardPage />
@@ -42,7 +43,7 @@ export function App() {
               }
             />
             <Route
-              path="/new"
+              path="/prompts/new"
               element={
                 <ProtectedRoute>
                   <NewPromptPage />
@@ -50,7 +51,7 @@ export function App() {
               }
             />
             <Route
-              path="/prompt/:id"
+              path="/prompts/:id"
               element={
                 <ProtectedRoute>
                   <PromptViewPage />
@@ -58,7 +59,7 @@ export function App() {
               }
             />
             <Route
-              path="/templates"
+              path="/prompts/templates"
               element={
                 <ProtectedRoute>
                   <TemplatesPage />
@@ -66,7 +67,7 @@ export function App() {
               }
             />
             <Route
-              path="/templates/:id"
+              path="/prompts/templates/:id"
               element={
                 <ProtectedRoute>
                   <TemplateDetailPage />
@@ -97,10 +98,26 @@ export function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Legacy paths (pre TeachInspire Studio) redirect to the new tree. */}
+            <Route path="/dashboard" element={<Navigate to="/prompts" replace />} />
+            <Route path="/new" element={<Navigate to="/prompts/new" replace />} />
+            <Route path="/prompt/:id" element={<LegacyPromptRedirect />} />
+            <Route path="/templates" element={<Navigate to="/prompts/templates" replace />} />
+            <Route path="/templates/:id" element={<LegacyTemplateRedirect />} />
+            <Route path="*" element={<Navigate to="/prompts" replace />} />
           </Routes>
         </OnboardingProvider>
       </AuthProvider>
     </BrowserRouter>
   );
+}
+
+function LegacyPromptRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/prompts/${id}`} replace />;
+}
+
+function LegacyTemplateRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/prompts/templates/${id}`} replace />;
 }

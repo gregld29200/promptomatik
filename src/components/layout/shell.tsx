@@ -70,24 +70,28 @@ export function Shell({ children }: ShellProps) {
     <>
       <li>
         <Link
-          to="/dashboard"
-          className={`${s.navLink} ${isActive("/dashboard") ? s.navLinkActive : ""}`}
+          to="/prompts"
+          className={`${s.navLink} ${
+            isActive("/prompts") && !isActive("/prompts/new") && !isActive("/prompts/templates")
+              ? s.navLinkActive
+              : ""
+          }`}
         >
           {t("dashboard.my_prompts")}
         </Link>
       </li>
       <li>
         <Link
-          to="/new"
-          className={`${s.navLink} ${isActive("/new") ? s.navLinkActive : ""}`}
+          to="/prompts/new"
+          className={`${s.navLink} ${isActive("/prompts/new") ? s.navLinkActive : ""}`}
         >
           {t("dashboard.new_prompt")}
         </Link>
       </li>
       <li>
         <Link
-          to="/templates"
-          className={`${s.navLink} ${isActive("/templates") ? s.navLinkActive : ""}`}
+          to="/prompts/templates"
+          className={`${s.navLink} ${isActive("/prompts/templates") ? s.navLinkActive : ""}`}
         >
           {t("dashboard.templates")}
           {lockBadge}
@@ -142,10 +146,10 @@ export function Shell({ children }: ShellProps) {
   return (
     <div className={s.shell}>
       <nav className={s.nav} ref={navRef}>
-        <Link to="/" className={s.logo} aria-label="Promptomatik">
+        <Link to="/" className={s.logo} aria-label="TeachInspire Studio">
           <img
             src="/logo.webp"
-            alt="Promptomatik"
+            alt="TeachInspire Studio"
             className={s.logoImg}
             decoding="async"
           />

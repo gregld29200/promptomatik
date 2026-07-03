@@ -21,7 +21,7 @@ export const ONBOARDING_TOURS: Record<
     steps: [
       {
         id: "dashboard_new_prompt",
-        route: "/dashboard",
+        route: "/prompts",
         selector: "[data-onboard='new-prompt']",
         titleKey: "onboarding.dashboard_new_prompt.title",
         bodyKey: "onboarding.dashboard_new_prompt.body",
@@ -29,7 +29,7 @@ export const ONBOARDING_TOURS: Record<
       },
       {
         id: "new_request_text",
-        route: "/new",
+        route: "/prompts/new",
         selector: "[data-onboard='request-text']",
         titleKey: "onboarding.new_request_text.title",
         bodyKey: "onboarding.new_request_text.body",
@@ -37,7 +37,7 @@ export const ONBOARDING_TOURS: Record<
       },
       {
         id: "new_submit_request",
-        route: "/new",
+        route: "/prompts/new",
         selector: "[data-onboard='submit-request']",
         titleKey: "onboarding.new_submit_request.title",
         bodyKey: "onboarding.new_submit_request.body",
@@ -45,7 +45,7 @@ export const ONBOARDING_TOURS: Record<
       },
       {
         id: "questions_pick",
-        route: "/new",
+        route: "/prompts/new",
         selector: "[data-onboard='question-card']",
         titleKey: "onboarding.questions_pick.title",
         bodyKey: "onboarding.questions_pick.body",
@@ -53,7 +53,7 @@ export const ONBOARDING_TOURS: Record<
       },
       {
         id: "done_save",
-        route: "/new",
+        route: "/prompts/new",
         selector: "[data-onboard='save-prompt']",
         titleKey: "onboarding.done_save.title",
         bodyKey: "onboarding.done_save.body",

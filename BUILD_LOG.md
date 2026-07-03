@@ -1249,3 +1249,49 @@ account creation vs cohort date). Credits themselves never expire.
    STRIPE_WEBHOOK_SECRET`, and the two price ids as vars + redeploy.
    Test mode first (sk_test/whsec test + card 4242 4242 4242 4242),
    then switch to live keys.
+
+## TeachInspire Studio - domain and route migration, phases 1-2 (2026-07-03)
+
+Greg's decision: single app at studio.teachinspire.me with /prompts,
+/audio, /pdf (reserved for the Documents module); promptomatik.com will
+become a 301 (registration KEPT - it still sends email and backs old
+links); the Promptomatik logo stays as the Studio logo.
+
+### Phase 1 - new domain live (zero downtime)
+- Both zones (teachinspire.me, promptomatik.com) verified on the same
+  Cloudflare account; studio.teachinspire.me was free.
+- wrangler.jsonc now declares both custom domains; deploy auto-created
+  DNS + certificate. Both domains serve the same worker/D1.
+- Session cookies are host-only: users log in once on the new domain,
+  nothing else to migrate.
+
+### Phase 2 - route tree + rebrand
+- Routes renamed: /dashboard -> /prompts, /new -> /prompts/new,
+  /prompt/:id -> /prompts/:id, /templates -> /prompts/templates(/:id).
+  /audio unchanged; /pdf reserved (wildcard falls back to /prompts until
+  the Documents module claims it).
+- Legacy redirects for all five old paths (param-forwarding for ids) -
+  old bookmarks keep working on both domains.
+- 14 files swept for route references; nav active-state fixed so
+  "Mes prompts" does not stay lit on /prompts/new or /prompts/templates.
+- Rebrand: page title and accessible labels -> "TeachInspire Studio"
+  (logo image unchanged per Greg); 25 mentions in email subjects/bodies
+  renamed; sender display name -> "TeachInspire Studio
+  <noreply@promptomatik.com>" (address unchanged - DKIM stays valid).
+- APP_URL -> https://studio.teachinspire.me (email links + Stripe
+  checkout return URLs now target the canonical domain).
+
+### Verification
+- 73 tests, build, audit green.
+- Local browser: login lands on /prompts; /dashboard, /new, /templates,
+  /prompt/:id all redirect to the new tree; /pdf falls back to /prompts;
+  title "TeachInspire Studio".
+- Production: studio.teachinspire.me serves the app (200, new title);
+  promptomatik.com still serves normally.
+
+### Phase 3 - pending (promptomatik.com -> 301)
+To do once Greg confirms the cutover moment: remove the promptomatik.com
+custom domain from the worker and add a zone-level 301 rule
+promptomatik.com/* -> studio.teachinspire.me/$1. Reminder: Stripe
+webhook should be created on the NEW domain
+(https://studio.teachinspire.me/api/stripe/webhook).

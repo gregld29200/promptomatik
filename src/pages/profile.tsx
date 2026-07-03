@@ -244,7 +244,7 @@ export function ProfilePage() {
               <Button type="submit" variant="cta" disabled={saving}>
                 {saving ? t("common.saving") : t("profile.save")}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => navigate("/dashboard")}>
+              <Button type="button" variant="ghost" onClick={() => navigate("/prompts")}>
                 {t("common.back")}
               </Button>
               {saved && <span className={s.savedMsg}>{t("profile.saved")}</span>}

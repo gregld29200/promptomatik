@@ -262,7 +262,7 @@ export function DashboardPage() {
           <Button
             variant="cta"
             size="large"
-            onClick={() => navigate("/new")}
+            onClick={() => navigate("/prompts/new")}
             data-onboard="new-prompt"
           >
             {t("dashboard.new_prompt")}
@@ -286,7 +286,7 @@ export function DashboardPage() {
             <FileText className={s.emptyIcon} strokeWidth={1.5} />
             <p className={s.emptyTitle}>{t("dashboard.empty_title")}</p>
             <p className={s.emptyText}>{t("dashboard.empty")}</p>
-            <Button variant="secondary" onClick={() => navigate("/new")}>
+            <Button variant="secondary" onClick={() => navigate("/prompts/new")}>
               {t("dashboard.new_prompt")}
             </Button>
           </div>
@@ -386,7 +386,7 @@ export function DashboardPage() {
                     delay: i * CARDS.stagger,
                   }}
                 >
-                  <Link to={`/prompt/${p.id}`} className={s.promptLink}>
+                  <Link to={`/prompts/${p.id}`} className={s.promptLink}>
                     <Card variant="gilt" className={s.promptCard}>
                       <div className={s.cardTop}>
                         <div className={s.cardHeading}>

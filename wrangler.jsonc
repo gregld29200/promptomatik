@@ -3,9 +3,13 @@
   "name": "promptomatik",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-02-10",
+  "routes": [
+    { "pattern": "studio.teachinspire.me", "custom_domain": true },
+    { "pattern": "promptomatik.com", "custom_domain": true }
+  ],
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
-    "APP_URL": "https://promptomatik.com",
+    "APP_URL": "https://studio.teachinspire.me",
     "TTS_MODEL_DRAFT": "gemini-2.5-flash-preview-tts",
     "TTS_MODEL_FINAL": "gemini-2.5-pro-preview-tts",
     "TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT": "10",

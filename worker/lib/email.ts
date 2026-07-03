@@ -30,21 +30,21 @@ interface EmailResult {
 const APP_BASE_URL = "https://promptomatik.com";
 
 const invitationSubjects: Record<Language, string> = {
-  fr: "Vous êtes invité(e) sur Promptomatik",
-  en: "You're invited to Promptomatik",
-  es: "Estas invitado(a) a Promptomatik",
+  fr: "Vous êtes invité(e) sur TeachInspire Studio",
+  en: "You're invited to TeachInspire Studio",
+  es: "Estas invitado(a) a TeachInspire Studio",
 };
 
 const resetSubjects: Record<Language, string> = {
-  fr: "Réinitialisation de mot de passe Promptomatik",
-  en: "Promptomatik password reset",
-  es: "Restablecimiento de contrasena de Promptomatik",
+  fr: "Réinitialisation de mot de passe TeachInspire Studio",
+  en: "TeachInspire Studio password reset",
+  es: "Restablecimiento de contrasena de TeachInspire Studio",
 };
 
 const signupSubjects: Record<Language, string> = {
-  fr: "Confirmez votre accès gratuit à Promptomatik",
-  en: "Confirm your free Promptomatik access",
-  es: "Confirma tu acceso gratuito a Promptomatik",
+  fr: "Confirmez votre accès gratuit à TeachInspire Studio",
+  en: "Confirm your free TeachInspire Studio access",
+  es: "Confirma tu acceso gratuito a TeachInspire Studio",
 };
 
 function buildHtml(params: InvitationEmailParams): string {
@@ -57,8 +57,8 @@ function buildHtml(params: InvitationEmailParams): string {
 <html lang="fr">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>${params.inviterName} vous invite à rejoindre <strong>Promptomatik</strong>, l'outil de création de prompts pour enseignants.</p>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
+  <p>${params.inviterName} vous invite à rejoindre <strong>TeachInspire Studio</strong>, l'outil de création de prompts pour enseignants.</p>
   <p>Utilisez ce lien de connexion pour créer votre mot de passe.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
@@ -76,8 +76,8 @@ function buildHtml(params: InvitationEmailParams): string {
 <html lang="es">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>${params.inviterName} te ha invitado a unirte a <strong>Promptomatik</strong>, la herramienta de creacion de prompts para docentes.</p>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
+  <p>${params.inviterName} te ha invitado a unirte a <strong>TeachInspire Studio</strong>, la herramienta de creacion de prompts para docentes.</p>
   <p>Usa este enlace de acceso para crear tu contrasena.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
@@ -94,8 +94,8 @@ function buildHtml(params: InvitationEmailParams): string {
 <html lang="en">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>${params.inviterName} has invited you to join <strong>Promptomatik</strong>, the prompt-building tool for teachers.</p>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
+  <p>${params.inviterName} has invited you to join <strong>TeachInspire Studio</strong>, the prompt-building tool for teachers.</p>
   <p>Use this login link to create your password.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
@@ -117,7 +117,7 @@ function buildResetHtml(params: PasswordResetEmailParams): string {
 <html lang="fr">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
   <p>Vous avez demandé une réinitialisation de mot de passe.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
@@ -135,7 +135,7 @@ function buildResetHtml(params: PasswordResetEmailParams): string {
 <html lang="es">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
   <p>Has solicitado restablecer tu contrasena.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
@@ -152,7 +152,7 @@ function buildResetHtml(params: PasswordResetEmailParams): string {
 <html lang="en">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
   <p>You requested a password reset.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
@@ -174,8 +174,8 @@ function buildSignupHtml(params: SignupConfirmationEmailParams): string {
 <html lang="fr">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>Bienvenue ! Confirmez votre adresse email pour activer votre accès gratuit à <strong>Promptomatik</strong>, l'outil de création de prompts pour enseignants.</p>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
+  <p>Bienvenue ! Confirmez votre adresse email pour activer votre accès gratuit à <strong>TeachInspire Studio</strong>, l'outil de création de prompts pour enseignants.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
       Activer mon accès gratuit
@@ -192,8 +192,8 @@ function buildSignupHtml(params: SignupConfirmationEmailParams): string {
 <html lang="es">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>Bienvenido(a)! Confirma tu direccion de email para activar tu acceso gratuito a <strong>Promptomatik</strong>, la herramienta de creacion de prompts para docentes.</p>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
+  <p>Bienvenido(a)! Confirma tu direccion de email para activar tu acceso gratuito a <strong>TeachInspire Studio</strong>, la herramienta de creacion de prompts para docentes.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
       Activar mi acceso gratuito
@@ -209,8 +209,8 @@ function buildSignupHtml(params: SignupConfirmationEmailParams): string {
 <html lang="en">
 <head><meta charset="utf-8"></head>
 <body style="font-family: sans-serif; color: #1a2744; max-width: 480px; margin: 0 auto; padding: 24px;">
-  <h2 style="margin-bottom: 8px;">Promptomatik</h2>
-  <p>Welcome! Confirm your email address to activate your free access to <strong>Promptomatik</strong>, the prompt-building tool for teachers.</p>
+  <h2 style="margin-bottom: 8px;">TeachInspire Studio</h2>
+  <p>Welcome! Confirm your email address to activate your free access to <strong>TeachInspire Studio</strong>, the prompt-building tool for teachers.</p>
   <p>
     <a href="${link}" style="display: inline-block; padding: 12px 24px; background-color: #c8a951; color: #1a2744; text-decoration: none; font-weight: bold;">
       Activate my free access
@@ -234,7 +234,7 @@ async function sendEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Promptomatik <noreply@promptomatik.com>",
+      from: "TeachInspire Studio <noreply@promptomatik.com>",
       to: [to],
       subject,
       html,

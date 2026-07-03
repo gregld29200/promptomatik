@@ -25,7 +25,7 @@ export function SignupPage() {
   }
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/prompts" replace />;
   }
 
   async function handleSubmit(e: FormEvent) {

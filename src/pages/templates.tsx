@@ -45,7 +45,7 @@ export function TemplatesPage() {
     setUsingId(templateId);
     const res = await api.useTemplate(templateId);
     if (res.data) {
-      navigate(`/prompt/${res.data.prompt.id}`);
+      navigate(`/prompts/${res.data.prompt.id}`);
     }
     setUsingId(null);
   }
@@ -80,7 +80,7 @@ export function TemplatesPage() {
             <p className={s.subtitle}>{t("templates.subtitle")}</p>
           </div>
           {user?.role === "admin" && (
-            <Button variant="cta" onClick={() => navigate("/new")}>
+            <Button variant="cta" onClick={() => navigate("/prompts/new")}>
               {t("templates.create_official")}
             </Button>
           )}
@@ -140,7 +140,7 @@ export function TemplatesPage() {
             {hasResults && (
               <div className={s.grid}>
                 {filtered.map((tpl) => (
-                  <Link key={tpl.id} to={`/templates/${tpl.id}`} className={s.templateLink}>
+                  <Link key={tpl.id} to={`/prompts/templates/${tpl.id}`} className={s.templateLink}>
                     <Card variant="gilt" className={s.templateCard}>
                       <div className={s.cardHeading}>
                         <h3 className={s.cardName}>{tpl.name || "Untitled"}</h3>

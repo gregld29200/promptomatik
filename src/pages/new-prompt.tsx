@@ -88,7 +88,7 @@ export function NewPromptPage() {
         tags: result.suggested_tags,
       });
       if (res.data) {
-        navigate(`/prompt/${res.data.prompt.id}`);
+        navigate(`/prompts/${res.data.prompt.id}`);
         return;
       }
       if (res.error?.error === "library_limit") {
@@ -333,7 +333,7 @@ export function NewPromptPage() {
                 <p className={s.loadingSub}>{t("quota.exhausted_cta_note")}</p>
               </UpgradeGate>
               <div className={s.actions}>
-                <Button variant="ghost" onClick={() => navigate("/dashboard")}>
+                <Button variant="ghost" onClick={() => navigate("/prompts")}>
                   {t("common.back")}
                 </Button>
               </div>

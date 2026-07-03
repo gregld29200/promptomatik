@@ -24,7 +24,7 @@ export function AdminPage() {
   const [tab, setTab] = useState<Tab>("invitations");
 
   if (user?.role !== "admin") {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/prompts" replace />;
   }
 
   return (

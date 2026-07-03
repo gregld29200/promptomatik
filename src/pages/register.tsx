@@ -28,7 +28,7 @@ export function RegisterPage() {
   }
 
   if (user) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/prompts" replace />;
   }
 
   if (!token) {

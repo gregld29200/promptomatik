@@ -43,7 +43,7 @@ export function TemplateDetailPage() {
     setUsing(true);
     const res = await api.useTemplate(id);
     if (res.data) {
-      navigate(`/prompt/${res.data.prompt.id}`);
+      navigate(`/prompts/${res.data.prompt.id}`);
     }
     setUsing(false);
   }
@@ -79,7 +79,7 @@ export function TemplateDetailPage() {
         <div className={s.center}>
           <p className={s.notFoundTitle}>{t("prompt.not_found")}</p>
           <p className={s.notFoundSub}>{t("prompt.not_found_sub")}</p>
-          <Button variant="secondary" onClick={() => navigate("/templates")}>
+          <Button variant="secondary" onClick={() => navigate("/prompts/templates")}>
             {t("templates.back")}
           </Button>
         </div>
@@ -91,7 +91,7 @@ export function TemplateDetailPage() {
     <Shell>
       <FadeIn duration={0.5} direction="up" distance={16}>
         <div className={s.page}>
-          <Link to="/templates" className={s.backLink}>
+          <Link to="/prompts/templates" className={s.backLink}>
             <ArrowLeft size={16} />
             {t("templates.back")}
           </Link>

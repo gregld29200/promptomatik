@@ -118,14 +118,14 @@ export function PromptViewPage() {
     if (!id) return;
     if (!window.confirm(t("prompt.delete_confirm"))) return;
     const res = await api.deletePrompt(id);
-    if (res.data) navigate("/dashboard");
+    if (res.data) navigate("/prompts");
   }
 
   async function handleDuplicate() {
     if (!id) return;
     const res = await api.duplicatePrompt(id);
     if (res.data) {
-      navigate(`/prompt/${res.data.prompt.id}`);
+      navigate(`/prompts/${res.data.prompt.id}`);
       return;
     }
     if (res.error?.error === "library_limit") {
@@ -222,7 +222,7 @@ export function PromptViewPage() {
         <div className={s.center}>
           <p className={s.notFoundTitle}>{t("prompt.not_found")}</p>
           <p className={s.notFoundSub}>{t("prompt.not_found_sub")}</p>
-          <Button variant="secondary" onClick={() => navigate("/dashboard")}>
+          <Button variant="secondary" onClick={() => navigate("/prompts")}>
             {t("prompt.back_to_dashboard")}
           </Button>
         </div>
@@ -369,7 +369,7 @@ export function PromptViewPage() {
 
           <div className={s.footer}>
             <div className={s.footerLeft}>
-              <Button variant="ghost" onClick={() => navigate("/dashboard")}>
+              <Button variant="ghost" onClick={() => navigate("/prompts")}>
                 {t("common.back")}
               </Button>
               {!prompt.is_template && !isAdmin && (
