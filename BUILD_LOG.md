@@ -1326,3 +1326,38 @@ history leaves the studio page for a dedicated library.
 - Browser: studio shows 3 recent + link; library lists 20 rows with
   correct statuses and actions; "Ouvrir" lands in the studio with the
   script restored and the player mounted; FR/EN parity kept.
+
+## Stripe credit purchases - configured and live in sandbox (2026-07-03)
+
+Greg created the Stripe sandbox account, two one-time products, and the
+webhook (name: brilliant-sensation, event checkout.session.completed,
+URL https://studio.teachinspire.me/api/stripe/webhook).
+
+### Configured
+- Vars in wrangler.jsonc: STRIPE_PRICE_PACK_60 =
+  price_1Tp5HxISpmrunxr88BSiKXm1, STRIPE_PRICE_PACK_180 =
+  price_1Tp5J6ISpmrunxr8XhkLXkPR.
+- Secrets via `wrangler secret put` (never in repo): STRIPE_SECRET_KEY
+  (sk_test_...), STRIPE_WEBHOOK_SECRET (whsec_...). These are TEST-mode
+  keys - safe to validate end to end before switching to live.
+- Deployed version b9e0fc72.
+
+### Verified
+- Webhook flipped 503 -> 400 "bad_signature" on an invalid signature:
+  signature verification is now active in production.
+- Both price IDs confirmed directly against the Stripe API: 900 EUR and
+  2400 EUR, both type=one_time and active - the packs are single
+  payments (not subscriptions), amounts and pack mapping correct.
+- The purchase UI (button + modal) now renders for participants; packs
+  endpoint answers 401 only when unauthenticated (route alive).
+
+### Remaining to fully close (Greg)
+1. Do one test purchase from the studio as a participant with card
+   4242 4242 4242 4242 - confirm the modal shows 9,00 EUR / 24,00 EUR,
+   Checkout redirect works, return shows the success toast, and the
+   quota gauge gains the credits within a few seconds (webhook grant).
+2. Confirm one credit_purchase ledger row lands with the Checkout
+   Session id and a single stripe_events row (idempotency).
+3. When ready for real money: swap to live-mode products/webhook, then
+   `wrangler secret put` the live sk_/whsec_ and update the two price
+   vars to the live price ids + redeploy.

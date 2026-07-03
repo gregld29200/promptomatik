@@ -21,7 +21,9 @@
     // OPENROUTER_MODEL as backup. The primary/fallback semantics intentionally
     // invert per tier — this is cost routing, not a bug.
     "OPENROUTER_MODEL": "anthropic/claude-sonnet-4.6",
-    "OPENROUTER_FALLBACK_MODEL": "moonshotai/kimi-k2.5"
+    "OPENROUTER_FALLBACK_MODEL": "moonshotai/kimi-k2.5",
+    "STRIPE_PRICE_PACK_60": "price_1Tp5HxISpmrunxr88BSiKXm1",
+    "STRIPE_PRICE_PACK_180": "price_1Tp5J6ISpmrunxr8XhkLXkPR"
   },
   "assets": {
     "not_found_handling": "single-page-application",
