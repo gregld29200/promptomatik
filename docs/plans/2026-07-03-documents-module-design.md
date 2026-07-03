@@ -57,3 +57,53 @@ domaine : reconnexion unique (cookies non transférables), domaine
 d'envoi des emails (noreply@promptomatik.com aujourd'hui), sort du nom
 « Promptomatik ». La bascule domaine est une phase séparée, APRÈS le
 module Documents.
+
+---
+
+## Révision senior (2026-07-03, après lecture du code source)
+
+### Découverte qui invalide le pilier n°1 tel qu'écrit
+RenderInspire ne fait PAS générer du HTML au LLM. Le contrat existant est
+un JSON typé (8 types de blocs, schémas Zod discriminés) rendu en HTML
+par un moteur déterministe de 915 lignes (material-renderer.ts). La
+discipline des sauts de page se joue donc dans le renderer (code possédé,
+testable en snapshot), pas dans le prompt. Position plus forte que le
+plan initial.
+
+### Pièges attrapés
+1. Collision de config : RenderInspire lit OPENROUTER_MODEL, déjà utilisé
+   par les interviews avec une autre valeur → variable dédiée DOCS_MODEL.
+2. Paged.js = dépendance prématurée : blocs grossiers + renderer possédé
+   → la fragmentation native Chromium (break-inside, @page, header/footer
+   via printToPDF) suffit probablement. Décision par spike, pas par
+   anticipation.
+3. Séparer portage et amélioration : porter fidèlement (schémas, boucle
+   retry/validation existante — bien faite), puis améliorer la
+   pagination sur base stable.
+4. Style des documents imprimés (3 presets existants) ≠ design de l'app.
+   Presets conservés au départ ; rebranding documents = décision produit
+   séparée avec Greg.
+5. Appel long (24k tokens, ≤2×180s) → queue + polling (pattern
+   interviews) avec table dédiée document_jobs (petite migration).
+6. Fontes à embarquer dans le HTML rendu (Chromium headless n'a pas les
+   fontes système que WeasyPrint utilisait).
+7. Limites Browser Rendering (concurrence/débit) à mesurer au spike.
+
+### Phasage révisé
+- D0 spike (½j) : binding + PDF natif d'un document représentatif,
+  mesure des coupes, verdict natif vs Paged.js, quotas.
+- D1 portage fidèle (1j) : schémas+renderer+prompt+validation en
+  worker/lib pur avec snapshots ; DOCS_MODEL ; migration document_jobs ;
+  endpoint async + polling.
+- D2 UI /pdf (1j) : design TeachInspire, guide au point d'usage, FR/EN.
+- D3 pagination parfaite (½-1j) : print CSS + harnais de coupes
+  (pattern pilote audio) + numéros de page.
+- D4 aperçu paginé WYSIWYG seulement si D3 le justifie.
+
+### Écart conventions assumé
+Zod conservé pour le portage des schémas (réécrire 200 lignes de
+validation à la main = risque sans bénéfice). Signalé à Greg.
+
+### Décisions Greg (non bloquantes pour D0)
+- Rebranding des styles de documents imprimés : plus tard, avec lui.
+- Quota Documents : tranché le 2026-07-03 — participant, sans quota.
