@@ -83,9 +83,8 @@ export function compileDirection(input: CompileDirectionInput): string {
   validateTranscriptForTts(mode, script);
   const cefr = CEFR_DELIVERY[direction.level];
   const style = expandPreset(STYLE_EXPANSIONS, direction.style);
-  const accentBase = expandPreset(ACCENT_EXPANSIONS, direction.accent);
   const accentDetail = trimOptional(direction.accentDetail);
-  const accent = `${accentBase}${accentDetail ? `, specifically ${accentDetail}` : ""}`;
+  const accent = accentPhrase(direction.accent, accentDetail);
   const pace = expandPreset(PACE_EXPANSIONS, direction.pace);
   const scene = trimOptional(direction.scene);
 
@@ -104,9 +103,10 @@ ${scene}`);
 
   sections.push(`DIRECTOR'S NOTES:
 Style: ${style}
-Accent: ${accent}
+Accent: ${accent}.
 Pacing: ${pace} ${cefr.pacing}
-Clarity: ${cefr.clarity}`);
+Clarity: ${cefr.clarity}
+Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.`);
 
   sections.push(`TRANSCRIPT:
 ${script}`);

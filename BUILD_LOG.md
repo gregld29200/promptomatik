@@ -1491,3 +1491,37 @@ matching_exercise (vocabulary, modern_training), role_play_cards
 (speaking, teacher_student, warm_coaching). The ported prompt,
 normalization, validation, and job pipeline all work in production.
 D1 is complete; D2 (the /pdf UI) is next.
+
+## Audio fix - flat/neutral Final takes: contradictory accent prompt (2026-07-03)
+
+Reported by Greg: a Final dialogue rendered with neutral voices, accents
+and tags seemingly ignored.
+
+Root cause, reproduced from the real job row (NSvLkOwq): the default
+accent preset "Neutral international" expands to "Neutral international
+English." and was silently applied to a FRENCH script (he only filled
+the free accentDetail fields). The compiled prompt told the model to
+read French with "Neutral international English, specifically
+marseille" - a contradiction the model resolved by flattening
+everything. Compounding: the tag instruction was weak ("following the
+bracketed audio tags") and the global accent line had a double period.
+
+Fixes (config + template changes, snapshots updated deliberately):
+1. ACCENT_EXPANSIONS["Neutral international"] -> "A neutral, clear
+   accent, natural for the language of the transcript." - the default
+   no longer injects English into non-English scripts.
+2. Director's Notes gains an explicit performance instruction: "Audio
+   tags: perform every bracketed tag (like [laughs] or [excited]) as a
+   vocal expression at that exact spot; never read the bracket text
+   aloud."
+3. Global accent line punctuation normalized ("British English,
+   specifically Croydon.").
+4. Guide updated (FR/EN): tags work best at the start of a line or
+   sentence (his were mid-sentence, which the model performs less
+   reliably - user-side guidance, not a bug).
+
+Verification: prompt recompiled from his exact direction is now
+coherent; 85 tests green (4 snapshots updated); deployed d45105d4; his
+exact take regenerated through the fixed pipeline in production (job
+tUsp3VhZ, ready, 13s, 0 retries) for an A/B listen against the flat
+original.

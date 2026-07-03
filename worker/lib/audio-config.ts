@@ -114,7 +114,7 @@ export const PACE_EXPANSIONS: Record<string, string> = {
 };
 
 export const ACCENT_EXPANSIONS: Record<string, string> = {
-  "Neutral international": "Neutral international English.",
+  "Neutral international": "A neutral, clear accent, natural for the language of the transcript.",
   British: "British English.",
   "North American": "North American English.",
   Australian: "Australian English.",

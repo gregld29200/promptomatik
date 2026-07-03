@@ -210,7 +210,7 @@
     "help_title": "Studio guide",
     "help_intro": "Everything you need for a good take: writing the script, directing the voice, and generating without wasting your quota.",
     "help_speakers": "In dialogue, start every line with Speaker 1: or Speaker 2:. Real names stay out of the script sent to the model.",
-    "help_tags": "Use only bracketed tags from the supported list.",
+    "help_tags": "Use only bracketed tags from the supported list, ideally at the start of a line or sentence.",
     "help_stage": "Avoid stage directions in the script. Prepare for audio converts them, moves them to Direction, or removes them.",
     "help_direction": "Put setting, character state, and non-spoken actions in Direction, not in the text to read.",
     "help_dictation": "Timed-pause dictation arrives in a future version. In the meantime, insert manual [pause] tags where needed.",

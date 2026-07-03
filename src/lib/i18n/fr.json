@@ -210,7 +210,7 @@
     "help_title": "Guide du studio",
     "help_intro": "Tout ce qu'il faut savoir pour une prise réussie : écrire le script, diriger la voix, générer sans gaspiller votre quota.",
     "help_speakers": "En dialogue, commencez chaque ligne par Speaker 1: ou Speaker 2:. Les noms réels restent hors du script envoyé au modèle.",
-    "help_tags": "Utilisez uniquement des tags entre crochets issus de la liste prise en charge.",
+    "help_tags": "Utilisez uniquement des tags entre crochets issus de la liste prise en charge, de préférence en début de réplique ou de phrase.",
     "help_stage": "Évitez les indications scéniques dans le script. Préparer pour l'audio les convertit, les déplace vers Direction ou les retire.",
     "help_direction": "Placez le décor, l'état des personnages et les gestes non parlés dans Direction, pas dans le texte à lire.",
     "help_dictation": "La dictée avec pauses chronométrées arrive dans une prochaine version. En attendant, insérez des tags [pause] manuels aux endroits voulus.",

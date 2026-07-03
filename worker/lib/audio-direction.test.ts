@@ -32,6 +32,7 @@ describe("compileDirection", () => {
       Accent: Slow classroom French.
       Pacing: Slow learner-friendly delivery with enough space to process each idea. Noticeably slower than natural speech, short breath groups, predictable intonation.
       Clarity: Very clear articulation, no reduced forms, gentle sentence stress.
+      Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.
 
       TRANSCRIPT:
       Bonjour tout le monde. Aujourd'hui, nous parlons du travail."
@@ -63,9 +64,10 @@ describe("compileDirection", () => {
 
       DIRECTOR'S NOTES:
       Style: Natural professional conversation with attentive turn-taking.
-      Accent: British English., specifically Croydon
+      Accent: British English, specifically Croydon.
       Pacing: Business meeting speed with realistic professional rhythm. Close to natural pace, realistic rhythm.
       Clarity: Natural but clear; reduced forms allowed.
+      Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.
 
       TRANSCRIPT:
       Speaker 1: Could we move the meeting?
@@ -107,9 +109,10 @@ describe("compileDirection", () => {
 
       DIRECTOR'S NOTES:
       Style: A clear, balanced classroom delivery focused on comprehension.
-      Accent: Neutral international English.
+      Accent: A neutral, clear accent, natural for the language of the transcript.
       Pacing: Natural classroom speed, clear but not artificial. Controlled natural pace with moderate pauses between ideas.
       Clarity: Clear articulation, limited reduced forms, clear sentence stress.
+      Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.
 
       TRANSCRIPT:
       Speaker 1: Good morning.
@@ -143,9 +146,10 @@ describe("compileDirection", () => {
 
       DIRECTOR'S NOTES:
       Style: Objective, measured, calm, and consistent.
-      Accent: Neutral international English.
+      Accent: A neutral, clear accent, natural for the language of the transcript.
       Pacing: Exam speed: controlled, neutral, and consistent. Fully authentic pace and rhythm, subtle emotion.
       Clarity: Authentic speech; natural linking and reduction.
+      Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.
 
       TRANSCRIPT:
       The report is due on Thursday. Please review it carefully."
