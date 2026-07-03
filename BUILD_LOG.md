@@ -1361,3 +1361,36 @@ URL https://studio.teachinspire.me/api/stripe/webhook).
 3. When ready for real money: swap to live-mode products/webhook, then
    `wrangler secret put` the live sk_/whsec_ and update the two price
    vars to the live price ids + redeploy.
+
+## Stripe - switched to LIVE mode (2026-07-03)
+
+Greg provided the live secret key. Live products already existed on the
+account; the live webhook was missing.
+
+### Done
+- Created the live webhook endpoint via the Stripe API
+  (we_1Tp9XTRAS2gqu38B4Zn4qQt9 -> https://studio.teachinspire.me/api/stripe/webhook,
+  checkout.session.completed, enabled); captured its signing secret from
+  the creation response (the only time the API returns it) and wrote it
+  straight to a Wrangler secret, then wiped the temp file.
+- Vars -> live price IDs: STRIPE_PRICE_PACK_60 =
+  price_1Tp9T2RAS2gqu38Be86PfNkm (900 EUR / 60 min),
+  STRIPE_PRICE_PACK_180 = price_1Tp9T2RAS2gqu38BW79nmvIe (2400 EUR /
+  180 min) - both confirmed type=one_time.
+- Secrets updated: STRIPE_SECRET_KEY (sk_live_...),
+  STRIPE_WEBHOOK_SECRET (live whsec_...). Deployed version c77fa297.
+
+### Verified
+- Webhook still returns 400 bad_signature on an invalid signature under
+  the live secret (validation active).
+- Both live price IDs resolve to 900/2400 EUR one_time.
+
+### Security note
+- The live secret key was pasted into the assistant chat. It works and
+  is configured. If that channel is not fully trusted, roll the key in
+  Stripe (Developers -> API keys -> Roll) and re-run
+  `wrangler secret put STRIPE_SECRET_KEY`.
+- Live mode = real charges. The next test purchase moves real money
+  (use a real card, then refund from the Stripe dashboard if desired -
+  the refund path is not yet automated; charge.refunded handling is a
+  documented V1.5+ follow-up in the credits plan).
