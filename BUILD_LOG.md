@@ -1630,3 +1630,16 @@ Two management features on the library page (Greg's request):
 foreign 403; delete purge + ledger preservation; foreign delete 403).
 Gate: 107 tests, build, audit, i18n parity green. Deployed 4d4e00bf;
 prod smoke: health 200, both routes 401 unauth, login intact.
+
+## Studio hub /home shipped (2026-07-04) — Phase 1 of ecosystem plan
+
+Post-login "three doors" landing (plan §2): module cards with recents,
+ajar-door locked cards for free tier (gold Formation badge + upgrade
+CTA), community card for participants (community.teachinspire.me, never
+provider-branded). Login/signup/logo/catch-all now land on /home. 24
+home.* i18n keys FR/EN. Copy reviewed by Greg ("ateliers" wording
+validated). Verified: both tiers, EN, mobile 375px. Deployed 71daf47c.
+
+Note (memory + plan): full Studio design overhaul planned later — Greg
+finds the current look austere; message work first, no gratuitous visual
+polish until then.
