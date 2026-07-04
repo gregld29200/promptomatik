@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Download, PlayCircle, RefreshCw } from "lucide-react";
+import { Check, Download, Pencil, PlayCircle, RefreshCw, Trash2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { useAuth } from "@/lib/auth/auth-context";
 import { t, useLanguage } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import type { AudioJob } from "@/lib/api";
-import { expiresLabel, formatShort, isExpired, modeLabel, qualityLabel, scriptTitle } from "@/lib/audio-display";
+import { expiresLabel, formatShort, isExpired, modeLabel, qualityLabel, scriptTitle, takeTitle } from "@/lib/audio-display";
 import s from "./audio-library.module.css";
 
 const PAGE_SIZE = 20;
@@ -22,6 +22,11 @@ export function AudioLibraryPage() {
   const [hasMore, setHasMore] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [savingRename, setSavingRename] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,6 +68,41 @@ export function AudioLibraryPage() {
     setError(res.error?.error ?? t("common.error"));
   }
 
+  function startRename(job: AudioJob) {
+    setRenamingId(job.id);
+    setRenameValue(job.title ?? "");
+    setConfirmDelete(null);
+  }
+
+  async function saveRename(job: AudioJob) {
+    setSavingRename(true);
+    setError(null);
+    const res = await api.renameAudioJob(job.id, renameValue);
+    if (res.data) {
+      const title = res.data.title;
+      setJobs((prev) => prev.map((j) => (j.id === job.id ? { ...j, title } : j)));
+      setRenamingId(null);
+    } else {
+      setError(res.error?.error ?? t("common.error"));
+    }
+    setSavingRename(false);
+  }
+
+  // Permanent removal: files in R2 and the take itself. Quota already spent
+  // stays spent (the ledger is the accounting history, not the storage).
+  async function removeJob(job: AudioJob) {
+    setDeleting(job.id);
+    setError(null);
+    const res = await api.deleteAudioJob(job.id);
+    if (res.data) {
+      setJobs((prev) => prev.filter((j) => j.id !== job.id));
+    } else {
+      setError(res.error?.error ?? t("common.error"));
+    }
+    setDeleting(null);
+    setConfirmDelete(null);
+  }
+
   if (!isParticipant) {
     return (
       <Shell>
@@ -100,7 +140,55 @@ export function AudioLibraryPage() {
               return (
                 <article key={job.id} className={s.row}>
                   <div className={s.rowMain}>
-                    <strong className={s.rowTitle}>{scriptTitle(job.script)}</strong>
+                    {renamingId === job.id ? (
+                      <span className={s.renameForm}>
+                        <input
+                          className={s.renameInput}
+                          value={renameValue}
+                          maxLength={120}
+                          autoFocus
+                          placeholder={scriptTitle(job.script)}
+                          aria-label={t("audio.library_rename_label")}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") void saveRename(job);
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className={s.action}
+                          disabled={savingRename}
+                          onClick={() => void saveRename(job)}
+                          title={t("common.save")}
+                          aria-label={t("common.save")}
+                        >
+                          <Check size={15} aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          className={s.action}
+                          onClick={() => setRenamingId(null)}
+                          title={t("common.cancel")}
+                          aria-label={t("common.cancel")}
+                        >
+                          <X size={15} aria-hidden />
+                        </button>
+                      </span>
+                    ) : (
+                      <strong className={s.rowTitle}>
+                        {takeTitle(job)}
+                        <button
+                          type="button"
+                          className={s.renameTrigger}
+                          onClick={() => startRename(job)}
+                          title={t("audio.library_rename")}
+                          aria-label={t("audio.library_rename")}
+                        >
+                          <Pencil size={13} aria-hidden />
+                        </button>
+                      </strong>
+                    )}
                     <span className={s.rowMeta}>
                       {modeLabel(job.mode)} · {qualityLabel(job.quality)} ·{" "}
                       {formatShort(job.actualSeconds ?? job.estimatedSeconds)}
@@ -161,6 +249,35 @@ export function AudioLibraryPage() {
                     {!alive && (
                       <button type="button" className={s.action} onClick={() => navigate(`/audio?job=${job.id}`)}>
                         {t("audio.library_duplicate")}
+                      </button>
+                    )}
+                    {confirmDelete === job.id ? (
+                      <span className={s.confirm}>
+                        {t("audio.library_delete_confirm_text")}
+                        <button
+                          type="button"
+                          className={s.actionDanger}
+                          disabled={deleting !== null}
+                          onClick={() => void removeJob(job)}
+                        >
+                          {deleting === job.id ? t("common.loading") : t("audio.library_delete_confirm")}
+                        </button>
+                        <button type="button" className={s.action} onClick={() => setConfirmDelete(null)}>
+                          {t("common.cancel")}
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className={s.action}
+                        onClick={() => {
+                          setConfirmDelete(job.id);
+                          setConfirmRegen(null);
+                        }}
+                        title={t("audio.library_delete")}
+                        aria-label={t("audio.library_delete")}
+                      >
+                        <Trash2 size={15} aria-hidden />
                       </button>
                     )}
                   </div>

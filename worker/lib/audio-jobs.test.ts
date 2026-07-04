@@ -42,6 +42,7 @@ const TEST_SCHEMA_STATEMENTS = [
   user_id TEXT NOT NULL,
   mode TEXT NOT NULL CHECK (mode IN ('monologue','dialogue')),
   quality TEXT NOT NULL CHECK (quality IN ('draft','final')),
+  title TEXT,
   script_raw TEXT NOT NULL,
   direction_json TEXT NOT NULL,
   voices_json TEXT NOT NULL,
@@ -366,6 +367,117 @@ describe("audio job lifecycle", () => {
     await waitOnExecutionContext(ctx);
 
     expect(response.status).toBe(403);
+  });
+
+  it("renames a take, clears back to NULL on empty, and refuses foreign jobs", async () => {
+    const ownerId = "rename-owner";
+    const foreignId = "rename-foreign";
+    await seedParticipant(ownerId);
+    await seedParticipant(foreignId);
+    const job = await createBasicJob(ownerId);
+    const cookie = await sessionCookie(ownerId);
+
+    const patch = async (asCookie: string, title: string) => {
+      const ctx = createExecutionContext();
+      const response = await worker.fetch(
+        new Request(`https://promptomatik.test/api/audio/jobs/${job.id}`, {
+          method: "PATCH",
+          headers: { Cookie: asCookie, "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        }),
+        testEnv,
+        ctx
+      );
+      await waitOnExecutionContext(ctx);
+      return response;
+    };
+
+    const renamed = await patch(cookie, "  Dialogue accueil B1  ");
+    expect(renamed.status).toBe(200);
+    await expect(renamed.json()).resolves.toEqual({ title: "Dialogue accueil B1" });
+    const row = await testEnv.DB.prepare("SELECT title FROM audio_jobs WHERE id = ?")
+      .bind(job.id)
+      .first<{ title: string | null }>();
+    expect(row?.title).toBe("Dialogue accueil B1");
+
+    // Long titles are capped at 120 chars.
+    const long = await patch(cookie, "x".repeat(300));
+    await expect(long.json()).resolves.toEqual({ title: "x".repeat(120) });
+
+    // Empty clears the custom title (UI falls back to the script excerpt).
+    const cleared = await patch(cookie, "   ");
+    await expect(cleared.json()).resolves.toEqual({ title: null });
+
+    // Foreign user cannot rename.
+    const foreign = await patch(await sessionCookie(foreignId), "hack");
+    expect(foreign.status).toBe(403);
+  });
+
+  it("deletes a take permanently: R2 purged, segments cascaded, ledger preserved", async () => {
+    const userId = "delete-user";
+    await seedParticipant(userId);
+    const job = await createBasicJob(userId);
+    await processAudioJob(testEnv, job.id, providerWithSeconds(2));
+    await assembleAudioJob(testEnv, job.id);
+
+    // Generated take has files and a ledger charge.
+    expect(await testEnv.MEDIA.get(`audio/${job.id}/final.mp3`)).not.toBeNull();
+    expect(await ledgerRows(job.id)).toHaveLength(1);
+
+    const cookie = await sessionCookie(userId);
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      new Request(`https://promptomatik.test/api/audio/jobs/${job.id}`, {
+        method: "DELETE",
+        headers: { Cookie: cookie },
+      }),
+      testEnv,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ deleted: true });
+
+    // Row + segments gone, every R2 object under the prefix gone.
+    const row = await testEnv.DB.prepare("SELECT id FROM audio_jobs WHERE id = ?")
+      .bind(job.id).first();
+    const segments = await testEnv.DB.prepare("SELECT COUNT(*) AS n FROM audio_segments WHERE job_id = ?")
+      .bind(job.id).first<{ n: number }>();
+    const listed = await testEnv.MEDIA.list({ prefix: `audio/${job.id}/` });
+    expect(row).toBeNull();
+    expect(segments?.n).toBe(0);
+    expect(listed.objects).toHaveLength(0);
+
+    // The quota charge survives with job_id detached — no silent refund.
+    const orphaned = await testEnv.DB.prepare(
+      "SELECT delta_seconds, job_id FROM quota_ledger WHERE user_id = ?"
+    ).bind(userId).all<{ delta_seconds: number; job_id: string | null }>();
+    expect(orphaned.results).toEqual([{ delta_seconds: -2, job_id: null }]);
+  });
+
+  it("refuses deleting a foreign job with 403", async () => {
+    const ownerId = "del-owner";
+    const foreignId = "del-foreign";
+    await seedParticipant(ownerId);
+    await seedParticipant(foreignId);
+    const job = await createBasicJob(ownerId);
+
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(
+      new Request(`https://promptomatik.test/api/audio/jobs/${job.id}`, {
+        method: "DELETE",
+        headers: { Cookie: await sessionCookie(foreignId) },
+      }),
+      testEnv,
+      ctx
+    );
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(403);
+    const row = await testEnv.DB.prepare("SELECT id FROM audio_jobs WHERE id = ?")
+      .bind(job.id).first();
+    expect(row).not.toBeNull();
   });
 
   it("creates an audio job through the API", async () => {

@@ -124,12 +124,63 @@
   background: rgba(241, 210, 99, 0.2);
 }
 
+.actionDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--color-error);
+  background: var(--color-terracotta-50, #fbeee7);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--color-error);
+  cursor: pointer;
+}
+
 .confirm {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   font-size: 0.8rem;
   color: var(--studio-slate);
+  flex-wrap: wrap;
+}
+
+.renameTrigger {
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.25rem;
+  border: none;
+  background: none;
+  color: var(--studio-muted);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.renameTrigger:hover {
+  color: var(--color-navy-800);
+}
+
+.renameForm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--color-navy-600, #2c3d57);
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-navy-800);
+  background: var(--color-white, #ffffff);
+}
+
+.renameInput:focus {
+  outline: none;
+  border-color: var(--color-navy-600);
+  box-shadow: 0 0 0 2px rgba(19, 32, 56, 0.1);
 }
 
 .loadMore {

@@ -17,6 +17,12 @@ export function scriptTitle(script: string) {
   return clean.split(" ").length > 8 ? `${words}...` : words;
 }
 
+// Display title for a take: the user-chosen name wins, else the derived
+// script excerpt (historic behaviour).
+export function takeTitle(job: Pick<AudioJob, "title" | "script">) {
+  return job.title?.trim() || scriptTitle(job.script);
+}
+
 export function qualityLabel(quality: AudioQuality) {
   return quality === "final" ? t("audio.final") : t("audio.draft");
 }

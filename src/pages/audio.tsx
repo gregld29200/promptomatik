@@ -11,7 +11,7 @@ import { getLanguage, t } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import { SUPPORTED_AUDIO_TAGS, lintAudioScript } from "@/lib/audio-script-rules";
 import type { AudioDirection, AudioJob, AudioMode, AudioQuality, AudioSpeakerDirection, AudioVoice, CefrLevel } from "@/lib/api";
-import { expiresLabel, formatShort, isExpired, modeLabel, qualityLabel, scriptTitle, stripTags } from "@/lib/audio-display";
+import { expiresLabel, formatShort, isExpired, modeLabel, qualityLabel, stripTags, takeTitle } from "@/lib/audio-display";
 import s from "./audio.module.css";
 
 // V1 credit purchase entry point (REQ-8.3): a mailto stub. Stripe is V1.5.
@@ -971,7 +971,7 @@ export function AudioStudioPage() {
             <div className={s.historyRows}>
               {history.slice(0, 3).map((job) => (
                 <button key={job.id} type="button" onClick={() => void duplicateSettings(job)} className={s.historyRow}>
-                  <span className={s.historyTitle}>{scriptTitle(job.script)}</span>
+                  <span className={s.historyTitle}>{takeTitle(job)}</span>
                   <span className={s.historyMeta}>{modeLabel(job.mode)} · {qualityLabel(job.quality)}</span>
                   <strong>{formatShort(job.actualSeconds ?? job.estimatedSeconds)}</strong>
                   <span

@@ -455,6 +455,58 @@ export async function regenerateAudioSegment(
   return true;
 }
 
+// Rename a take. Empty/whitespace title clears back to NULL (the UI then
+// falls back to the derived script excerpt). Returns the stored value,
+// or undefined when the job does not belong to the user.
+export async function renameAudioJobForUser(
+  env: Env,
+  jobId: string,
+  userId: string,
+  title: string
+): Promise<{ title: string | null } | undefined> {
+  const trimmed = title.trim().slice(0, 120);
+  const stored = trimmed.length > 0 ? trimmed : null;
+  const result = await env.DB.prepare(
+    "UPDATE audio_jobs SET title = ? WHERE id = ? AND user_id = ?"
+  )
+    .bind(stored, jobId, userId)
+    .run();
+  if ((result.meta.changes ?? 0) === 0) return undefined;
+  return { title: stored };
+}
+
+// Permanently delete a take: every R2 object under its prefix (final files
+// AND raw segment PCMs), then the DB row. audio_segments cascade with the
+// row; quota_ledger rows survive with job_id set to NULL — deleting audio
+// is storage cleanup, never a quota refund.
+export async function deleteAudioJobForUser(
+  env: Env,
+  jobId: string,
+  userId: string
+): Promise<boolean> {
+  const row = await env.DB.prepare(
+    "SELECT r2_prefix FROM audio_jobs WHERE id = ? AND user_id = ?"
+  )
+    .bind(jobId, userId)
+    .first<{ r2_prefix: string | null }>();
+  if (!row) return false;
+
+  const prefix = `${row.r2_prefix ?? r2Prefix(jobId)}/`;
+  let cursor: string | undefined;
+  do {
+    const listed = await env.MEDIA.list({ prefix, cursor });
+    if (listed.objects.length > 0) {
+      await env.MEDIA.delete(listed.objects.map((object) => object.key));
+    }
+    cursor = listed.truncated ? listed.cursor : undefined;
+  } while (cursor);
+
+  await env.DB.prepare("DELETE FROM audio_jobs WHERE id = ? AND user_id = ?")
+    .bind(jobId, userId)
+    .run();
+  return true;
+}
+
 export async function getAudioDownloadObject(
   env: Env,
   jobId: string,

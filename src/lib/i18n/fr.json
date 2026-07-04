@@ -302,6 +302,11 @@
     "library_regen_cost": "≈ {{time}} de quota",
     "library_regen_confirm": "Confirmer",
     "library_duplicate": "Dupliquer les réglages",
+    "library_rename": "Renommer",
+    "library_rename_label": "Nouveau nom de la prise",
+    "library_delete": "Supprimer",
+    "library_delete_confirm_text": "Suppression définitive : l'audio et ses fichiers seront effacés.",
+    "library_delete_confirm": "Supprimer définitivement",
     "library_load_more": "Charger plus"
   },
   "profile": {

@@ -34,6 +34,7 @@ const TEST_SCHEMA_STATEMENTS = [
   user_id TEXT NOT NULL,
   mode TEXT NOT NULL CHECK (mode IN ('monologue','dialogue')),
   quality TEXT NOT NULL CHECK (quality IN ('draft','final')),
+  title TEXT,
   script_raw TEXT NOT NULL,
   direction_json TEXT NOT NULL,
   voices_json TEXT NOT NULL,

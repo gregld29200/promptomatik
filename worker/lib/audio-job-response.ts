@@ -17,6 +17,7 @@ export interface AudioJobRow {
   user_id: string;
   mode: AudioMode;
   quality: AudioQuality;
+  title: string | null;
   script_raw: string;
   direction_json: string;
   voices_json: string;
@@ -49,6 +50,7 @@ export interface AudioJobResponse {
   id: string;
   mode: AudioMode;
   quality: AudioQuality;
+  title: string | null;
   script: string;
   direction: AudioDirection;
   voices: Record<string, string>;
@@ -100,6 +102,7 @@ export function rowToAudioJob(row: AudioJobRow, segments?: AudioSegmentRow[]): A
     id: row.id,
     mode: row.mode,
     quality: row.quality,
+    title: row.title,
     script: row.script_raw,
     direction: JSON.parse(row.direction_json) as AudioDirection,
     voices: JSON.parse(row.voices_json) as Record<string, string>,

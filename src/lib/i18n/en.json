@@ -302,6 +302,11 @@
     "library_regen_cost": "≈ {{time}} of quota",
     "library_regen_confirm": "Confirm",
     "library_duplicate": "Duplicate settings",
+    "library_rename": "Rename",
+    "library_rename_label": "New take name",
+    "library_delete": "Delete",
+    "library_delete_confirm_text": "Permanent deletion: the audio and its files will be erased.",
+    "library_delete_confirm": "Delete permanently",
     "library_load_more": "Load more"
   },
   "profile": {

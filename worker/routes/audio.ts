@@ -7,12 +7,14 @@ import { getTtsModelConfig, type AudioMode } from "../lib/audio-config";
 import { prepareAudioScript } from "../lib/audio-prepare";
 import {
   createAudioJob,
+  deleteAudioJobForUser,
   enqueueAudioJob,
   getAudioDownloadObject,
   getAudioJobForUser,
   isAudioDownloadFile,
   listAudioJobsForUser,
   regenerateAudioSegment,
+  renameAudioJobForUser,
   type CreateAudioJobInput,
 } from "../lib/audio-jobs";
 import { AUDIO_VOICES, isAudioVoiceName } from "../lib/audio-voices";
@@ -137,6 +139,39 @@ audio.get("/jobs/:id", requireParticipant, async (c) => {
     return c.json({ error: "Job not found." }, 404);
   }
   return c.json({ job });
+});
+
+audio.patch("/jobs/:id", requireParticipant, async (c) => {
+  const session = c.get("session");
+  const jobId = c.req.param("id");
+  const access = await jobAccessStatus(c.env.DB, jobId, session.userId);
+  if (access === 403) return c.json({ error: "Forbidden." }, 403);
+  if (access === 404) return c.json({ error: "Job not found." }, 404);
+
+  const body = await c.req.json<{ title?: unknown }>().catch(() => null);
+  if (!body || typeof body.title !== "string") {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+
+  const renamed = await renameAudioJobForUser(c.env, jobId, session.userId, body.title);
+  if (!renamed) {
+    return c.json({ error: "Job not found." }, 404);
+  }
+  return c.json({ title: renamed.title });
+});
+
+audio.delete("/jobs/:id", requireParticipant, async (c) => {
+  const session = c.get("session");
+  const jobId = c.req.param("id");
+  const access = await jobAccessStatus(c.env.DB, jobId, session.userId);
+  if (access === 403) return c.json({ error: "Forbidden." }, 403);
+  if (access === 404) return c.json({ error: "Job not found." }, 404);
+
+  const deleted = await deleteAudioJobForUser(c.env, jobId, session.userId);
+  if (!deleted) {
+    return c.json({ error: "Job not found." }, 404);
+  }
+  return c.json({ deleted: true });
 });
 
 audio.post("/jobs/:id/segments/:idx/regenerate", requireParticipant, async (c) => {

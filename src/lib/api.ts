@@ -635,6 +635,7 @@ export interface AudioJob {
   id: string;
   mode: AudioMode;
   quality: AudioQuality;
+  title: string | null;
   script: string;
   direction: AudioDirection;
   voices: Record<string, string>;
@@ -692,6 +693,19 @@ export function getAudioJobs(limit = 10, offset = 0) {
 
 export function getAudioJob(id: string) {
   return request<{ job: AudioJob }>(`/api/audio/jobs/${id}`);
+}
+
+export function renameAudioJob(id: string, title: string) {
+  return request<{ title: string | null }>(`/api/audio/jobs/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
+}
+
+export function deleteAudioJob(id: string) {
+  return request<{ deleted: boolean }>(`/api/audio/jobs/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export function prepareAudioScript(data: { script: string; mode: AudioMode }) {
