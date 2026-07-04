@@ -38,6 +38,13 @@ export interface DocumentJobResponse {
   createdAt: string;
 }
 
+export interface DocumentJobSummary {
+  id: string;
+  status: DocumentJobRow["status"];
+  label: string;
+  createdAt: string;
+}
+
 export type DocumentGenerator = (config: DocumentsLlmConfig, request: DocumentRequest) => Promise<TransformResponse>;
 
 const DEFAULT_GENERATOR: DocumentGenerator = (config, request) =>
@@ -98,6 +105,39 @@ export async function getDocumentJobForUser(
     .bind(jobId, userId)
     .first<DocumentJobRow>();
   return row ? rowToResponse(row) : null;
+}
+
+function summaryLabel(payload: string): string {
+  const request = JSON.parse(payload) as Partial<DocumentRequest>;
+  const title = request.title?.trim();
+  if (title) return title;
+
+  const words = request.content?.trim().split(/\s+/).filter(Boolean).slice(0, 8) ?? [];
+  return words.length > 0 ? words.join(" ") : "Document";
+}
+
+export async function listDocumentJobsForUser(
+  env: Env,
+  userId: string,
+  limit = 10
+): Promise<DocumentJobSummary[]> {
+  const safeLimit = Math.max(1, Math.min(50, Math.floor(limit)));
+  const rows = await env.DB.prepare(
+    `SELECT id, status, request_payload, created_at
+     FROM document_jobs
+     WHERE user_id = ?
+     ORDER BY created_at DESC
+     LIMIT ?`
+  )
+    .bind(userId, safeLimit)
+    .all<Pick<DocumentJobRow, "id" | "status" | "request_payload" | "created_at">>();
+
+  return rows.results.map((row) => ({
+    id: row.id,
+    status: row.status,
+    label: summaryLabel(row.request_payload),
+    createdAt: row.created_at,
+  }));
 }
 
 export async function processDocumentJob(

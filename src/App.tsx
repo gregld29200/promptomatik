@@ -19,6 +19,7 @@ import { TemplatesPage } from "@/pages/templates";
 import { TemplateDetailPage } from "@/pages/template-detail";
 import { AudioStudioPage } from "@/pages/audio";
 import { AudioLibraryPage } from "@/pages/audio-library";
+import { DocumentsPage } from "@/pages/documents";
 
 export function App() {
   // Subscribe to language changes — forces entire route tree to re-render
@@ -88,6 +89,14 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <AudioLibraryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/documents"
+              element={
+                <ProtectedRoute>
+                  <DocumentsPage />
                 </ProtectedRoute>
               }
             />

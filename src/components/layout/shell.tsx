@@ -108,6 +108,15 @@ export function Shell({ children }: ShellProps) {
       </li>
       <li>
         <Link
+          to="/documents"
+          className={`${s.navLink} ${isActive("/documents") ? s.navLinkActive : ""}`}
+        >
+          {t("documents.nav_label")}
+          {lockBadge}
+        </Link>
+      </li>
+      <li>
+        <Link
           to="/profile"
           className={`${s.navLink} ${isActive("/profile") ? s.navLinkActive : ""}`}
         >

@@ -740,6 +740,122 @@ export function startCreditCheckout(packId: string) {
   });
 }
 
+// ---- Documents types ----
+
+export type DocumentJobStatus = "queued" | "processing" | "completed" | "failed";
+export type DocumentInputKind =
+  | "auto"
+  | "raw_content"
+  | "lesson_plan"
+  | "curriculum"
+  | "worksheet_spec"
+  | "assessment_spec"
+  | "other_structured_spec";
+export type DocumentOutputIntent =
+  | "three_materials"
+  | "lesson_pack"
+  | "assessment_pack"
+  | "unit_snapshot"
+  | "custom";
+export type DocumentPresetId = "studio_academic" | "modern_training" | "warm_coaching";
+export type DocumentMaterialType =
+  | "gap_fill"
+  | "comprehension_quiz"
+  | "role_play_cards"
+  | "sentence_reordering"
+  | "matching_exercise"
+  | "dictogloss_notes"
+  | "vocabulary_in_context"
+  | "summary_completion"
+  | "headline_matching"
+  | "discussion_cards"
+  | "text_reconstruction"
+  | "categorization_grid"
+  | "gap_fill_sentences"
+  | "odd_one_out"
+  | "word_formation_table"
+  | "flashcard_sheet"
+  | "rule_summary_card"
+  | "controlled_practice"
+  | "error_correction"
+  | "sorting_exercise"
+  | "guided_production"
+  | "register_analysis"
+  | "reply_template"
+  | "phrase_bank_extraction"
+  | "sequencing_exercise"
+  | "imperative_extraction"
+  | "comprehension_check"
+  | "transformation_exercise"
+  | "timeline_exercise"
+  | "character_analysis_card"
+  | "prediction_exercise";
+export type DocumentSkillFocus =
+  | "reading"
+  | "writing"
+  | "speaking"
+  | "listening"
+  | "grammar"
+  | "vocabulary"
+  | "mixed";
+export type DocumentInteractionPattern =
+  | "individual"
+  | "teacher_student"
+  | "pairs"
+  | "group"
+  | "small_group"
+  | "whole_class";
+
+export interface TransformDocumentPayload {
+  content: string;
+  title?: string;
+  level?: string;
+  languageFocus?: string;
+  inputKind?: DocumentInputKind;
+  outputIntent?: DocumentOutputIntent;
+  customRequest?: string;
+}
+
+export interface DocumentMaterial {
+  id: string;
+  preset_id: DocumentPresetId;
+  material_type: DocumentMaterialType;
+  title: string;
+  skill_focus: DocumentSkillFocus;
+  interaction_pattern: DocumentInteractionPattern;
+  estimated_minutes: number;
+}
+
+export interface DocumentJob {
+  id: string;
+  status: DocumentJobStatus;
+  result: { materials: DocumentMaterial[] } | null;
+  error: string | null;
+  createdAt: string;
+}
+
+export interface DocumentJobSummary {
+  id: string;
+  status: DocumentJobStatus;
+  label: string;
+  createdAt: string;
+}
+
+export function transformDocument(payload: TransformDocumentPayload) {
+  return request<{ jobId: string }>("/api/documents/transform", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getDocumentJob(id: string) {
+  return request<{ job: DocumentJob }>(`/api/documents/jobs/${id}`, {}, { timeoutMs: 10_000 });
+}
+
+export function getDocumentJobs() {
+  return request<{ jobs: DocumentJobSummary[] }>("/api/documents/jobs");
+}
+
 // ---- Audio Studio admin ----
 
 export interface AudioAdminJobCounts {
