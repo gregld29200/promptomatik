@@ -20,6 +20,7 @@ import { TemplateDetailPage } from "@/pages/template-detail";
 import { AudioStudioPage } from "@/pages/audio";
 import { AudioLibraryPage } from "@/pages/audio-library";
 import { DocumentsPage } from "@/pages/documents";
+import { HomePage } from "@/pages/home";
 
 export function App() {
   // Subscribe to language changes — forces entire route tree to re-render
@@ -36,6 +37,14 @@ export function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route
+              path="/home"
+              element={
+                <ProtectedRoute>
+                  <HomePage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/prompts"
               element={
@@ -122,7 +131,7 @@ export function App() {
             <Route path="/prompt/:id" element={<LegacyPromptRedirect />} />
             <Route path="/templates" element={<Navigate to="/prompts/templates" replace />} />
             <Route path="/templates/:id" element={<LegacyTemplateRedirect />} />
-            <Route path="*" element={<Navigate to="/prompts" replace />} />
+            <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
         </OnboardingProvider>
       </AuthProvider>

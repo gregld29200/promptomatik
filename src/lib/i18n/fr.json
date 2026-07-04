@@ -681,5 +681,31 @@
     "login_link": "Déjà un compte ? Connectez-vous",
     "from_login": "Pas de compte ? Obtenez un accès gratuit",
     "expired_invite": "Ce lien a expiré. Demandez un nouveau lien d'accès."
+  },
+  "home": {
+    "eyebrow": "TeachInspire Studio",
+    "greeting": "Bonjour, {{name}}",
+    "subtitle": "Vos trois ateliers pour préparer les cours avec l'IA : les prompts, l'audio et les documents imprimables.",
+    "prompts_title": "Prompts · Promptomatik",
+    "prompts_desc": "Décrivez votre besoin, l'atelier construit un prompt structuré, prêt à copier dans votre IA.",
+    "prompts_empty": "Aucun prompt pour l'instant — créez le premier.",
+    "prompts_cta": "Nouveau prompt",
+    "prompts_library": "Mes prompts",
+    "audio_title": "Audio",
+    "audio_desc": "Transformez un script en écoute pédagogique : voix, accents, rythme et niveau CEFR sous votre direction.",
+    "audio_empty": "Aucune prise pour l'instant — le studio vous attend.",
+    "audio_cta": "Ouvrir le studio",
+    "audio_library": "Bibliothèque",
+    "documents_title": "Documents",
+    "documents_desc": "Collez un contenu, recevez trois supports imprimables avec corrigés, prêts pour la classe en PDF.",
+    "documents_empty": "Aucun document pour l'instant — collez un premier contenu.",
+    "documents_cta": "Ouvrir l'atelier",
+    "community_title": "Espace formation",
+    "community_desc": "Vos cours en e-learning, les échanges avec les autres formateurs et les office hours — tout au même endroit.",
+    "community_cta": "Accéder à l'espace",
+    "locked_badge": "Formation",
+    "locked_cta": "Découvrir la formation",
+    "audio_locked": "Réservé aux participants de la formation : des écoutes sur mesure pour vos apprenants, générées en quelques minutes.",
+    "documents_locked": "Réservé aux participants de la formation : trois supports imprimables avec corrigés à partir de n'importe quel contenu."
   }
 }

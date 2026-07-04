@@ -8,3 +8,9 @@ export const UPGRADE_CTA_URL =
 
 /** Mirror of the backend free-tier library cap — display only. */
 export const FREE_LIBRARY_LIMIT = 3;
+
+/**
+ * The private training space (participants only). Never branded by its
+ * hosting provider in the UI — always "espace formation".
+ */
+export const COMMUNITY_URL = "https://community.teachinspire.me";

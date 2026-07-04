@@ -155,7 +155,7 @@ export function Shell({ children }: ShellProps) {
   return (
     <div className={s.shell}>
       <nav className={s.nav} ref={navRef}>
-        <Link to="/" className={s.logo} aria-label="TeachInspire Studio">
+        <Link to="/home" className={s.logo} aria-label="TeachInspire Studio">
           <img
             src="/logo.webp"
             alt="TeachInspire Studio"

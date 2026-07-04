@@ -1,0 +1,246 @@
+.page {
+  display: grid;
+  gap: 1.6rem;
+  width: min(1100px, 100%);
+  margin: 0 auto;
+}
+
+.header .eyebrow {
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-terracotta-600, #b0623c);
+  margin: 0 0 0.2rem;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  color: var(--color-navy-800);
+  margin: 0;
+}
+
+.subtitle {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+  color: var(--color-text-muted, #688889);
+  max-width: 62ch;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1.3rem 1.4rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.cardHead h2 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--color-navy-800);
+  margin: 0;
+}
+
+.cardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: var(--color-cream-100, #f4f1e8);
+  color: var(--color-navy-800);
+  flex-shrink: 0;
+}
+
+.cardDesc {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--color-text-muted, #688889);
+}
+
+.recentList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.recentRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.4rem 0.5rem;
+  text-decoration: none;
+  border-left: 2px solid var(--color-border);
+}
+
+.recentRow:hover {
+  background: var(--color-cream-100, #f4f1e8);
+  border-left-color: var(--color-gold-500, #f1d263);
+}
+
+.recentLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-navy-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recentMeta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #688889);
+  white-space: nowrap;
+}
+
+.recentEmpty {
+  margin: 0;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--color-text-muted, #688889);
+  border-left: 2px solid var(--color-border);
+}
+
+.recentSkeleton {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.recentSkeleton span {
+  height: 28px;
+  background: linear-gradient(90deg, rgba(133, 162, 163, 0.08), rgba(133, 162, 163, 0.18), rgba(133, 162, 163, 0.08));
+  background-size: 200% 100%;
+  animation: homeShimmer 1.4s infinite;
+}
+
+@keyframes homeShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recentSkeleton span {
+    animation: none;
+  }
+}
+
+.cardActions {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding-top: 0.4rem;
+}
+
+.cardCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.9rem;
+  background: var(--color-navy-800);
+  color: var(--color-cream-50, #faf8f2);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.cardCta:hover {
+  background: var(--color-navy-600, #2c3d57);
+}
+
+.cardLink {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-navy-800);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Locked modules: desirable, not punitive — muted card, gold accent. */
+.cardLocked {
+  background: var(--color-cream-50, #faf8f2);
+  border-style: dashed;
+}
+
+.cardLocked .cardIcon {
+  background: var(--color-bg-card);
+  color: var(--color-text-muted, #688889);
+}
+
+.lockBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-navy-800);
+  background: var(--color-gold-200, #f8e9b8);
+}
+
+.cardLocked .cardCta {
+  background: none;
+  border: 1px solid var(--color-navy-800);
+  color: var(--color-navy-800);
+}
+
+.cardLocked .cardCta:hover {
+  background: var(--color-gold-200, #f8e9b8);
+}
+
+.cardCommunity {
+  background: var(--color-navy-800);
+  border-color: var(--color-navy-800);
+}
+
+.cardCommunity .cardHead h2,
+.cardCommunity .cardDesc {
+  color: var(--color-cream-50, #faf8f2);
+}
+
+.cardCommunity .cardDesc {
+  opacity: 0.85;
+}
+
+.cardCommunity .cardIcon {
+  background: rgba(250, 248, 242, 0.12);
+  color: var(--color-cream-50, #faf8f2);
+}
+
+.cardCommunity .cardCta {
+  background: var(--color-gold-500, #f1d263);
+  color: var(--color-navy-800);
+}
+
+.cardCommunity .cardCta:hover {
+  background: var(--color-gold-200, #f8e9b8);
+}
+
+@media (max-width: 760px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

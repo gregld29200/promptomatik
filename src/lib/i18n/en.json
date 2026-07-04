@@ -681,5 +681,31 @@
     "login_link": "Already have an account? Log in",
     "from_login": "No account? Get free access",
     "expired_invite": "This link has expired. Request a new access link."
+  },
+  "home": {
+    "eyebrow": "TeachInspire Studio",
+    "greeting": "Hello, {{name}}",
+    "subtitle": "Your three workshops for AI-assisted lesson prep: prompts, audio, and printable documents.",
+    "prompts_title": "Prompts · Promptomatik",
+    "prompts_desc": "Describe what you need; the workshop builds a structured prompt, ready to copy into your AI.",
+    "prompts_empty": "No prompts yet — create your first one.",
+    "prompts_cta": "New prompt",
+    "prompts_library": "My prompts",
+    "audio_title": "Audio",
+    "audio_desc": "Turn a script into classroom listening: voices, accents, pacing, and CEFR level under your direction.",
+    "audio_empty": "No takes yet — the studio is waiting.",
+    "audio_cta": "Open the studio",
+    "audio_library": "Library",
+    "documents_title": "Documents",
+    "documents_desc": "Paste any content, get three printable materials with answer keys, classroom-ready as PDFs.",
+    "documents_empty": "No documents yet — paste your first content.",
+    "documents_cta": "Open the workshop",
+    "community_title": "Training space",
+    "community_desc": "Your e-learning courses, exchanges with fellow trainers, and office hours — all in one place.",
+    "community_cta": "Enter the space",
+    "locked_badge": "Training",
+    "locked_cta": "Discover the training",
+    "audio_locked": "For training participants: tailor-made listening for your learners, generated in minutes.",
+    "documents_locked": "For training participants: three printable materials with answer keys from any content."
   }
 }
