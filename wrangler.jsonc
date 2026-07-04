@@ -27,8 +27,9 @@
     "STRIPE_PRICE_PACK_180": "price_1Tp9T2RAS2gqu38BW79nmvIe"
   },
   "assets": {
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": true
   },
   "d1_databases": [
     {

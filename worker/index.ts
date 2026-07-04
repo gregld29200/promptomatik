@@ -17,6 +17,19 @@ import { handleAudioJobBatch } from "./lib/audio-jobs";
 
 const app = new Hono<{ Bindings: Env }>();
 
+// Legacy domain: permanent redirect to the Studio, path and query preserved
+// (ecosystem plan Phase 4). The custom domain stays attached to this Worker —
+// it is what serves the 301.
+const LEGACY_HOSTS = new Set(["promptomatik.com", "www.promptomatik.com"]);
+app.use("*", async (c, next) => {
+  const url = new URL(c.req.url);
+  if (LEGACY_HOSTS.has(url.hostname)) {
+    url.hostname = "studio.teachinspire.me";
+    return c.redirect(url.toString(), 301);
+  }
+  await next();
+});
+
 app.route("/api/health", health);
 app.route("/api/auth", auth);
 app.route("/api/interview", interview);
@@ -30,6 +43,13 @@ app.route("/api/stripe", stripe);
 app.route("/api/documents", documents);
 
 app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
+
+// With run_worker_first: true every request reaches the Worker; anything
+// that is not an API route falls through to the static assets (SPA).
+app.all("*", (c) => {
+  if (!c.env.ASSETS) return c.json({ error: "Not found" }, 404);
+  return c.env.ASSETS.fetch(c.req.raw);
+});
 
 export default {
   fetch: app.fetch,
