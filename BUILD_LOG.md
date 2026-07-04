@@ -1643,3 +1643,21 @@ validated). Verified: both tiers, EN, mobile 375px. Deployed 71daf47c.
 Note (memory + plan): full Studio design overhaul planned later — Greg
 finds the current look austere; message work first, no gratuitous visual
 polish until then.
+
+## Ecosystem plan — Phases 2-4 shipped (2026-07-04)
+
+- Phase 2+3 (vitrine repo): message realignment (FAQ, inclusions with the
+  decided terms: 1-year access, 60 min/month, preferential credits) and
+  the /studio page (three ateliers with real screenshots, offer ladder —
+  free card explicitly Promptomatik the flagship after Greg's review,
+  login entry). Reviewed by Greg on a Pages preview branch, then deployed
+  to production (teachinspire.me) via direct upload — including Greg's
+  previously uncommitted month of WIP, checkpointed as 76eb031.
+- Phase 4 (this repo): promptomatik.com (+www) now 301s to
+  studio.teachinspire.me, path+query preserved. run_worker_first: true +
+  ASSETS binding so all requests reach the Worker; SPA served by
+  fallthrough. Deployed 36d69b6d; verified live: studio 200/200, legacy
+  host 301 with exact Location. Email sender domain unchanged (DKIM).
+- Still open from the plan: renderinspire.* DNS redirect (Greg action),
+  /tutoriels page (when videos exist), individual-offer self-service
+  machinery (dedicated future project).
