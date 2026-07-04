@@ -131,6 +131,35 @@ export function presetMeta(presetId?: StylePreset): {
   };
 }
 
+// Harness marker mode: when enabled, each atomic item is wrapped in a pair
+// of invisible ASCII sentinels (Bmk<n> … Emk<n>) so the mechanical break
+// harness (scripts/documents-break-harness.mjs) can detect an item split
+// across a page boundary via per-page text extraction. Markers are placed
+// AFTER trailing empty answer-lines, which carry no extractable text of
+// their own — text matching alone would miss those overflows. Off by
+// default: production rendering never emits markers.
+type AtomMarker = { begin(): string; end(): string } | null;
+
+function createAtomMarker(): { begin(): string; end(): string } {
+  let open = 0;
+  let close = 0;
+  return {
+    begin() {
+      open += 1;
+      return `<span class="hmark">Bmk${open}</span>`;
+    },
+    end() {
+      close += 1;
+      return `<span class="hmark">Emk${close}</span>`;
+    },
+  };
+}
+
+// Wrap an atomic item so both its begin and end sentinels share one index.
+function markAtom(mark: AtomMarker, inner: string): string {
+  return mark ? `${mark.begin()}${inner}${mark.end()}` : inner;
+}
+
 function esc(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -210,6 +239,7 @@ function renderArticle(
 function renderQuestions(
   block: Extract<MaterialBlock, { type: 'questions' }>,
   preset: PresetConfig,
+  mark: AtomMarker = null,
 ): string {
   return wrapSection(
     preset,
@@ -217,10 +247,10 @@ function renderQuestions(
       .map(
         (item, index) => `<li class="question-item">
             <div class="question-index">${index + 1}</div>
-            <div class="question-body">
+            <div class="question-body">${mark ? mark.begin() : ''}
               <div class="question-prompt">${esc(item.prompt)}</div>
               <div class="answer-line"></div>
-              <div class="answer-line"></div>
+              <div class="answer-line"></div>${mark ? mark.end() : ''}
             </div>
           </li>`,
       )
@@ -231,16 +261,17 @@ function renderQuestions(
 function renderReferenceList(
   block: Extract<MaterialBlock, { type: 'reference_list' }>,
   preset: PresetConfig,
+  mark: AtomMarker = null,
 ): string {
   return wrapSection(
     preset,
     `${renderHeading(block.heading)}<table class="reference-table">${block.items
       .map(
         (item) => `<tr>
-            <td class="reference-term">${esc(item.term)}</td>
+            <td class="reference-term">${mark ? mark.begin() : ''}${esc(item.term)}</td>
             <td class="reference-detail">
               <div>${esc(item.detail)}</div>
-              ${item.example ? `<div class="reference-example">${esc(item.example)}</div>` : ''}
+              ${item.example ? `<div class="reference-example">${esc(item.example)}</div>` : ''}${mark ? mark.end() : ''}
             </td>
           </tr>`,
       )
@@ -256,6 +287,7 @@ function matchingRightColumn(pairs: Extract<MaterialBlock, { type: 'matching' }>
 function renderMatching(
   block: Extract<MaterialBlock, { type: 'matching' }>,
   preset: PresetConfig,
+  mark: AtomMarker = null,
 ): string {
   const rightItems = matchingRightColumn(block.pairs);
 
@@ -267,14 +299,14 @@ function renderMatching(
           <td class="matching-col">
             ${block.pairs
               .map(
-                (pair, index) => `<div class="match-pill match-left"><strong>${index + 1}.</strong> ${esc(pair.left)}</div>`,
+                (pair, index) => `<div class="match-pill match-left">${markAtom(mark, `<strong>${index + 1}.</strong> ${esc(pair.left)}`)}</div>`,
               )
               .join('')}
           </td>
           <td class="matching-col">
             ${rightItems
               .map(
-                (item, index) => `<div class="match-pill match-right"><strong>${String.fromCharCode(97 + index)})</strong> ${esc(item)}</div>`,
+                (item, index) => `<div class="match-pill match-right">${markAtom(mark, `<strong>${String.fromCharCode(97 + index)})</strong> ${esc(item)}`)}</div>`,
               )
               .join('')}
           </td>
@@ -291,6 +323,7 @@ function blankSentence(sentence: string): string {
 function renderFillBlanks(
   block: Extract<MaterialBlock, { type: 'fill_blanks' }>,
   preset: PresetConfig,
+  mark: AtomMarker = null,
 ): string {
   const wordBank = block.word_bank?.length
     ? `<div class="chip-row">${block.word_bank.map((word) => `<span class="chip">${esc(word)}</span>`).join('')}</div>`
@@ -299,7 +332,7 @@ function renderFillBlanks(
   return wrapSection(
     preset,
     `${renderHeading(block.heading)}${wordBank}<ol class="blank-list">${block.items
-      .map((item) => `<li>${esc(blankSentence(item.sentence))}</li>`)
+      .map((item) => `<li>${markAtom(mark, esc(blankSentence(item.sentence)))}</li>`)
       .join('')}</ol>`,
   );
 }
@@ -307,13 +340,14 @@ function renderFillBlanks(
 function renderRoleCards(
   block: Extract<MaterialBlock, { type: 'role_cards' }>,
   preset: PresetConfig,
+  mark: AtomMarker = null,
 ): string {
   return wrapSection(
     preset,
     `${renderHeading(block.heading)}
       <div class="role-grid">${block.cards
         .map(
-          (card, index) => `<div class="role-cell">
+          (card, index) => `<div class="role-cell">${mark ? mark.begin() : ''}
               <div class="role-card ${index === 0 ? 'role-card-primary' : 'role-card-secondary'}">
                 <div class="role-eyebrow">${index === 0 ? 'Speaker A' : 'Speaker B'}</div>
                 <h3 class="role-title">${esc(card.role)}</h3>
@@ -321,7 +355,7 @@ function renderRoleCards(
                 <p class="role-copy"><strong>Goal</strong> ${esc(card.goal)}</p>
                 ${card.bullets?.length ? `<ul class="bullet-list">${card.bullets.map((item) => `<li>${esc(item)}</li>`).join('')}</ul>` : ''}
                 ${card.prompts?.length ? `<div class="prompt-box"><div class="prompt-label">Useful language</div>${card.prompts.map((item) => `<div class="prompt-line">${esc(item)}</div>`).join('')}</div>` : ''}
-              </div>
+              </div>${mark ? mark.end() : ''}
             </div>`,
         )
         .join('')}</div>`,
@@ -344,22 +378,22 @@ function renderNotes(
   );
 }
 
-function renderBlock(block: MaterialBlock, preset: PresetConfig): string {
+function renderBlock(block: MaterialBlock, preset: PresetConfig, mark: AtomMarker = null): string {
   switch (block.type) {
     case 'instructions':
       return renderInstructions(block, preset);
     case 'article':
       return renderArticle(block, preset);
     case 'questions':
-      return renderQuestions(block, preset);
+      return renderQuestions(block, preset, mark);
     case 'reference_list':
-      return renderReferenceList(block, preset);
+      return renderReferenceList(block, preset, mark);
     case 'matching':
-      return renderMatching(block, preset);
+      return renderMatching(block, preset, mark);
     case 'fill_blanks':
-      return renderFillBlanks(block, preset);
+      return renderFillBlanks(block, preset, mark);
     case 'role_cards':
-      return renderRoleCards(block, preset);
+      return renderRoleCards(block, preset, mark);
     case 'notes':
       return renderNotes(block, preset);
     default:
@@ -435,16 +469,20 @@ function buildAnswerKey(material: TransformMaterial): string {
   </section>`;
 }
 
-function buildCss(preset: PresetConfig): string {
+function buildCss(preset: PresetConfig, harness = false): string {
   return `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=Space+Grotesk:wght@500;700&family=Manrope:wght@400;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Nunito+Sans:wght@400;600;700&display=swap');
 
   @page {
     size: A4;
     margin: ${preset.pageMargin};
-    @bottom-center { content: counter(page) " / " counter(pages); }
+    ${harness ? '' : '@bottom-center { content: counter(page) " / " counter(pages); }'}
   }
 
   * { box-sizing: border-box; }
+
+  /* Harness-only break sentinels. Inert in production output (no .hmark
+     spans are emitted unless renderMaterialHtml is called with markers). */
+  .hmark { font-size: 5px; line-height: 0; color: #dcdcdc; }
 
   body {
     margin: 0;
@@ -568,12 +606,42 @@ function buildCss(preset: PresetConfig): string {
 
   .section-shell {
     margin: 0 0 ${preset.sectionGap} 0;
-    page-break-inside: avoid;
   }
 
   .section-shell:last-of-type {
     margin-bottom: 0;
   }
+
+  /* Insécabilité au grain atomique : une section entière peut COULER entre
+     les pages, mais chaque unité (question + ses lignes, paire d'appariement,
+     phrase à trous, ligne de référence, carte de rôle, puce de word bank)
+     reste d'un seul tenant. Un article reste sécable au paragraphe. */
+  .question-item,
+  .match-pill,
+  .blank-list li,
+  .reference-table tr,
+  .role-cell,
+  .chip {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Titres et en-tête jamais orphelins en bas de page. */
+  .doc-header,
+  .doc-title,
+  .section-heading,
+  .role-title,
+  .article-kicker {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* Tableaux multi-lignes (référence) : en-tête répété. Les lignes sont déjà
+     insécables via .reference-table tr ci-dessus. La table d'appariement est
+     une LIGNE unique (deux colonnes de pastilles) : elle doit pouvoir couler,
+     l'insécabilité vit au niveau de .match-pill — donc pas de règle tr
+     globale ici, qui rendrait tout le bloc atomique. */
+  thead { display: table-header-group; }
 
   .section-rule {
     padding: 16px 0 18px;
@@ -768,6 +836,17 @@ function buildCss(preset: PresetConfig): string {
     table-layout: fixed;
   }
 
+  /* role-grid is a <div>; give it real table layout so the two role cards sit
+     side by side (as the 50%-width / vertical-align / cell-padding rules below
+     were written for) instead of stacking to two full pages. */
+  .role-grid {
+    display: table;
+  }
+
+  .role-cell {
+    display: table-cell;
+  }
+
   .matching-col,
   .role-cell {
     width: 50%;
@@ -894,19 +973,24 @@ function buildCss(preset: PresetConfig): string {
   }`;
 }
 
-export function renderMaterialHtml(material: TransformMaterial): string {
+export function renderMaterialHtml(
+  material: TransformMaterial,
+  options?: { markers?: boolean },
+): string {
   const preset = resolvePreset(material.preset_id);
+  const harness = options?.markers ?? false;
+  const mark: AtomMarker = harness ? createAtomMarker() : null;
 
   return `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <style>${buildCss(preset)}</style>
+    <style>${buildCss(preset, harness)}</style>
   </head>
   <body>
     <div class="doc">
       ${renderHeader(material, preset)}
-      ${material.blocks.map((block) => renderBlock(block, preset)).join('')}
+      ${material.blocks.map((block) => renderBlock(block, preset, mark)).join('')}
       ${buildAnswerKey(material)}
       <div class="footer-note">TeachInspire Studio • ${esc(material.material_type.replace(/_/g, ' '))} • ${esc(preset.label)}</div>
     </div>

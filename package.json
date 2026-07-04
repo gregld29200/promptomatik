@@ -10,6 +10,7 @@
 		"audio:smoke": "tsx scripts/audio-studio-smoke.ts",
 		"audio:seed-voices": "tsx scripts/seed-voice-previews.ts",
 		"audio:pilot": "tsx scripts/pilot-assets.ts",
+		"docs:breaks": "tsx scripts/documents-break-harness.mjs",
 		"preview": "vite preview",
 		"deploy": "npm run build && wrangler deploy",
 		"seed": "npx tsx seed/seed.ts",

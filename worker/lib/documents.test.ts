@@ -51,6 +51,30 @@ describe("material renderer (ported)", () => {
     expect(html).not.toContain("RenderInspire");
     expect(html).toContain("page-break-inside: avoid");
   });
+  it("lets sections flow between pages but keeps atomic items unbreakable", () => {
+    const html = renderMaterialHtml(FULL_MATERIAL);
+    // The section shell must NOT force page-break-inside: avoid — that was the
+    // D3 bug (a whole quiz/article jumping a page and leaving a big void).
+    const sectionShellRule = html.match(/\.section-shell\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(sectionShellRule).not.toContain("page-break-inside");
+    // Insécabilité descended to the atomic grain instead.
+    expect(html).toContain(".question-item,");
+    expect(html).toContain("break-inside: avoid");
+    // Titles are never orphaned at the foot of a page.
+    expect(html).toContain("break-after: avoid");
+  });
+
+  it("emits break sentinels and drops the page counter only in harness mode", () => {
+    const plain = renderMaterialHtml(FULL_MATERIAL);
+    expect(plain).not.toContain("Bmk");
+    expect(plain).toContain("counter(page)");
+
+    const harness = renderMaterialHtml(FULL_MATERIAL, { markers: true });
+    expect(harness).toContain("Bmk1");
+    expect(harness).toContain("Emk1");
+    expect(harness).not.toContain("counter(page)");
+  });
+
   it("maps preset order deterministically", () => {
     expect([0, 1, 2, 3].map(presetForIndex)).toEqual([
       "studio_academic",
