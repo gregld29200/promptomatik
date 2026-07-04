@@ -1608,3 +1608,25 @@ D3's job.
 
 Note: commit f406d20 is local; GitHub push to gregld29200/promptomatik is
 pending owner credentials (Greg-LeDall / Greg-Swiftomatic lack push rights).
+
+## Audio - library rename + permanent delete (2026-07-04)
+
+Two management features on the library page (Greg's request):
+
+- Rename: `title` column on audio_jobs (migration 0016, applied local +
+  remote after backup). PATCH /api/audio/jobs/:id, 120-char cap, empty
+  clears back to NULL (UI falls back to the derived script excerpt via
+  the new takeTitle() helper, used by both library and studio recents).
+  Inline edit UX: pencil -> input, Enter saves, Escape cancels.
+- Permanent delete: DELETE /api/audio/jobs/:id. Purges every R2 object
+  under the take prefix (final.mp3/wav, transcript, peaks, AND raw
+  seg-*.pcm), then deletes the row (segments cascade). quota_ledger rows
+  survive with job_id NULL (FK SET NULL) - deleting audio is storage
+  cleanup, never a quota refund. Inline confirmation with explicit
+  "définitif" wording; available on every take state (alive, expired,
+  failed).
+
+3 new integration tests through the real worker (rename semantics +
+foreign 403; delete purge + ledger preservation; foreign delete 403).
+Gate: 107 tests, build, audit, i18n parity green. Deployed 4d4e00bf;
+prod smoke: health 200, both routes 401 unauth, login intact.
