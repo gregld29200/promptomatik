@@ -1567,3 +1567,44 @@ quality = predictable output ("what you hear is what learners hear").
 - param_help_quality i18n key retired (FR/EN parity kept).
 
 Gate: 85 tests, build, audit green; deployed.
+
+## Documents D2 - /documents UI shipped + prod-verified (2026-07-04)
+
+The Documents workspace (paste content -> 3 printable materials -> preview
+-> PDF) is live. Implemented from the self-contained spec
+docs/plans/2026-07-04-documents-d2-ui-plan.md by a handoff model (commit
+f406d20), then independently reviewed and deployed here.
+
+- Backend: 3 routes on worker/routes/documents.ts - GET /jobs (recent 10),
+  GET /jobs/:id/materials/:file (file = <idx>.html | <idx>.pdf). HTML =
+  server-rendered renderMaterialHtml (single source of truth, iframe
+  preview). PDF = Browser Rendering (worker/lib/documents/pdf.ts), 503
+  documents_pdf_unavailable when BROWSER is absent (dev/vitest). Ownership
+  404 is checked BEFORE the 503, and index bounds [0,2] before status -
+  all three tested.
+- Frontend: src/pages/documents.tsx (4-state machine), nav 3rd tab,
+  localStorage draft autosave, ?job= URL restore, warm failure state with
+  retry preserving content, recent-documents list. Full FR/EN i18n incl.
+  all enum maps (31 material types, 7 skill focus, 6 interaction, 7 input
+  kinds, 5 output intents) - verified complete + parity.
+- Review verdict (independent): traps handled + tested, 0 `any`, gate
+  green (104 tests, build, audit, clean tree).
+
+### Deploy + §8.3 prod verification (Browser Rendering path, never run before)
+Version 9040de8a. No D1 migration. Verified programmatically via a temp
+KV session on greg@teachinspire.me: generated a real job in prod
+(completed ~30s), downloaded all 3 materials as PDF.
+- All 3 PDFs valid: A4 (595.9 x 842.88 pts), 3 pages each, real extracted
+  text (2076 / 3402 / 2578 chars), Answer Key present on the two
+  answer-bearing types (role-play cards correctly have none).
+- HTML preview endpoint 200. Temp session deleted after.
+
+### For D3 (noted, NOT fixed here - out of scope)
+Page-break QUALITY (orphan headings, blocks split across pages, answer key
+starting on its own page) was not audited at pixel level - that is exactly
+what D3's mechanical break-detection harness is for. Structural correctness
+(A4, page count, content, answer keys) is confirmed; visual break polish is
+D3's job.
+
+Note: commit f406d20 is local; GitHub push to gregld29200/promptomatik is
+pending owner credentials (Greg-LeDall / Greg-Swiftomatic lack push rights).
