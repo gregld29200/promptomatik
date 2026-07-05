@@ -422,6 +422,70 @@ function normalize(text) {
   return text.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+// Marker-free void measurement, for auditing arbitrary (e.g. production) PDFs
+// that were NOT rendered in harness marker mode. Runs the same empirical-band
+// void check with the same 22% threshold and the same final / pre-answer-key
+// exemptions. Split-item and orphan checks need markers/known headings, so
+// they are skipped here — the void check is the one that proves "no big holes".
+function analyzeVoidOnly(pages) {
+  const violations = [];
+  const nonEmpty = pages.filter((p) => p.words.length > 0);
+  if (nonEmpty.length === 0) return { rows: [], violations: [{ type: 'empty', detail: 'no text' }] };
+
+  let contentTop = Infinity;
+  let contentBottom = -Infinity;
+  for (const p of nonEmpty) {
+    for (const wd of p.words) {
+      if (wd.yMin < contentTop) contentTop = wd.yMin;
+      if (wd.yMax > contentBottom) contentBottom = wd.yMax;
+    }
+  }
+  const band = contentBottom - contentTop || 1;
+  const pageText = pages.map((p) => p.words.map((wd) => wd.text).join(' '));
+  const answerKeyPage = pageText.findIndex((t) => t.toLowerCase().includes('answer key'));
+
+  const rows = [];
+  pages.forEach((p, i) => {
+    const isFinal = i === pages.length - 1;
+    const maxY = p.words.length ? Math.max(...p.words.map((wd) => wd.yMax)) : contentTop;
+    const voidFrac = (contentBottom - maxY) / band;
+    const exempt = isFinal ? 'final' : answerKeyPage > 0 && i === answerKeyPage - 1 ? 'pre-answer-key' : '';
+    let flag = '';
+    if (!exempt && voidFrac > VOID_THRESHOLD) {
+      violations.push({ type: 'void', page: i + 1, detail: `${(voidFrac * 100).toFixed(1)}% empty` });
+      flag = 'VOID';
+    }
+    rows.push({ page: i + 1, voidPct: (voidFrac * 100).toFixed(1), exempt, flag });
+  });
+  return { rows, violations };
+}
+
+function measureMode(pdfPaths) {
+  let total = 0;
+  for (const pdfPath of pdfPaths) {
+    const pages = parsePages(pdfPath);
+    const { rows, violations } = analyzeVoidOnly(pages);
+    console.log(`▸ ${pdfPath}  (${pages.length} pages)`);
+    for (const r of rows) {
+      const exempt = r.exempt ? ` [exempt: ${r.exempt}]` : '';
+      const flag = r.flag ? `  ⚠ ${r.flag}` : '';
+      console.log(`    p${r.page}: void ${r.voidPct.padStart(5)}%${exempt}${flag}`);
+    }
+    if (violations.length) {
+      total += violations.length;
+      for (const v of violations) console.log(`    ✗ ${v.type} (p${v.page}): ${v.detail}`);
+    } else {
+      console.log('    ✓ no void violations');
+    }
+    console.log('');
+  }
+  if (total > 0) {
+    console.log(`FAIL — ${total} void violation(s).`);
+    process.exit(1);
+  }
+  console.log('PASS — 0 void violations.');
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -463,4 +527,14 @@ function main() {
   console.log(`PASS — 0 violations across ${FIXTURES.length} fixtures.`);
 }
 
-main();
+const measureIdx = process.argv.indexOf('--measure');
+if (measureIdx !== -1) {
+  const pdfPaths = process.argv.slice(measureIdx + 1);
+  if (pdfPaths.length === 0) {
+    console.error('Usage: documents-break-harness.mjs --measure <pdf> [pdf...]');
+    process.exit(2);
+  }
+  measureMode(pdfPaths);
+} else {
+  main();
+}

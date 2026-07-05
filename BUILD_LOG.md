@@ -1661,3 +1661,87 @@ polish until then.
 - Still open from the plan: renderinspire.* DNS redirect (Greg action),
   /tutoriels page (when videos exist), individual-offer self-service
   machinery (dedicated future project).
+
+## Documents D3 — perfect page breaks + mechanical harness (2026-07-04)
+
+Greg's requirement: premium PDFs, no more big voids at the foot of a page.
+Implemented from docs/plans/2026-07-04-documents-d3-page-breaks-plan.md, in
+the plan's §4 order — the harness written and proven-failing BEFORE any CSS
+change.
+
+### The bug (plan §1)
+`.section-shell` — the wrapper around a WHOLE section (a full quiz, a whole
+article) — carried `page-break-inside: avoid`. Any section that did not fit
+the remaining space jumped entirely to the next page, leaving a large void.
+
+### The harness (written first, scripts/documents-break-harness.mjs)
+`npm run docs:breaks`. Renders 6 representative multi-page fixtures (long
+quiz, matching+reference, role-play, gap-fill+word-bank, full mixed pack,
+reference-heavy) with the SAME engine as prod (`renderMaterialHtml`), prints
+each via local headless Chrome (same Chromium family as Cloudflare Browser
+Rendering → fast iterate-without-deploy loop), and measures every PDF with
+poppler (`pdftotext -bbox`, `pdfinfo`). Three checks:
+- End-of-page void > 22%. The usable band is derived EMPIRICALLY from the PDF
+  (min/max text y across pages), so it is immune to how Chrome's CLI applies
+  @page margins. Exemptions: the final page, the page before a forced Answer
+  Key break, and an unavoidable gap before a single oversized atomic block
+  (a full-height role-play card, kept whole on purpose).
+- Orphan heading (a section title is the last thing on a page).
+- Split atomic item, via invisible Bmk<n>…Emk<n> sentinels emitted only in an
+  opt-in harness marker mode (`renderMaterialHtml(m, { markers: true })`) that
+  also drops the @bottom-center page counter. Off by default → production
+  output is byte-identical to before for the marker plumbing. Markers sit
+  AFTER a question's empty answer lines, which carry no extractable text of
+  their own — text matching alone would miss those overflows.
+
+Run against the pre-fix CSS, the harness FAILED as designed: **14 violations
+— end-of-page voids up to 90.1% empty, plus 4 split atomic items.**
+
+### The fix (plan §2, buildCss)
+- Removed `page-break-inside: avoid` from `.section-shell`; sections now flow.
+- Pushed insécabilité to the atomic grain: `.question-item`, `.match-pill`,
+  `.blank-list li`, `.reference-table tr`, `.role-cell`, `.chip` all get
+  `break-inside / page-break-inside: avoid`. Articles stay splittable at the
+  paragraph (orphans/widows 3, unchanged).
+- `break-after: avoid` on the document header and every heading → titles are
+  never orphaned; `thead { display: table-header-group }`.
+- Fixed a latent role-grid layout bug surfaced by the harness: `.role-grid`
+  is a `<div>` but the CSS (table-layout, 50% cells, vertical-align, cell
+  padding) was written for a table, so the two role cards STACKED into two
+  full pages. Gave it `display: table` (cells `display: table-cell`) so they
+  sit side by side as intended — which also collapses the break cascade.
+
+Iterating harness ↔ CSS drove it to **0 violations across all 6 fixtures.**
+The one remaining large gap (mixed pack, before the ~690pt role-card pair) is
+correctly classified `oversized-atomic`: a near-full-page atomic block can
+never fit a partial page, and splitting a role card is worse than a gap.
+
+### Gate (plan §4.3)
+112 tests (2 new: section flows / atomic items unbreakable; marker mode on/off
++ counter drop), build, `npm audit --omit=dev` 0 vulnerabilities, clean tree.
+
+### Prod confirmation (plan §4.5) — Browser Rendering, not just local Chrome
+Deployed **version 57c46a2b-c1a7-4d97-8edb-5f826bf03ac3** (no migration).
+Temp KV session on greg@teachinspire.me (participant), TTL 1h, deleted after
+(401 verified). Generated a real job (`f_1GpxS45IKUPu_U3R9bV`) → completed,
+downloaded all 3 materials as PDF, re-ran the §3 void measurement
+(`npm exec tsx scripts/documents-break-harness.mjs -- --measure <pdf...>`):
+- material-0 (comprehension_quiz, studio_academic, 3 pp): 0 void violations.
+- material-1 (matching_exercise, modern_training, 3 pp): 0 void violations.
+- material-2 (role_play_cards, warm_coaching, 2 pp): p1 52.9% flagged by the
+  marker-free measure, then hand-verified as the SAME oversized-atomic case —
+  page 1 holds only the short instructions, and the whole role-cards block is
+  647pt (87% of the usable band), physically unfittable in the ~437pt left.
+  The cards render SIDE BY SIDE (SPEAKER A / SPEAKER B adjacent), confirming
+  the `display: table` fix also works under Browser Rendering.
+Before→after on the real product: whole-section jumps with voids on every
+material type → zero avoidable voids; role cards no longer take two stacked
+pages.
+
+### Out of scope (plan §5, untouched)
+Running page numbers/headers, paginated WYSIWYG preview, the 3-preset visual
+redesign (Greg's product call), Paged.js (the D0 spike proved native
+fragmentation suffices; this confirms it).
+
+Note: local commits only — GitHub push still blocked on owner credentials
+(Greg-LeDall lacks push rights), as with prior Documents work.
