@@ -1,8 +1,7 @@
 import { Hono, type Context } from "hono";
 import type { Env } from "../env";
 import type { SessionData } from "../lib/session";
-import { requireAdmin, requireAuth, requireParticipant } from "../lib/auth-middleware";
-import { renderSpikePdf } from "../lib/documents-spike";
+import { requireAuth, requireParticipant } from "../lib/auth-middleware";
 import { renderMaterialHtml } from "../lib/documents/material-renderer";
 import { renderMaterialPdf } from "../lib/documents/pdf";
 import {
@@ -126,16 +125,5 @@ function slugify(value: string): string {
     .slice(0, 64);
   return slug || "document";
 }
-
-// D0 spike - removed once the real Documents renderer ships (D3).
-documents.post("/spike-pdf", requireAdmin, async (c) => {
-  const pdf = await renderSpikePdf(c.env);
-  return new Response(pdf, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": 'attachment; filename="spike-d0.pdf"',
-    },
-  });
-});
 
 export { documents };
