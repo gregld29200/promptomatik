@@ -7,40 +7,12 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import { materialToPlainText } from "@/lib/document-text";
+import {
+  DRAFT_KEY, EMPTY_DRAFT, INPUT_KINDS, LEVELS, MODES, OUTPUT_INTENTS,
+  formatElapsed, materialUrl, presetLabel, wordCount,
+  type DraftState, type ViewState,
+} from "@/lib/documents-page";
 import s from "./documents.module.css";
-type ViewState = "input" | "waiting" | "results" | "preview";
-type LevelValue = "" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
-interface DraftState {
-  content: string;
-  title: string;
-  level: LevelValue;
-  languageFocus: string;
-}
-const DRAFT_KEY = "ti-docs-draft-v1";
-const LEVELS: LevelValue[] = ["", "A1", "A2", "B1", "B2", "C1", "C2"];
-const INPUT_KINDS: api.DocumentInputKind[] = ["auto", "raw_content", "lesson_plan", "curriculum", "worksheet_spec", "assessment_spec", "other_structured_spec"];
-const OUTPUT_INTENTS: api.DocumentOutputIntent[] = ["three_materials", "lesson_pack", "assessment_pack", "unit_snapshot", "custom"];
-const MODES: api.DocumentMode[] = ["simple", "lesson"];
-const EMPTY_DRAFT: DraftState = {
-  content: "",
-  title: "",
-  level: "",
-  languageFocus: "",
-};
-function wordCount(value: string) {
-  return value.trim().split(/\s+/).filter(Boolean).length;
-}
-function formatElapsed(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  const remaining = seconds % 60;
-  return `${minutes}:${String(remaining).padStart(2, "0")}`;
-}
-function materialUrl(jobId: string, index: number, extension: "html" | "pdf") {
-  return `/api/documents/jobs/${encodeURIComponent(jobId)}/materials/${index}.${extension}`;
-}
-function presetLabel(id: api.DocumentPresetId) {
-  return t(`documents.presets.${id}`);
-}
 export function DocumentsPage() {
   const { isParticipant } = useAuth();
   const [view, setView] = useState<ViewState>("input");
@@ -170,8 +142,8 @@ export function DocumentsPage() {
     const payload: api.TransformDocumentPayload = {
       content: draft.content,
       title: draft.title.trim() || undefined,
-      level: draft.level || undefined,
-      languageFocus: draft.languageFocus.trim() || undefined,
+      level: mode === "lesson" ? draft.level || undefined : undefined,
+      languageFocus: mode === "lesson" ? draft.languageFocus.trim() || undefined : undefined,
       mode,
       inputKind: mode === "simple" ? undefined : inputKind,
       outputIntent: mode === "simple" ? undefined : outputIntent,
@@ -207,6 +179,20 @@ export function DocumentsPage() {
     localStorage.removeItem(DRAFT_KEY);
     window.history.replaceState(null, "", window.location.pathname);
     void refreshRecentJobs();
+  }
+  function adjustFormatting(material: api.SimpleDocumentMaterial) {
+    if (material.source_text?.trim()) {
+      setDraft({
+        content: material.source_text,
+        title: material.title,
+        level: "",
+        languageFocus: "",
+      });
+    }
+    setMode("simple");
+    setError(null);
+    setView("input");
+    window.history.replaceState(null, "", window.location.pathname);
   }
   async function downloadPdf(index: number) {
     if (!job) return;
@@ -303,29 +289,31 @@ export function DocumentsPage() {
             <span className={isTooLong ? s.counterWarn : ""}>{t("documents.char_count", { count: String(chars) })}</span>
           </div>
           {disabledReason && <p className={s.reason}>{disabledReason}</p>}
-          <div className={s.formGrid}>
+          <div className={mode === "lesson" ? s.formGrid : ""}>
             <label className={s.field}>
               <span>{t("documents.title_label")}</span>
               <input value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} placeholder={t("documents.title_placeholder")} />
             </label>
-            <label className={s.field}>
-              <span>
-                {t("documents.language_label")}
-              </span>
-              <input value={draft.languageFocus} onChange={(event) => updateDraft("languageFocus", event.target.value)} placeholder={t("documents.language_placeholder")} />
-            </label>
+            {mode === "lesson" && (
+              <label className={s.field}>
+                <span>{t("documents.language_label")}</span>
+                <input value={draft.languageFocus} onChange={(event) => updateDraft("languageFocus", event.target.value)} placeholder={t("documents.language_placeholder")} />
+              </label>
+            )}
           </div>
-          <fieldset className={s.choiceGroup}>
-            <legend>{t("documents.level_label")} {helpDot("level")}</legend>
-            <div className={s.chips}>
-              {LEVELS.map((level) => (
-                <button key={level || "unspecified"} type="button" className={draft.level === level ? s.chipActive : ""} onClick={() => updateDraft("level", level)}>
-                  {level || t("documents.level_unspecified")}
-                </button>
-              ))}
-            </div>
-            {openHelp === "level" && <p className={s.fieldHelp}>{t("documents.help_level")}</p>}
-          </fieldset>
+          {mode === "lesson" && (
+            <fieldset className={s.choiceGroup}>
+              <legend>{t("documents.level_label")} {helpDot("level")}</legend>
+              <div className={s.chips}>
+                {LEVELS.map((level) => (
+                  <button key={level || "unspecified"} type="button" className={draft.level === level ? s.chipActive : ""} onClick={() => updateDraft("level", level)}>
+                    {level || t("documents.level_unspecified")}
+                  </button>
+                ))}
+              </div>
+              {openHelp === "level" && <p className={s.fieldHelp}>{t("documents.help_level")}</p>}
+            </fieldset>
+          )}
           {mode === "simple" && (
             <label className={s.field}>
               <span>{t("documents.simple_request")}</span>
@@ -367,7 +355,7 @@ export function DocumentsPage() {
           )}
           <button type="button" className={s.primaryAction} disabled={!canSubmit} onClick={() => void submitDocument()}>
             {submitting ? <Loader2 size={18} className={s.spin} aria-hidden /> : <FileText size={18} aria-hidden />}
-            {submitting ? t("documents.submitting") : t("documents.generate")}
+            {submitting ? t("documents.submitting") : t(mode === "simple" ? "documents.format_document" : "documents.generate")}
           </button>
         </section>
         <RecentJobs jobs={recentJobs} loading={recentLoading} onOpen={(id) => {
@@ -404,16 +392,23 @@ export function DocumentsPage() {
         <div className={`${s.materialGrid} ${materials.length === 1 ? s.materialGridSingle : ""}`}>
           {materials.map((material, index) => (
             <article key={material.id} className={s.materialCard} style={{ animationDelay: `${index * 80}ms` }}>
-              <span className={s.cardNumber}>{t("documents.material_n", { n: String(index + 1) })}</span>
+              {material.material_type !== "clean_handout" && <span className={s.cardNumber}>{t("documents.material_n", { n: String(index + 1) })}</span>}
               <h3>{material.title}</h3>
-              <p>{t(`documents.material_types.${material.material_type}`)}</p>
-              <dl>
-                <div><dt>{t("documents.focus")}</dt><dd>{t(`documents.skill_focus.${material.skill_focus}`)}</dd></div>
-                <div><dt>{t("documents.interaction")}</dt><dd>{t(`documents.interaction_patterns.${material.interaction_pattern}`)}</dd></div>
-                <div><dt>{t("documents.duration")}</dt><dd>{t("documents.minutes", { count: String(material.estimated_minutes) })}</dd></div>
-                <div><dt>{t("documents.preset")}</dt><dd>{presetLabel(material.preset_id)}</dd></div>
-              </dl>
-              <div className={s.cardActions}>
+              {material.material_type !== "clean_handout" && (
+                <>
+                  <p>{t(`documents.material_types.${material.material_type}`)}</p>
+                  <dl>
+                    <div><dt>{t("documents.focus")}</dt><dd>{t(`documents.skill_focus.${material.skill_focus}`)}</dd></div>
+                    <div><dt>{t("documents.interaction")}</dt><dd>{t(`documents.interaction_patterns.${material.interaction_pattern}`)}</dd></div>
+                    <div><dt>{t("documents.duration")}</dt><dd>{t("documents.minutes", { count: String(material.estimated_minutes) })}</dd></div>
+                    <div><dt>{t("documents.preset")}</dt><dd>{presetLabel(material.preset_id)}</dd></div>
+                  </dl>
+                </>
+              )}
+              <div className={`${s.cardActions} ${material.material_type === "clean_handout" && material.source_text ? s.cardActionsSimple : ""}`}>
+                {material.material_type === "clean_handout" && material.source_text && (
+                  <button type="button" onClick={() => adjustFormatting(material)}>{t("documents.adjust_formatting")}</button>
+                )}
                 <button type="button" onClick={() => { setSelectedIndex(index); setView("preview"); }}>{t("documents.preview")}</button>
                 <button type="button" onClick={() => void copyMaterialText(index)}>
                   <Copy size={16} aria-hidden />

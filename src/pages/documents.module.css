@@ -364,6 +364,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
 }
+.cardActionsSimple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .cardActions button {
   display: inline-flex;
   align-items: center;
@@ -501,6 +504,9 @@
     height: 76vh;
   }
   .cardActions {
+    grid-template-columns: 1fr;
+  }
+  .cardActionsSimple {
     grid-template-columns: 1fr;
   }
   .cardActions button:first-child {

@@ -7,9 +7,6 @@ const BASE_MATERIAL: DocumentMaterial = {
   preset_id: "studio_academic",
   material_type: "clean_handout",
   title: "Remote Work",
-  skill_focus: "reading",
-  interaction_pattern: "individual",
-  estimated_minutes: 10,
   blocks: [],
 };
 
@@ -40,10 +37,25 @@ describe("document plain-text serialization", () => {
     ].join("\n\n"));
   });
 
+  it("copies the immutable source of a simple handout without formatting markers", () => {
+    const text = materialToPlainText({
+      ...BASE_MATERIAL,
+      source_text: "Remote Work\n\nTrack **lead times** carefully.\n\n- Check quality\n- Review claims",
+      bold_phrases: ["lead times"],
+      blocks: [],
+    });
+
+    expect(text).toBe("Remote Work\n\nTrack lead times carefully.\n\n- Check quality\n- Review claims");
+    expect(text).not.toContain("**");
+  });
+
   it("renders activity blocks as readable plain text", () => {
     const text = materialToPlainText({
       ...BASE_MATERIAL,
       material_type: "controlled_practice",
+      skill_focus: "reading",
+      interaction_pattern: "individual",
+      estimated_minutes: 10,
       blocks: [
         {
           type: "instructions",

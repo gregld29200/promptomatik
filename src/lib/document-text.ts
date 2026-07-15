@@ -7,6 +7,12 @@ function sameText(left: string, right: string): boolean {
   return left.trim().localeCompare(right.trim(), undefined, { sensitivity: "base" }) === 0;
 }
 
+function stripInlineFormatting(value: string): string {
+  return value
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+    .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1$2");
+}
+
 function blockToText(block: DocumentBlock, materialTitle: string): string {
   const lines: string[] = [];
   if (block.heading) lines.push(block.heading);
@@ -63,12 +69,22 @@ function blockToText(block: DocumentBlock, materialTitle: string): string {
       break;
   }
 
-  return lines.join("\n").trim();
+  return stripInlineFormatting(lines.join("\n").trim());
 }
 
 export function materialToPlainText(material: DocumentMaterial): string {
+  if (material.material_type === "clean_handout" && material.source_text?.trim()) {
+    const sourceLines = material.source_text.trim().split(/\r?\n/);
+    if (sourceLines[0] && sameText(stripInlineFormatting(sourceLines[0]), material.title)) {
+      sourceLines.shift();
+      while (sourceLines[0]?.trim() === "") sourceLines.shift();
+    }
+    const source = stripInlineFormatting(sourceLines.join("\n").trim());
+    return [stripInlineFormatting(material.title), source].filter(Boolean).join("\n\n");
+  }
+
   const sections = (material.blocks ?? [])
     .map((block) => blockToText(block, material.title))
     .filter(Boolean);
-  return [material.title, ...sections].filter(Boolean).join("\n\n").trim();
+  return [stripInlineFormatting(material.title), ...sections].filter(Boolean).join("\n\n").trim();
 }

@@ -863,16 +863,28 @@ export interface DocumentBlock {
   cards?: DocumentBlockCard[];
 }
 
-export interface DocumentMaterial {
+interface DocumentMaterialBase {
   id: string;
   preset_id: DocumentPresetId;
-  material_type: DocumentMaterialType;
   title: string;
+  blocks: DocumentBlock[];
+}
+
+export interface SimpleDocumentMaterial extends DocumentMaterialBase {
+  material_type: "clean_handout";
+  source_text?: string;
+  bold_phrases?: string[];
+  heading_phrases?: string[];
+}
+
+export interface LessonDocumentMaterial extends DocumentMaterialBase {
+  material_type: Exclude<DocumentMaterialType, "clean_handout">;
   skill_focus: DocumentSkillFocus;
   interaction_pattern: DocumentInteractionPattern;
   estimated_minutes: number;
-  blocks: DocumentBlock[];
 }
+
+export type DocumentMaterial = SimpleDocumentMaterial | LessonDocumentMaterial;
 
 export interface DocumentJob {
   id: string;
