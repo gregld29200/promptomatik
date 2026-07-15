@@ -32,6 +32,7 @@ export const MaterialTypeSchema = z.enum([
   'timeline_exercise',
   'character_analysis_card',
   'prediction_exercise',
+  'clean_handout',
 ]);
 
 export const SkillFocusSchema = z.enum([
@@ -158,7 +159,7 @@ export const MaterialSchema = z.object({
 });
 
 export const TransformResponseSchema = z.object({
-  materials: z.tuple([MaterialSchema, MaterialSchema, MaterialSchema]),
+  materials: z.array(MaterialSchema).min(1).max(3),
 });
 
 export const TransformErrorSchema = z.object({
@@ -198,5 +199,10 @@ export const OutputIntentSchema = z.enum([
   'custom',
 ]);
 
+// "lesson" = the existing 3-material bundle generator.
+// "simple" = format the teacher's own content into 1 clean handout, no invented activities.
+export const DocumentModeSchema = z.enum(['lesson', 'simple']);
+
 export type InputKind = z.infer<typeof InputKindSchema>;
 export type OutputIntent = z.infer<typeof OutputIntentSchema>;
+export type DocumentMode = z.infer<typeof DocumentModeSchema>;

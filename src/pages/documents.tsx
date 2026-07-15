@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { ArrowLeft, Download, FileText, HelpCircle, Info, Loader2, X } from "lucide-react";
+import { ArrowLeft, Copy, Download, FileText, HelpCircle, Info, Loader2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { ChoiceButtons, GuideOverlay, RecentJobs } from "@/components/documents/documents-panels";
 import { useAuth } from "@/lib/auth/auth-context";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
+import { materialToPlainText } from "@/lib/document-text";
 import s from "./documents.module.css";
 type ViewState = "input" | "waiting" | "results" | "preview";
 type LevelValue = "" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
@@ -19,6 +20,7 @@ const DRAFT_KEY = "ti-docs-draft-v1";
 const LEVELS: LevelValue[] = ["", "A1", "A2", "B1", "B2", "C1", "C2"];
 const INPUT_KINDS: api.DocumentInputKind[] = ["auto", "raw_content", "lesson_plan", "curriculum", "worksheet_spec", "assessment_spec", "other_structured_spec"];
 const OUTPUT_INTENTS: api.DocumentOutputIntent[] = ["three_materials", "lesson_pack", "assessment_pack", "unit_snapshot", "custom"];
+const MODES: api.DocumentMode[] = ["simple", "lesson"];
 const EMPTY_DRAFT: DraftState = {
   content: "",
   title: "",
@@ -43,6 +45,7 @@ export function DocumentsPage() {
   const { isParticipant } = useAuth();
   const [view, setView] = useState<ViewState>("input");
   const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
+  const [mode, setMode] = useState<api.DocumentMode>("lesson");
   const [inputKind, setInputKind] = useState<api.DocumentInputKind>("auto");
   const [outputIntent, setOutputIntent] = useState<api.DocumentOutputIntent>("three_materials");
   const [customRequest, setCustomRequest] = useState("");
@@ -163,14 +166,16 @@ export function DocumentsPage() {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
+    const wantsCustomRequest = mode === "simple" || outputIntent === "custom";
     const payload: api.TransformDocumentPayload = {
       content: draft.content,
       title: draft.title.trim() || undefined,
       level: draft.level || undefined,
       languageFocus: draft.languageFocus.trim() || undefined,
-      inputKind,
-      outputIntent,
-      customRequest: outputIntent === "custom" && customRequest.trim() ? customRequest.trim() : undefined,
+      mode,
+      inputKind: mode === "simple" ? undefined : inputKind,
+      outputIntent: mode === "simple" ? undefined : outputIntent,
+      customRequest: wantsCustomRequest && customRequest.trim() ? customRequest.trim() : undefined,
     };
     const res = await api.transformDocument(payload);
     setSubmitting(false);
@@ -191,6 +196,7 @@ export function DocumentsPage() {
   }
   function resetForNewDocument() {
     setDraft(EMPTY_DRAFT);
+    setMode("lesson");
     setInputKind("auto");
     setOutputIntent("three_materials");
     setCustomRequest("");
@@ -223,6 +229,16 @@ export function DocumentsPage() {
     link.download = `${materials[index]?.title ?? "document"}.pdf`;
     link.click();
     URL.revokeObjectURL(url);
+  }
+  async function copyMaterialText(index: number) {
+    const material = materials[index];
+    if (!material) return;
+    try {
+      await navigator.clipboard.writeText(materialToPlainText(material));
+      setToast(t("documents.copied"));
+    } catch {
+      setToast(t("documents.copy_error"));
+    }
   }
   function helpDot(id: string) {
     return (
@@ -261,6 +277,18 @@ export function DocumentsPage() {
               <button type="button" onClick={() => setError(null)}>{t("documents.retry")}</button>
             </div>
           )}
+          <ChoiceButtons
+            label={t("documents.mode_label")}
+            help={helpDot("mode")}
+            value={mode}
+            options={MODES}
+            keyPrefix="documents.modes"
+            onChange={(nextMode) => {
+              setMode(nextMode);
+              setCustomRequest("");
+            }}
+          />
+          {openHelp === "mode" && <p className={s.fieldHelp}>{t("documents.help_mode")}</p>}
           <label className={s.field}>
             <span>{t("documents.content_label")}</span>
             <textarea
@@ -298,10 +326,18 @@ export function DocumentsPage() {
             </div>
             {openHelp === "level" && <p className={s.fieldHelp}>{t("documents.help_level")}</p>}
           </fieldset>
-          <button type="button" className={s.advancedToggle} onClick={() => setAdvancedOpen((prev) => !prev)}>
-            {advancedOpen ? t("documents.advanced_hide") : t("documents.advanced_show")}
-          </button>
-          {advancedOpen && (
+          {mode === "simple" && (
+            <label className={s.field}>
+              <span>{t("documents.simple_request")}</span>
+              <textarea className={s.smallArea} value={customRequest} onChange={(event) => setCustomRequest(event.target.value)} placeholder={t("documents.simple_request_placeholder")} />
+            </label>
+          )}
+          {mode === "lesson" && (
+            <button type="button" className={s.advancedToggle} onClick={() => setAdvancedOpen((prev) => !prev)}>
+              {advancedOpen ? t("documents.advanced_hide") : t("documents.advanced_show")}
+            </button>
+          )}
+          {mode === "lesson" && advancedOpen && (
             <div className={s.advancedPanel}>
               <ChoiceButtons
                 label={t("documents.input_kind")}
@@ -342,7 +378,8 @@ export function DocumentsPage() {
     );
   }
   function renderWaiting() {
-    const messageKey = elapsed < 30 ? "waiting_analysis" : elapsed < 90 ? "waiting_building" : "waiting_finalizing";
+    const buildingKey = mode === "simple" ? "waiting_building_simple" : "waiting_building";
+    const messageKey = elapsed < 30 ? "waiting_analysis" : elapsed < 90 ? buildingKey : "waiting_finalizing";
     return (
       <section className={s.waitingPanel}>
         <Loader2 size={38} className={s.spin} aria-hidden />
@@ -360,11 +397,11 @@ export function DocumentsPage() {
         <div className={s.resultsHeader}>
           <div>
             <p className={s.eyebrow}>{t("documents.results_eyebrow")}</p>
-            <h2>{t("documents.results_title")}</h2>
+            <h2>{materials.length === 1 ? t("documents.results_title_one") : t("documents.results_title")}</h2>
           </div>
           <button type="button" className={s.secondaryAction} onClick={resetForNewDocument}>{t("documents.new_document")}</button>
         </div>
-        <div className={s.materialGrid}>
+        <div className={`${s.materialGrid} ${materials.length === 1 ? s.materialGridSingle : ""}`}>
           {materials.map((material, index) => (
             <article key={material.id} className={s.materialCard} style={{ animationDelay: `${index * 80}ms` }}>
               <span className={s.cardNumber}>{t("documents.material_n", { n: String(index + 1) })}</span>
@@ -378,6 +415,10 @@ export function DocumentsPage() {
               </dl>
               <div className={s.cardActions}>
                 <button type="button" onClick={() => { setSelectedIndex(index); setView("preview"); }}>{t("documents.preview")}</button>
+                <button type="button" onClick={() => void copyMaterialText(index)}>
+                  <Copy size={16} aria-hidden />
+                  {t("documents.copy_text")}
+                </button>
                 <button type="button" onClick={() => void downloadPdf(index)}>
                   {downloadingIndex === index ? <Loader2 size={16} className={s.spin} aria-hidden /> : <Download size={16} aria-hidden />}
                   {t("documents.download_pdf")}
@@ -403,10 +444,16 @@ export function DocumentsPage() {
               </button>
             ))}
           </div>
-          <button type="button" className={s.iconText} onClick={() => void downloadPdf(selectedIndex)}>
-            {downloadingIndex === selectedIndex ? <Loader2 size={17} className={s.spin} aria-hidden /> : <Download size={17} aria-hidden />}
-            {t("documents.download_pdf")}
-          </button>
+          <div className={s.previewActions}>
+            <button type="button" className={s.iconText} onClick={() => void copyMaterialText(selectedIndex)}>
+              <Copy size={17} aria-hidden />
+              {t("documents.copy_text")}
+            </button>
+            <button type="button" className={s.iconText} onClick={() => void downloadPdf(selectedIndex)}>
+              {downloadingIndex === selectedIndex ? <Loader2 size={17} className={s.spin} aria-hidden /> : <Download size={17} aria-hidden />}
+              {t("documents.download_pdf")}
+            </button>
+          </div>
         </div>
         <iframe
           title={material.title}
@@ -436,7 +483,7 @@ export function DocumentsPage() {
             <HelpCircle size={17} aria-hidden /> {t("documents.guide")}
           </button>
         </header>
-        {toast && <div className={s.toast} role="status"><span>{toast}</span><button type="button" onClick={() => setToast(null)}><X size={16} aria-hidden /></button></div>}
+        {toast && <div className={s.toast} role="status"><span>{toast}</span><button type="button" aria-label={t("common.close")} onClick={() => setToast(null)}><X size={16} aria-hidden /></button></div>}
         {view === "input" && renderInput()}
         {view === "waiting" && renderWaiting()}
         {view === "results" && renderResults()}

@@ -169,6 +169,10 @@ function esc(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
+function sameText(left: string, right: string): boolean {
+  return left.trim().localeCompare(right.trim(), undefined, { sensitivity: 'base' }) === 0;
+}
+
 function interactionLabel(value: string): string {
   return value.replace(/_/g, ' ');
 }
@@ -220,7 +224,11 @@ function renderInstructions(
 function renderArticle(
   block: Extract<MaterialBlock, { type: 'article' }>,
   preset: PresetConfig,
+  materialTitle: string,
 ): string {
+  const articleTitle = block.title && !sameText(block.title, materialTitle)
+    ? block.title
+    : undefined;
   const [first, ...rest] = block.paragraphs;
   const firstParagraph = first
     ? `<p class="article-paragraph article-opening"><span class="dropcap">${esc(first.charAt(0))}</span>${esc(first.slice(1))}</p>`
@@ -231,7 +239,7 @@ function renderArticle(
 
   return wrapSection(
     preset,
-    `${renderHeading(block.heading ?? block.title)}<div class="article-frame">${block.title ? `<div class="article-kicker">${esc(block.title)}</div>` : ''}${firstParagraph}${paragraphs}</div>`,
+    `${renderHeading(block.heading ?? articleTitle)}<div class="article-frame">${articleTitle ? `<div class="article-kicker">${esc(articleTitle)}</div>` : ''}${firstParagraph}${paragraphs}</div>`,
     'airy',
   );
 }
@@ -378,12 +386,17 @@ function renderNotes(
   );
 }
 
-function renderBlock(block: MaterialBlock, preset: PresetConfig, mark: AtomMarker = null): string {
+function renderBlock(
+  block: MaterialBlock,
+  preset: PresetConfig,
+  materialTitle: string,
+  mark: AtomMarker = null,
+): string {
   switch (block.type) {
     case 'instructions':
       return renderInstructions(block, preset);
     case 'article':
-      return renderArticle(block, preset);
+      return renderArticle(block, preset, materialTitle);
     case 'questions':
       return renderQuestions(block, preset, mark);
     case 'reference_list':
@@ -990,7 +1003,7 @@ export function renderMaterialHtml(
   <body>
     <div class="doc">
       ${renderHeader(material, preset)}
-      ${material.blocks.map((block) => renderBlock(block, preset, mark)).join('')}
+      ${material.blocks.map((block) => renderBlock(block, preset, material.title, mark)).join('')}
       ${buildAnswerKey(material)}
       <div class="footer-note">TeachInspire Studio • ${esc(material.material_type.replace(/_/g, ' '))} • ${esc(preset.label)}</div>
     </div>

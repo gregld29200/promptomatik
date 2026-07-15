@@ -51,6 +51,19 @@ describe("material renderer (ported)", () => {
     expect(html).not.toContain("RenderInspire");
     expect(html).toContain("page-break-inside: avoid");
   });
+
+  it("does not repeat the material title in an article block", () => {
+    const html = renderMaterialHtml({
+      ...FULL_MATERIAL,
+      title: "Remote Work",
+      material_type: "clean_handout",
+      blocks: [{ type: "article", title: "remote work", paragraphs: ["Opening paragraph."] }],
+    });
+
+    expect(html).toContain('<h1 class="doc-title">Remote Work</h1>');
+    expect(html).not.toContain('<h2 class="section-heading">remote work</h2>');
+    expect(html).not.toContain('<div class="article-kicker">remote work</div>');
+  });
   it("lets sections flow between pages but keeps atomic items unbreakable", () => {
     const html = renderMaterialHtml(FULL_MATERIAL);
     // The section shell must NOT force page-break-inside: avoid — that was the
@@ -86,6 +99,22 @@ describe("material renderer (ported)", () => {
 });
 function llmResponse(content: string): Response {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
+}
+function simpleHandoutJson(): string {
+  return JSON.stringify({
+    materials: [
+      {
+        material_type: "clean_handout",
+        title: "Remote work for trainers",
+        skill_focus: "reading",
+        interaction_pattern: "individual",
+        estimated_minutes: 10,
+        blocks: [
+          { type: "article", title: "Remote work for trainers", paragraphs: ["Paragraph one.", "Paragraph two."] },
+        ],
+      },
+    ],
+  });
 }
 function validMaterialsJson(topic = "remote work for trainers"): string {
   const material = (type: string, skill: string, blocks: unknown[]) => ({
@@ -169,12 +198,50 @@ describe("documents LLM port", () => {
     const fetcher = (async () => llmResponse("not json at all")) as typeof fetch;
     await expect(callLLM({ apiKey: "k", fetcher }, REQUEST_CONTENT)).rejects.toThrow(/invalid JSON/i);
   });
+
+  it("simple mode uses the simple-document prompt and returns 1 clean handout", async () => {
+    const requests: string[] = [];
+    const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(String(init?.body ?? ""));
+      return llmResponse(simpleHandoutJson());
+    }) as typeof fetch;
+    const result = await callLLM(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work",
+      undefined, undefined, "auto", "three_materials", undefined, "simple",
+    );
+    expect(result.materials).toHaveLength(1);
+    expect(result.materials[0].material_type).toBe("clean_handout");
+    expect(result.materials[0].preset_id).toBe("studio_academic");
+    expect(requests[0]).toContain("Simple Document mode");
+    expect(requests[0]).toContain("MODE: SIMPLE_DOCUMENT");
+    expect(requests[0]).not.toContain("exactly 3 materials");
+  });
+
+  it("simple mode keeps only the first material if the model over-produces", async () => {
+    const overProduced = JSON.parse(simpleHandoutJson()) as { materials: unknown[] };
+    overProduced.materials.push(overProduced.materials[0]);
+    const fetcher = (async () => llmResponse(JSON.stringify(overProduced))) as typeof fetch;
+    const result = await callLLM(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work",
+      undefined, undefined, "auto", "three_materials", undefined, "simple",
+    );
+    expect(result.materials).toHaveLength(1);
+  });
+
+  it("lesson mode still requires 3 materials (a 1-material payload triggers retry then failure)", async () => {
+    const fetcher = (async () => llmResponse(simpleHandoutJson())) as typeof fetch;
+    await expect(callLLM({ apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work")).rejects.toThrow(/Expected exactly 3/i);
+  });
 });
 describe("document request validation", () => {
   it("rejects short and oversized content, accepts normal content", () => {
     expect(validateDocumentRequest({ content: "too short" })).toBe("content_too_short");
     expect(validateDocumentRequest({ content: Array.from({ length: 40 }, () => "word").join(" ") })).toBeNull();
     expect(validateDocumentRequest({ content: "word ".repeat(31).padEnd(15_001, "x") })).toBe("content_too_long");
+  });
+
+  it("rejects an unknown document mode", () => {
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, mode: "surprise_me" })).toBe("invalid_request");
   });
 });
 const TEST_SCHEMA = [

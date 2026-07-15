@@ -1,9 +1,10 @@
 import { presetForIndex } from './material-renderer';
 import { buildGenerationContext, validateMaterials } from './input-context';
-import { SYSTEM_PROMPT, buildUserPrompt } from './system-prompt';
+import { SIMPLE_SYSTEM_PROMPT, SYSTEM_PROMPT, buildSimpleUserPrompt, buildUserPrompt } from './system-prompt';
 import {
   TransformErrorSchema,
   TransformResponseSchema,
+  type DocumentMode,
   type InputKind,
   type OutputIntent,
   type TransformMaterial,
@@ -89,6 +90,9 @@ function inferMaterialType(
   skillFocus: unknown,
   blocks: unknown,
 ): string {
+  // Simple-mode handouts carry article blocks; don't reinterpret them as a quiz.
+  if (normalizedType === 'clean_handout') return normalizedType;
+
   const skill = typeof skillFocus === 'string' ? skillFocus : '';
   const types = blockTypes(blocks);
 
@@ -160,7 +164,7 @@ function normalizeMaterial(material: LooseMaterial): LooseMaterial {
   };
 }
 
-function normalizePayloadShape(payload: unknown): unknown {
+function normalizePayloadShape(payload: unknown, expectedCount: number): unknown {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return payload;
   }
@@ -171,7 +175,7 @@ function normalizePayloadShape(payload: unknown): unknown {
 
   return {
     materials: materials
-      .slice(0, 3)
+      .slice(0, expectedCount)
       .map((item) => (item && typeof item === 'object' && !Array.isArray(item) ? normalizeMaterial(item as LooseMaterial) : item)),
   };
 }
@@ -218,13 +222,13 @@ async function requestCompletion(config: DocumentsLlmConfig, messages: ChatMessa
   }
 }
 
-function parseMaterials(payload: unknown): TransformMaterial[] {
+function parseMaterials(payload: unknown, expectedCount: number): TransformMaterial[] {
   const errorResult = TransformErrorSchema.safeParse(payload);
   if (errorResult.success) {
     throw new Error(errorResult.data.error);
   }
 
-  const normalizedPayload = normalizePayloadShape(payload);
+  const normalizedPayload = normalizePayloadShape(payload, expectedCount);
   const result = TransformResponseSchema.safeParse(normalizedPayload);
   if (!result.success) {
     console.error('[llm] Invalid response shape:', result.error.flatten());
@@ -235,6 +239,10 @@ function parseMaterials(payload: unknown): TransformMaterial[] {
         : JSON.stringify(normalizedPayload, null, 2).slice(0, 2000),
     );
     throw new Error('AI returned an unexpected structure. Try again.');
+  }
+
+  if (result.data.materials.length !== expectedCount) {
+    throw new Error(`Expected exactly ${expectedCount} material(s), got ${result.data.materials.length}.`);
   }
 
   return result.data.materials.map((material, index) => ({
@@ -253,12 +261,22 @@ export async function callLLM(
   inputKind: InputKind = 'auto',
   outputIntent: OutputIntent = 'three_materials',
   customRequest?: string,
+  mode: DocumentMode = 'lesson',
 ): Promise<TransformResponse> {
-  const context = buildGenerationContext(content, title, inputKind, outputIntent, customRequest);
-  const baseMessages: ChatMessage[] = [
-    { role: 'system', content: SYSTEM_PROMPT },
-    { role: 'user', content: buildUserPrompt(content, context, title, level, languageFocus) },
-  ];
+  const expectedCount = mode === 'simple' ? 1 : 3;
+  const rawContext = buildGenerationContext(content, title, inputKind, outputIntent, customRequest);
+  // Simple mode formats the teacher's content as-is: bundle-coverage rules don't apply.
+  const context = mode === 'simple' ? { ...rawContext, requiredCoverage: [] } : rawContext;
+  const baseMessages: ChatMessage[] =
+    mode === 'simple'
+      ? [
+          { role: 'system', content: SIMPLE_SYSTEM_PROMPT },
+          { role: 'user', content: buildSimpleUserPrompt(content, title, level, languageFocus, customRequest) },
+        ]
+      : [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: buildUserPrompt(content, context, title, level, languageFocus) },
+        ];
 
   const attempts: ChatMessage[][] = [baseMessages];
 
@@ -267,7 +285,7 @@ export async function callLLM(
 
     let materials: TransformMaterial[];
     try {
-      materials = parseMaterials(payload);
+      materials = parseMaterials(payload, expectedCount);
     } catch (error) {
       if (attempt === 1) throw error;
       const message = error instanceof Error ? error.message : 'Invalid response structure.';
@@ -277,7 +295,7 @@ export async function callLLM(
           role: 'user',
           content: [
             'Your previous output did not match the required JSON structure.',
-            'Regenerate from scratch and return only valid JSON with exactly 3 materials.',
+            `Regenerate from scratch and return only valid JSON with exactly ${expectedCount} material(s).`,
             'Each material must include: material_type, title, skill_focus, interaction_pattern, estimated_minutes, blocks.',
             'Use only the allowed block types.',
             `Previous error: ${message}`,
@@ -303,7 +321,7 @@ export async function callLLM(
       {
         role: 'user',
         content: [
-          'Your previous output failed validation. Regenerate all 3 materials from scratch.',
+          `Your previous output failed validation. Regenerate all ${expectedCount} material(s) from scratch.`,
           'Fix these issues exactly:',
           ...validationErrors.map((error) => `- ${error}`),
           'Do not explain. Return valid JSON only.',

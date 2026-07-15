@@ -1,53 +1,51 @@
-# Project Plan — Home hub UI fixes (/web-design-guidelines review)
+# Project Plan — Documents: "Simple document" mode + clean copy
 
-Previous plan (Tiered Access) is complete — all steps checked off; see git history.
+Previous plan (Home hub UI fixes + Studio wordmark + auth rebrand) is complete — all steps checked off; see git history.
 
-Scope: the post-login hub page shown in the screenshot — [src/pages/home.tsx](src/pages/home.tsx) + [src/pages/home.module.css](src/pages/home.module.css). Reviewed against Web Interface Guidelines (vercel-labs, fetched 2026-07-15).
+## Problem
 
----
+Greg pasted a reading text into Documents, chose the **custom** output intent, asked for a single simple handout — and got a full 3-material lesson (comprehension quiz, matching, role play) anyway.
 
-## Review findings
+Root cause: the pipeline can *only* produce lesson bundles.
 
-### src/pages/home.module.css
+- [worker/lib/documents/system-prompt.ts:14](worker/lib/documents/system-prompt.ts) — "Return exactly 3 materials", with a hard bundle target (reading / guided practice / freer practice) baked into both RAW_CONTENT and STRUCTURED prompts.
+- [worker/lib/documents/input-context.ts:212](worker/lib/documents/input-context.ts) — `custom` intent maps to "a 3-document custom bundle"; the user's custom request is a single appended line the model can't honor against the hard rules.
+- [worker/lib/documents/generate.ts:174](worker/lib/documents/generate.ts) — normalization slices to 3; the retry prompt re-demands "exactly 3 materials".
 
-- `home.module.css:100` — `.recentLabel` is a flex child without `min-width: 0`, so `text-overflow: ellipsis` never kicks in → long prompt titles paint past the card edge (visible in the screenshot: "24-Hour B1→B2 English Training Program…"). **The one real bug.**
-- `home.module.css:171` — `.cardLink` has no `hover:` state (guideline: interactive elements need visual feedback).
-- `home.module.css:17` — `.title` missing `text-wrap: balance` (heading widows).
-- `home.module.css:13,27,74,97,111,…` — stale hardcoded hex fallbacks that drift from tokens.css (`#b0623c` vs `--color-terracotta-600: #bf4e36`, `#688889` and `#f1d263` aren't tokens at all). Project convention: tokens only.
-- `.card`, `.cardIcon`, `.cardCta`, `.lockBadge`, `.recentRow` are all sharp squares while every other page (dashboard, library) uses `--radius-*` tokens → visual inconsistency across the app.
-- Spacing/font sizes hardcoded in rem (`1.3rem 1.4rem`, `0.88rem`…) instead of `--space-*` / `--text-*` tokens.
+## Design decision (validated with Greg, 2026-07-15)
 
-### src/pages/home.tsx
+Two explicit paths, chosen up front — the teacher stays in charge:
 
-- `home.tsx:71` — `prompt.name` rendered with no fallback; an empty name yields a blank row (dashboard.tsx:393 uses the `|| "Untitled"` pattern).
-- Passing items: decorative icons have `aria-hidden` ✓, icon-only buttons n/a, headings hierarchical (h1→h2) ✓, external links `rel="noreferrer"` ✓, skeleton honors `prefers-reduced-motion` ✓, global `:focus-visible` outline applies ✓.
+1. **Simple document** (new): the app formats the teacher's own content into one clean, print-ready material. It does NOT add questions, exercises, or activities unless the teacher explicitly asks in the optional request field. Inverse Rule Zero: "structure and present, don't teach."
+2. **Lesson bundle** (existing): the current 3-material generator, untouched.
 
----
+Plus, on every generated material regardless of path: a **"Copy as text"** button that yields clean plain text/markdown (no HTML/JSON) so teachers can take the content into Word/Docs and own it. TeachInspire principle: never a prisoner of the app.
+
+Rejected alternatives: prompt-tweaking `custom` (fragile — the whole prompt is bundle-shaped); a 0–3 scaffolding slider (more UI, more edge cases; binary matches how teachers think).
 
 ## Todo
 
-- [x] 1. Fix title overflow: `min-width: 0` + `flex: 1` on `.recentLabel`
-- [x] 2. Replace stale hex fallbacks with design tokens (no hardcoded colors)
-- [x] 3. Apply `--radius-*` tokens to card, icon chip, CTA, lock badge, recent rows — align with the rest of the app
-- [x] 4. Add hover state to `.cardLink`; `text-wrap: balance` on `.title` and card headings
-- [x] 5. `home.tsx`: fallback label for empty prompt names
-- [x] 6. Verify in browser (dev server) with before/after screenshots
+- [x] 1. **Worker — mode plumbing.** Add `mode: "simple" | "lesson"` (default `lesson`) through the request type, runtime validation, job payload, and LLM call.
+- [x] 2. **Worker — simple-mode prompt.** New short system prompt in [system-prompt.ts](worker/lib/documents/system-prompt.ts): same block types + JSON contract, but "return exactly 1 material", content fidelity, no invented exercises/questions/activities unless the user request asks; optional light touches (title, word bank) only on request.
+- [x] 3. **Worker — validation.** In [generate.ts](worker/lib/documents/generate.ts), accept 1 material in simple mode (keep exactly-3 for lesson mode); adjust normalization and retry prompts per mode. Renderer/PDF pipeline remains per-material.
+- [x] 4. **UI — mode choice first.** In [src/pages/documents.tsx](src/pages/documents.tsx): a two-option choice at the top of the form ("Simple document" / "Lesson bundle") using the existing `ChoiceButtons` component. Simple mode hides the bundle intent selector and shows only: source content, optional title/level, optional request textarea. EN/FR strings; ES continues to use the project's existing EN fallback for the Documents section.
+- [x] 5. **UI — "Copy as text".** Blocks→plain-text serializer in `src/lib/`, copy button on each generated material in results and preview, with success/error feedback. Works for both modes.
+- [x] 6. **Tests.** Regression coverage for simple-mode prompt/count behavior, invalid modes, duplicate-title rendering, and all supported block families in the plain-text serializer.
+- [x] 7. **Verify locally.** On `wrangler dev`, exercise the simple-mode request payload with a mocked response, open a completed one-material job, verify preview/copy behavior, and re-check the existing three-material result at desktop and mobile widths. No live external LLM request was made.
 
-Every change is CSS-local to the home page plus one one-line TSX fallback — minimal blast radius.
+Blast radius: one new system prompt + a mode flag through existing seams; no schema/renderer changes. Lesson path behavior is untouched.
 
----
+## Decisions (Greg, 2026-07-15)
+
+- `custom` stays in the bundle selector (for custom bundles); "Simple document" is the new top-level path.
+- Copy format: **plain text** — teachers shouldn't need to know what markdown is.
 
 ## Review
 
-**Changed files:** `src/pages/home.module.css` (rewritten, all tokens), `src/pages/home.tsx` (one line).
-
-- **Overflow bug fixed** — `.recentLabel` got `flex: 1; min-width: 0`, so long titles now truncate with an ellipsis inside the card instead of painting past its edge.
-- **Premium pass, on-token** — cards now use `--radius-lg` + `--shadow-sm` with a subtle gold radial wash and a hover lift (`--shadow-card-hover`, translateY(-2px), disabled under `prefers-reduced-motion`); icon chips are gold-tinted squares; CTAs are pill buttons matching the shared Button component; the community card gets a navy gradient with a gold-glow corner; the lock badge is a gold pill. Header title upgraded to `--text-4xl` with Fraunces WONK/opsz settings to match the dashboard greeting.
-- **Guideline fixes** — hover state on `.cardLink`, `text-wrap: balance` on headings, `text-wrap: pretty` on the subtitle, recent rows get a rounded gold-50 hover surface.
-- **Tokens only** — every stale hex fallback (`#b0623c`, `#688889`, `#f1d263`…) replaced with `tokens.css` variables; spacing/type moved to `--space-*`/`--text-*`.
-- **`home.tsx:71`** — empty prompt names fall back to "Untitled" (same pattern as dashboard.tsx).
-
-**Verification:** `npm run build` ✓, `npm test` 112/112 ✓, visual check in Chrome against local wrangler dev (seeded admin) — full page screenshotted, truncation and all four card variants confirmed.
+- **Worker:** `mode` defaults to `lesson`, so old clients keep the existing three-material behavior. Simple mode uses its own fidelity-first prompt and expects one `clean_handout`.
+- **Output safety:** both copied text and rendered HTML suppress a repeated article title when it matches the material title. Lesson materials with a distinct article title remain unchanged.
+- **UI:** the mode is the first choice, path-specific requests are cleared when switching paths, selections expose `aria-pressed`, and Copy is available in results and preview. Single-document and three-document action layouts are responsive without overflow.
+- **Verification:** `npm test` (119/119), `npm run build`, and `git diff --check` pass. Browser QA passed at 1280 px and 375 px with no console/runtime errors. The only build note is the existing Vite chunk-size warning.
 
 ---
 

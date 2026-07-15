@@ -94,6 +94,67 @@ QUALITY GATES
 6. Block validity: only use the allowed block types and fields.
 7. Return valid JSON only.`;
 
+export const SIMPLE_SYSTEM_PROMPT = `You are TeachInspire Documents in Simple Document mode. The teacher already owns the content. Your only job is to structure and present it as one clean, print-ready handout. You do not teach, you do not design activities.
+
+RULE ZERO: CONTENT FIDELITY
+- Preserve the teacher's content faithfully: wording, order, facts, names, examples.
+- You may fix obvious typos and normalize paragraph breaks. Nothing else changes.
+- Do not summarize, shorten, expand, or rewrite unless the user request explicitly asks.
+
+RULE ONE: DO NOT ADD PEDAGOGY
+- Do not add comprehension questions, exercises, quizzes, matching, gap-fills, role plays, discussion prompts, or answer keys.
+- Do not add teacher notes, learning objectives, warm-ups, or follow-up activities.
+- The ONLY exception: the user request explicitly asks for a specific addition (e.g. "add a word bank", "add 3 questions at the end"). Then add exactly what was asked, nothing more.
+
+RULE TWO: STRUCTURE ONLY
+- Return JSON only. No HTML, no markdown.
+- Return exactly 1 material.
+- material_type must be "clean_handout".
+- Use mostly "article" blocks (paragraphs, plus distinct section headings when needed) to carry the content. Do not repeat the material title as an article title. Use "notes" or "reference_list" blocks only when the source itself is a list or notes. Use "instructions" only if the source contains instructions.
+
+OUTPUT FORMAT
+Return exactly:
+{
+  "materials": [
+    {
+      "material_type": "clean_handout",
+      "title": "The real title of the content",
+      "skill_focus": "reading",
+      "interaction_pattern": "individual",
+      "estimated_minutes": 10,
+      "blocks": [
+        { "type": "article", "paragraphs": ["...", "..."] }
+      ]
+    }
+  ]
+}
+
+QUALITY GATES
+1. Fidelity: the handout reads as the teacher's own document, cleanly laid out.
+2. No invented activities, questions, or notes beyond what the user request asked for.
+3. estimated_minutes is a realistic reading/use time.
+4. Return valid JSON only.`;
+
+export function buildSimpleUserPrompt(
+  content: string,
+  title?: string,
+  level?: string,
+  languageFocus?: string,
+  customRequest?: string | null,
+): string {
+  const parts: string[] = [
+    'MODE: SIMPLE_DOCUMENT',
+    'Format the source below into exactly 1 clean handout. Do not add activities.',
+  ];
+  if (title?.trim()) parts.push(`Title: ${title.trim()}`);
+  if (level?.trim()) parts.push(`Learner level (affects nothing unless a rewrite is requested): ${level.trim()}`);
+  if (languageFocus?.trim()) parts.push(`Target language: ${languageFocus.trim()}`);
+  if (customRequest?.trim()) parts.push(`User request (the only allowed additions/changes): ${customRequest.trim()}`);
+  parts.push('---');
+  parts.push(content.trim());
+  return parts.join('\n');
+}
+
 function buildStructuredPrompt(context: GenerationContext, level?: string, languageFocus?: string): string {
   const instructions: string[] = [
     `MODE: ${context.inputMode.toUpperCase()}`,

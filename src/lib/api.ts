@@ -771,6 +771,7 @@ export type DocumentOutputIntent =
   | "assessment_pack"
   | "unit_snapshot"
   | "custom";
+export type DocumentMode = "lesson" | "simple";
 export type DocumentPresetId = "studio_academic" | "modern_training" | "warm_coaching";
 export type DocumentMaterialType =
   | "gap_fill"
@@ -803,7 +804,8 @@ export type DocumentMaterialType =
   | "transformation_exercise"
   | "timeline_exercise"
   | "character_analysis_card"
-  | "prediction_exercise";
+  | "prediction_exercise"
+  | "clean_handout";
 export type DocumentSkillFocus =
   | "reading"
   | "writing"
@@ -828,6 +830,37 @@ export interface TransformDocumentPayload {
   inputKind?: DocumentInputKind;
   outputIntent?: DocumentOutputIntent;
   customRequest?: string;
+  mode?: DocumentMode;
+}
+
+export interface DocumentBlockItem {
+  prompt?: string;
+  answer?: string;
+  term?: string;
+  detail?: string;
+  example?: string;
+  sentence?: string;
+}
+
+export interface DocumentBlockCard {
+  role: string;
+  situation: string;
+  goal: string;
+  bullets?: string[];
+  prompts?: string[];
+}
+
+export interface DocumentBlock {
+  type: string;
+  heading?: string;
+  title?: string;
+  text?: string;
+  paragraphs?: string[];
+  bullets?: string[];
+  word_bank?: string[];
+  items?: DocumentBlockItem[];
+  pairs?: { left: string; right: string }[];
+  cards?: DocumentBlockCard[];
 }
 
 export interface DocumentMaterial {
@@ -838,6 +871,7 @@ export interface DocumentMaterial {
   skill_focus: DocumentSkillFocus;
   interaction_pattern: DocumentInteractionPattern;
   estimated_minutes: number;
+  blocks: DocumentBlock[];
 }
 
 export interface DocumentJob {

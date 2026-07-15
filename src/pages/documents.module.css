@@ -305,6 +305,9 @@
   gap: var(--space-4);
   margin-top: var(--space-5);
 }
+.materialGridSingle {
+  grid-template-columns: minmax(0, 520px);
+}
 .materialCard {
   display: grid;
   gap: var(--space-4);
@@ -320,6 +323,9 @@
   font-family: var(--font-display);
   font-size: var(--text-2xl);
   line-height: var(--leading-snug);
+}
+.materialGridSingle .materialCard h3 {
+  min-height: 0;
 }
 .materialCard p {
   margin: 0;
@@ -354,15 +360,19 @@
   font-weight: var(--weight-bold);
 }
 .cardActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
 }
 .cardActions button {
   display: inline-flex;
-  flex: 1;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   padding: 0 var(--space-3);
+}
+.cardActions button:first-child {
+  grid-column: 1 / -1;
 }
 .previewPanel {
   display: grid;
@@ -377,6 +387,11 @@
 .previewNav button {
   width: 38px;
   padding: 0;
+}
+.previewActions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
 }
 .previewFrame {
   width: min(800px, 100%);
@@ -484,5 +499,11 @@
   }
   .previewFrame {
     height: 76vh;
+  }
+  .cardActions {
+    grid-template-columns: 1fr;
+  }
+  .cardActions button:first-child {
+    grid-column: auto;
   }
 }

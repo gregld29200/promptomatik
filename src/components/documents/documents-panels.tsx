@@ -32,7 +32,13 @@ export function ChoiceButtons<Value extends string>(props: {
       <legend>{props.label} {props.help}</legend>
       <div className={s.optionList}>
         {props.options.map((option) => (
-          <button key={option} type="button" className={props.value === option ? s.optionActive : ""} onClick={() => props.onChange(option)}>
+          <button
+            key={option}
+            type="button"
+            aria-pressed={props.value === option}
+            className={props.value === option ? s.optionActive : ""}
+            onClick={() => props.onChange(option)}
+          >
             {t(`${props.keyPrefix}.${option}`)}
           </button>
         ))}

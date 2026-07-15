@@ -509,6 +509,12 @@
     "title": "Documents",
     "guide": "Guide",
     "help_dot": "Explication du champ",
+    "mode_label": "Que voulez-vous créer ?",
+    "modes": {
+      "simple": "Document simple (votre contenu, mis en forme)",
+      "lesson": "Pack de cours (3 supports générés)"
+    },
+    "help_mode": "Document simple met en page votre propre contenu en un seul support propre à imprimer, sans ajouter d'activités. Pack de cours génère trois supports pédagogiques complémentaires à partir de votre source.",
     "input_title": "Contenu source",
     "input_intro": "Collez le texte, le plan ou le cahier des charges à transformer en supports pédagogiques.",
     "content_label": "Contenu à transformer",
@@ -532,6 +538,8 @@
     "help_output_intent": "Choisissez le type de pack souhaité. Le mode recommandé produit trois supports variés.",
     "custom_request": "Demande sur mesure",
     "custom_placeholder": "Ex. : privilégier la production orale et un corrigé très détaillé.",
+    "simple_request": "Demande optionnelle",
+    "simple_request_placeholder": "Ex. : ajouter une banque de mots à la fin.",
     "generate": "Générer les documents",
     "submitting": "Envoi en cours",
     "retry": "Réessayer",
@@ -541,11 +549,13 @@
     "waiting_eyebrow": "Génération en cours",
     "waiting_analysis": "Analyse du contenu",
     "waiting_building": "Construction des trois supports",
+    "waiting_building_simple": "Mise en forme de votre document",
     "waiting_finalizing": "Finalisation des documents",
     "waiting_expectation": "Cela prend généralement 1 à 3 minutes.",
     "waiting_long": "C'est plus long que prévu, mais on continue d'essayer.",
     "results_eyebrow": "Prêt à imprimer",
     "results_title": "Vos 3 supports",
+    "results_title_one": "Votre document",
     "new_document": "Nouveau document",
     "material_n": "Document {{n}}",
     "focus": "Focus",
@@ -555,6 +565,9 @@
     "minutes": "~{{count}} min",
     "preview": "Aperçu",
     "download_pdf": "Télécharger le PDF",
+    "copy_text": "Copier le texte",
+    "copied": "Texte copié. Vous pouvez le coller dans votre propre document.",
+    "copy_error": "La copie a échoué. Sélectionnez le texte dans l'aperçu.",
     "back_results": "Retour aux résultats",
     "pdf_unavailable": "Le PDF est disponible sur la version en ligne.",
     "pdf_error": "Le PDF n'a pas pu être généré. Réessayez dans un instant.",
@@ -647,7 +660,8 @@
       "transformation_exercise": "Exercice de transformation",
       "timeline_exercise": "Exercice de chronologie",
       "character_analysis_card": "Fiche d'analyse de personnage",
-      "prediction_exercise": "Exercice de prédiction"
+      "prediction_exercise": "Exercice de prédiction",
+      "clean_handout": "Document mis en forme"
     }
   },
   "upgrade": {

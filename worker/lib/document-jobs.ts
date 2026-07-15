@@ -5,7 +5,7 @@
 import { nanoid } from "nanoid";
 import type { Env } from "../env";
 import { callLLM, type DocumentsLlmConfig } from "./documents/generate";
-import { InputKindSchema, OutputIntentSchema, type TransformResponse } from "./documents/types";
+import { DocumentModeSchema, InputKindSchema, OutputIntentSchema, type TransformResponse } from "./documents/types";
 
 export interface DocumentRequest {
   content: string;
@@ -15,6 +15,7 @@ export interface DocumentRequest {
   inputKind?: string;
   outputIntent?: string;
   customRequest?: string;
+  mode?: string;
 }
 
 export interface DocumentJobRow {
@@ -56,7 +57,8 @@ const DEFAULT_GENERATOR: DocumentGenerator = (config, request) =>
     request.languageFocus,
     InputKindSchema.catch("auto").parse(request.inputKind),
     OutputIntentSchema.catch("three_materials").parse(request.outputIntent),
-    request.customRequest
+    request.customRequest,
+    DocumentModeSchema.catch("lesson").parse(request.mode)
   );
 
 function countWords(input: string): number {
@@ -65,6 +67,9 @@ function countWords(input: string): number {
 
 export function validateDocumentRequest(request: DocumentRequest): string | null {
   const content = request.content?.trim() ?? "";
+  if (request.mode !== undefined && !DocumentModeSchema.safeParse(request.mode).success) {
+    return "invalid_request";
+  }
   if (countWords(content) < 30) {
     return "content_too_short";
   }
