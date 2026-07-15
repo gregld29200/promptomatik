@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DocumentMaterial } from "../../src/lib/api";
 import { materialToPlainText } from "../../src/lib/document-text";
+import { materialUrl, parseEmphasisTerms } from "../../src/lib/document-presentation";
 
 const BASE_MATERIAL: DocumentMaterial = {
   id: "material-1",
@@ -88,5 +89,21 @@ describe("document plain-text serialization", () => {
     expect(text).toContain("1. Sam works ____.\n   Answer: remotely");
     expect(text).toContain("remote — away from the office");
     expect(text).toContain("Manager\nSituation: A team meeting\nGoal: Agree a schedule\n- Ask about Fridays.");
+  });
+});
+
+describe("simple document presentation controls", () => {
+  it("parses teacher-selected vocabulary from comma and line separated input", () => {
+    expect(parseEmphasisTerms("lead times, SLA\nwarranty claims, sla")).toEqual([
+      "lead times",
+      "SLA",
+      "warranty claims",
+    ]);
+  });
+
+  it("adds a presentation-only template query to preview and PDF URLs", () => {
+    expect(materialUrl("job 1", 0, "html", "classroom_handout")).toBe(
+      "/api/documents/jobs/job%201/materials/0.html?template=classroom_handout",
+    );
   });
 });

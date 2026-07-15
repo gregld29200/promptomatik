@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { ArrowLeft, Copy, Download, FileText, HelpCircle, Info, Loader2, X } from "lucide-react";
+import { Copy, Download, FileText, HelpCircle, Info, Loader2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { ChoiceButtons, GuideOverlay, RecentJobs } from "@/components/documents/documents-panels";
+import { DocumentPreview } from "@/components/documents/document-preview";
+import { SimpleDocumentOptions } from "@/components/documents/simple-document-options";
+import { SimpleTemplatePicker } from "@/components/documents/simple-template-picker";
 import { useAuth } from "@/lib/auth/auth-context";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import { materialToPlainText } from "@/lib/document-text";
+import { materialUrl, parseEmphasisTerms } from "@/lib/document-presentation";
 import {
   DRAFT_KEY, EMPTY_DRAFT, INPUT_KINDS, LEVELS, MODES, OUTPUT_INTENTS,
-  formatElapsed, materialUrl, presetLabel, wordCount,
+  documentErrorMessage, formatElapsed, presetLabel, wordCount,
   type DraftState, type ViewState,
 } from "@/lib/documents-page";
 import s from "./documents.module.css";
@@ -71,6 +75,14 @@ export function DocumentsPage() {
     }, 1000);
     return () => window.clearInterval(timer);
   }, [view, job?.id]);
+  useEffect(() => {
+    const material = job?.status === "completed" ? job.result?.materials[0] : undefined;
+    if (material?.material_type !== "clean_handout") return;
+    setDraft((prev) => ({
+      ...prev,
+      templateId: material.template_id ?? "editorial_reader",
+    }));
+  }, [job?.id, job?.status]);
   useEffect(() => {
     if (view !== "waiting" || !job) return;
     let stopped = false;
@@ -148,11 +160,13 @@ export function DocumentsPage() {
       inputKind: mode === "simple" ? undefined : inputKind,
       outputIntent: mode === "simple" ? undefined : outputIntent,
       customRequest: wantsCustomRequest && customRequest.trim() ? customRequest.trim() : undefined,
+      emphasisTerms: mode === "simple" ? parseEmphasisTerms(draft.emphasisInput) : undefined,
+      templateId: mode === "simple" ? draft.templateId : undefined,
     };
     const res = await api.transformDocument(payload);
     setSubmitting(false);
     if (res.error) {
-      setError(errorMessage(res.error.code ?? res.error.error));
+      setError(documentErrorMessage(res.error.code ?? res.error.error));
       return;
     }
     const nextJob: api.DocumentJob = {
@@ -187,6 +201,8 @@ export function DocumentsPage() {
         title: material.title,
         level: "",
         languageFocus: "",
+        emphasisInput: material.bold_phrases?.join(", ") ?? "",
+        templateId: material.template_id ?? "editorial_reader",
       });
     }
     setMode("simple");
@@ -198,7 +214,9 @@ export function DocumentsPage() {
     if (!job) return;
     setDownloadingIndex(index);
     setToast(null);
-    const response = await fetch(materialUrl(job.id, index, "pdf"), { credentials: "same-origin" });
+    const material = materials[index];
+    const templateId = material?.material_type === "clean_handout" ? draft.templateId : undefined;
+    const response = await fetch(materialUrl(job.id, index, "pdf", templateId), { credentials: "same-origin" });
     setDownloadingIndex(null);
     if (response.status === 503) {
       setToast(t("documents.pdf_unavailable"));
@@ -315,10 +333,14 @@ export function DocumentsPage() {
             </fieldset>
           )}
           {mode === "simple" && (
-            <label className={s.field}>
-              <span>{t("documents.simple_request")}</span>
-              <textarea className={s.smallArea} value={customRequest} onChange={(event) => setCustomRequest(event.target.value)} placeholder={t("documents.simple_request_placeholder")} />
-            </label>
+            <SimpleDocumentOptions
+              emphasisInput={draft.emphasisInput}
+              customRequest={customRequest}
+              templateId={draft.templateId}
+              onEmphasisChange={(value) => updateDraft("emphasisInput", value)}
+              onCustomRequestChange={setCustomRequest}
+              onTemplateChange={(templateId) => updateDraft("templateId", templateId)}
+            />
           )}
           {mode === "lesson" && (
             <button type="button" className={s.advancedToggle} onClick={() => setAdvancedOpen((prev) => !prev)}>
@@ -394,6 +416,13 @@ export function DocumentsPage() {
             <article key={material.id} className={s.materialCard} style={{ animationDelay: `${index * 80}ms` }}>
               {material.material_type !== "clean_handout" && <span className={s.cardNumber}>{t("documents.material_n", { n: String(index + 1) })}</span>}
               <h3>{material.title}</h3>
+              {material.material_type === "clean_handout" && (
+                <SimpleTemplatePicker
+                  compact
+                  value={draft.templateId}
+                  onChange={(templateId) => updateDraft("templateId", templateId)}
+                />
+              )}
               {material.material_type !== "clean_handout" && (
                 <>
                   <p>{t(`documents.material_types.${material.material_type}`)}</p>
@@ -425,40 +454,6 @@ export function DocumentsPage() {
       </section>
     );
   }
-  function renderPreview() {
-    const material = materials[selectedIndex];
-    if (!job || !material) return null;
-    return (
-      <section className={s.previewPanel}>
-        <div className={s.previewBar}>
-          <button type="button" className={s.iconText} onClick={() => setView("results")}><ArrowLeft size={17} aria-hidden /> {t("documents.back_results")}</button>
-          <div className={s.previewNav}>
-            {materials.map((item, index) => (
-              <button key={item.id} type="button" className={selectedIndex === index ? s.previewNavActive : ""} onClick={() => setSelectedIndex(index)}>
-                {index + 1}
-              </button>
-            ))}
-          </div>
-          <div className={s.previewActions}>
-            <button type="button" className={s.iconText} onClick={() => void copyMaterialText(selectedIndex)}>
-              <Copy size={17} aria-hidden />
-              {t("documents.copy_text")}
-            </button>
-            <button type="button" className={s.iconText} onClick={() => void downloadPdf(selectedIndex)}>
-              {downloadingIndex === selectedIndex ? <Loader2 size={17} className={s.spin} aria-hidden /> : <Download size={17} aria-hidden />}
-              {t("documents.download_pdf")}
-            </button>
-          </div>
-        </div>
-        <iframe
-          title={material.title}
-          className={s.previewFrame}
-          src={materialUrl(job.id, selectedIndex, "html")}
-          sandbox="allow-same-origin"
-        />
-      </section>
-    );
-  }
   if (!isParticipant) {
     return (
       <Shell>
@@ -482,15 +477,22 @@ export function DocumentsPage() {
         {view === "input" && renderInput()}
         {view === "waiting" && renderWaiting()}
         {view === "results" && renderResults()}
-        {view === "preview" && renderPreview()}
+        {view === "preview" && job && (
+          <DocumentPreview
+            jobId={job.id}
+            materials={materials}
+            selectedIndex={selectedIndex}
+            downloadingIndex={downloadingIndex}
+            templateId={draft.templateId}
+            onSelect={setSelectedIndex}
+            onTemplateChange={(templateId) => updateDraft("templateId", templateId)}
+            onBack={() => setView("results")}
+            onCopy={(index) => void copyMaterialText(index)}
+            onDownload={(index) => void downloadPdf(index)}
+          />
+        )}
         {guideOpen && <GuideOverlay onClose={() => setGuideOpen(false)} />}
       </div>
     </Shell>
   );
-}
-function errorMessage(code: string) {
-  if (code === "content_too_short") return t("documents.reason_too_short");
-  if (code === "content_too_long") return t("documents.reason_too_long");
-  if (code === "invalid_request") return t("documents.invalid_request");
-  return t("documents.submit_error");
 }

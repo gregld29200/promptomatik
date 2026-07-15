@@ -405,53 +405,6 @@
   background: #ffffff;
   box-shadow: var(--shadow-lifted);
 }
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: grid;
-  place-items: center;
-  padding: var(--space-4);
-  background: rgba(11, 23, 38, 0.42);
-}
-.guidePanel {
-  position: relative;
-  width: min(760px, 100%);
-  max-height: 90vh;
-  overflow: auto;
-  padding: var(--space-8);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg-card);
-  box-shadow: var(--shadow-lifted);
-}
-.closeButton {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: #ffffff;
-  cursor: pointer;
-}
-.guideGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-4);
-  margin-top: var(--space-6);
-}
-.guideGrid section {
-  border-top: 3px solid var(--color-cta);
-  padding-top: var(--space-3);
-}
-.guideGrid h3 {
-  margin: 0 0 var(--space-2);
-  font-family: var(--font-display);
-}
 .spin {
   animation: spin 900ms linear infinite;
 }
@@ -490,14 +443,12 @@
     align-items: stretch;
     flex-direction: column;
   }
-  .formGrid,
-  .guideGrid {
+  .formGrid {
     grid-template-columns: 1fr;
   }
   .panel,
   .recentPanel,
-  .resultsPanel,
-  .guidePanel {
+  .resultsPanel {
     padding: var(--space-4);
   }
   .previewFrame {

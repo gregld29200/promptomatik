@@ -538,8 +538,27 @@
     "help_output_intent": "Choisissez le type de pack souhaité. Le mode recommandé produit trois supports variés.",
     "custom_request": "Demande sur mesure",
     "custom_placeholder": "Ex. : privilégier la production orale et un corrigé très détaillé.",
-    "simple_request": "Mise en forme ou ajout optionnel",
-    "simple_request_placeholder": "Ex. : mettre lead times et warranty claims en gras, ou ajouter une banque de mots à la fin.",
+    "emphasis_label": "Vocabulaire à mettre en valeur",
+    "emphasis_placeholder": "Ex. : lead times, warranty claims, SLA",
+    "emphasis_help": "Saisissez les expressions exactes, séparées par des virgules. Les correspondances apparaîtront systématiquement en gras.",
+    "template_picker_label": "Style du document",
+    "template_picker_help": "Le style modifie uniquement la typographie et l'espacement. Vos mots restent inchangés.",
+    "simple_templates": {
+      "editorial_reader": {
+        "name": "Lecture éditoriale",
+        "description": "Une mise en page raffinée et aérée, pensée pour la lecture."
+      },
+      "classroom_handout": {
+        "name": "Support de classe",
+        "description": "Une structure chaleureuse et très lisible pour le quotidien en classe."
+      },
+      "compact_professional": {
+        "name": "Professionnel compact",
+        "description": "Une mise en page plus dense et sobre pour adultes et cours professionnels."
+      }
+    },
+    "simple_request": "Autre mise en forme ou ajout optionnel",
+    "simple_request_placeholder": "Ex. : ajouter une banque de mots à la fin. Les activités ne sont ajoutées que sur demande explicite.",
     "format_document": "Mettre en forme",
     "generate": "Générer les documents",
     "submitting": "Envoi en cours",

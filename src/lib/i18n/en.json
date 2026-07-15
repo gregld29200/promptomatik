@@ -538,8 +538,27 @@
     "help_output_intent": "Choose the pack you want. The recommended mode creates three varied materials.",
     "custom_request": "Custom request",
     "custom_placeholder": "E.g. prioritize speaking practice and a very detailed answer key.",
-    "simple_request": "Optional formatting or addition",
-    "simple_request_placeholder": "E.g. make lead times and warranty claims bold, or add a word bank at the end.",
+    "emphasis_label": "Vocabulary to highlight",
+    "emphasis_placeholder": "E.g. lead times, warranty claims, SLA",
+    "emphasis_help": "Enter exact phrases separated by commas. Matching terms are guaranteed to appear in bold.",
+    "template_picker_label": "Document style",
+    "template_picker_help": "The style changes typography and spacing only. Your words stay unchanged.",
+    "simple_templates": {
+      "editorial_reader": {
+        "name": "Editorial Reader",
+        "description": "Spacious, refined reading material with an editorial rhythm."
+      },
+      "classroom_handout": {
+        "name": "Classroom Handout",
+        "description": "Warm, highly readable structure for everyday classroom use."
+      },
+      "compact_professional": {
+        "name": "Compact Professional",
+        "description": "A denser, restrained layout for adult and business learners."
+      }
+    },
+    "simple_request": "Other formatting or optional addition",
+    "simple_request_placeholder": "E.g. add a word bank at the end. Activities are added only when you explicitly request them.",
     "format_document": "Format document",
     "generate": "Generate documents",
     "submitting": "Submitting",

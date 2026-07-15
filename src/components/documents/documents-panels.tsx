@@ -3,6 +3,7 @@ import { RefreshCcw, X } from "lucide-react";
 import { getLanguage, t } from "@/lib/i18n";
 import type * as api from "@/lib/api";
 import s from "@/pages/documents.module.css";
+import guide from "./documents-guide.module.css";
 
 function localeForDates() {
   return getLanguage() === "fr" ? "fr-FR" : "en-US";
@@ -77,12 +78,12 @@ export function RecentJobs(props: {
 
 export function GuideOverlay(props: { onClose: () => void }) {
   return (
-    <div className={s.overlay} role="dialog" aria-modal="true" aria-labelledby="documents-guide-title">
-      <div className={s.guidePanel}>
-        <button type="button" className={s.closeButton} onClick={props.onClose} aria-label={t("common.close")}><X size={18} /></button>
+    <div className={guide.overlay} role="dialog" aria-modal="true" aria-labelledby="documents-guide-title">
+      <div className={guide.panel}>
+        <button type="button" className={guide.closeButton} onClick={props.onClose} aria-label={t("common.close")}><X size={18} /></button>
         <p className={s.eyebrow}>{t("documents.guide_eyebrow")}</p>
         <h2 id="documents-guide-title">{t("documents.guide_title")}</h2>
-        <div className={s.guideGrid}>
+        <div className={guide.grid}>
           <section><h3>{t("documents.guide_paste_title")}</h3><p>{t("documents.guide_paste_body")}</p></section>
           <section><h3>{t("documents.guide_result_title")}</h3><p>{t("documents.guide_result_body")}</p></section>
           <section><h3>{t("documents.guide_timing_title")}</h3><p>{t("documents.guide_timing_body")}</p></section>
