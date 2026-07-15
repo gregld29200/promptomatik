@@ -246,6 +246,9 @@ export function DashboardPage() {
 
       <div className={s.header}>
         <div>
+          <p className={s.eyebrow} translate="no">
+            Promptomatik
+          </p>
           <BlurText
             text={t("dashboard.welcome", { name: user?.name ?? "" })}
             className={s.greeting}

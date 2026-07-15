@@ -18,28 +18,33 @@
 }
 
 .logo {
-  font-family: var(--font-display);
-  font-size: var(--text-xl);
-  font-weight: var(--weight-bold);
-  color: var(--color-cream-50);
-  text-decoration: none;
-  letter-spacing: var(--tracking-tight);
-  font-variation-settings: "WONK" 1, "opsz" 32;
-  transition: opacity var(--transition-fast);
   display: inline-flex;
-  align-items: center;
+  flex-direction: column;
+  gap: 3px;
+  text-decoration: none;
   line-height: 1;
+  transition: opacity var(--transition-fast);
 }
 
 .logo:hover {
   opacity: 0.85;
-  color: var(--color-cream-50);
 }
 
-.logoImg {
-  height: calc(var(--text-xl) * 3);
-  width: auto;
-  display: block;
+.logoName {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--color-cream-50);
+  letter-spacing: var(--tracking-tight);
+  font-variation-settings: "WONK" 1, "opsz" 32;
+}
+
+.logoStudio {
+  font-size: 0.66rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--color-gold-400);
 }
 
 .navLinks {
@@ -197,8 +202,8 @@
 }
 
 @media (max-width: 640px) {
-  .logoImg {
-    height: calc(var(--text-xl) * 2.2);
+  .logoName {
+    font-size: var(--text-lg);
   }
 
   .nav {

@@ -86,3 +86,12 @@
     padding: var(--space-6);
   }
 }
+
+.studioTag {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--color-gold-600);
+}

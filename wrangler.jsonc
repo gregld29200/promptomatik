@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "promptomatik",
+  "account_id": "d10290b868602035963eba56bf817946",
   "main": "./worker/index.ts",
   "compatibility_date": "2026-02-10",
   "routes": [

@@ -46,12 +46,15 @@ export function LoginPage() {
           <Card className={s.card} variant="elevated">
             <div className={s.accent} />
             <BlurText
-              text="Promptomatik"
+              text="TeachInspire"
               className={s.heading}
               delay={80}
               animateBy="letters"
               direction="top"
             />
+            <p className={s.studioTag} translate="no">
+              Studio
+            </p>
             <FadeIn delay={0.4} duration={0.4} direction="up" distance={12}>
               <p className={s.subtitle}>{t("auth.login_subtitle")}</p>
             </FadeIn>

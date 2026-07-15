@@ -70,12 +70,15 @@ export function ResetPasswordPage() {
           <Card className={s.card} variant="elevated">
             <div className={s.accent} />
             <BlurText
-              text="Promptomatik"
+              text="TeachInspire"
               className={s.heading}
               delay={80}
               animateBy="letters"
               direction="top"
             />
+            <p className={s.studioTag} translate="no">
+              Studio
+            </p>
             <p className={s.subtitle}>{t("auth.reset_subtitle")}</p>
 
             {!done ? (

@@ -37,7 +37,7 @@ export function RegisterPage() {
         <div className={s.container}>
           <Card className={s.card} variant="elevated">
             <div className={s.accent} />
-            <h1 className={s.heading}>Promptomatik</h1>
+            <h1 className={s.heading}>TeachInspire</h1>
             <p className={s.subtitle}>{t("auth.invite_invalid")}</p>
             <div className={s.footer}>
               <Link to="/login">{t("auth.login")}</Link>
@@ -91,12 +91,15 @@ export function RegisterPage() {
           <Card className={s.card} variant="elevated">
             <div className={s.accent} />
             <BlurText
-              text="Promptomatik"
+              text="TeachInspire"
               className={s.heading}
               delay={80}
               animateBy="letters"
               direction="top"
             />
+            <p className={s.studioTag} translate="no">
+              Studio
+            </p>
             <FadeIn delay={0.4} duration={0.4} direction="up" distance={12}>
               <p className={s.subtitle}>{t("register.subtitle")}</p>
             </FadeIn>

@@ -68,7 +68,7 @@ export function HomePage() {
               items={(prompts ?? []).map((prompt) => ({
                 key: prompt.id,
                 to: `/prompts/${prompt.id}`,
-                label: prompt.name,
+                label: prompt.name || "Untitled",
                 meta: formatDate(prompt.updated_at),
               }))}
             />
