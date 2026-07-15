@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "vite",
 		"build": "tsc -b && vite build",
-		"test": "vitest run",
+		"test": "node --test scripts/home-layout.test.mjs && vitest run",
 		"audio:smoke": "tsx scripts/audio-studio-smoke.ts",
 		"audio:seed-voices": "tsx scripts/seed-voice-previews.ts",
 		"audio:pilot": "tsx scripts/pilot-assets.ts",

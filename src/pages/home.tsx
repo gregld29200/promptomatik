@@ -186,28 +186,36 @@ interface RecentItem {
 }
 
 function RecentList({ items, loading, emptyLabel }: { items: RecentItem[]; loading: boolean; emptyLabel: string }) {
+  let content: React.ReactNode;
+
   if (loading) {
-    return (
+    content = (
       <div className={s.recentSkeleton} aria-hidden>
         <span />
         <span />
       </div>
     );
+  } else if (items.length === 0) {
+    content = <p className={s.recentEmpty}>{emptyLabel}</p>;
+  } else {
+    content = (
+      <ul className={s.recentList}>
+        {items.map((item) => (
+          <li key={item.key}>
+            <Link to={item.to} className={s.recentRow} title={item.label}>
+              <span className={s.recentLabel}>{item.label}</span>
+              <span className={s.recentMeta}>{item.meta}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    );
   }
-  if (items.length === 0) {
-    return <p className={s.recentEmpty}>{emptyLabel}</p>;
-  }
+
   return (
-    <ul className={s.recentList}>
-      {items.map((item) => (
-        <li key={item.key}>
-          <Link to={item.to} className={s.recentRow}>
-            <span className={s.recentLabel}>{item.label}</span>
-            <span className={s.recentMeta}>{item.meta}</span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <div className={s.recentRegion} aria-live="polite" aria-busy={loading}>
+      {content}
+    </div>
   );
 }
 
