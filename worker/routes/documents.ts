@@ -63,7 +63,10 @@ documents.get("/jobs/:id/materials/:file", requireParticipant, async (c) => {
   }
 
   const html = renderMaterialHtml(material);
-  const pdf = await renderMaterialPdf(c.env, html);
+  const pdf = await renderMaterialPdf(c.env, html, {
+    title: material.title,
+    pageNumbers: material.material_type === "clean_handout",
+  });
   const filename = `${slugify(material.title)}-${parsed.idx + 1}.pdf`;
   return new Response(pdf, {
     headers: {

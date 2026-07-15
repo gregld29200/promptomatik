@@ -60,9 +60,64 @@ describe("material renderer (ported)", () => {
       blocks: [{ type: "article", title: "remote work", paragraphs: ["Opening paragraph."] }],
     });
 
-    expect(html).toContain('<h1 class="doc-title">Remote Work</h1>');
-    expect(html).not.toContain('<h2 class="section-heading">remote work</h2>');
-    expect(html).not.toContain('<div class="article-kicker">remote work</div>');
+    expect(html).toContain('<h1>Remote Work</h1>');
+    expect(html.match(/Remote Work/gi)).toHaveLength(2); // <title> and visible title only.
+  });
+
+  it("renders a clean handout as teacher-owned content with requested emphasis", () => {
+    const html = renderMaterialHtml({
+      ...FULL_MATERIAL,
+      title: "Supplier Performance",
+      material_type: "clean_handout",
+      blocks: [{
+        type: "article",
+        heading: "Monitoring suppliers",
+        title: "Monitoring suppliers",
+        paragraphs: ["Track **lead times** and **warranty claims** carefully."],
+      }],
+    });
+
+    expect(html).toContain("<title>Supplier Performance</title>");
+    expect(html).toContain("Track <strong>lead times</strong> and <strong>warranty claims</strong> carefully.");
+    expect(html).not.toContain("**");
+    expect(html.match(/Monitoring suppliers/g)).toHaveLength(1);
+    expect(html).not.toContain("Editorial Worksheet Series");
+    expect(html).not.toContain('class="meta-strip"');
+    expect(html).not.toContain('class="name-line"');
+    expect(html).not.toContain('class="dropcap"');
+    expect(html).not.toContain('class="footer-note"');
+  });
+
+  it("renders the immutable source in order with headings, lists, and validated bold phrases", () => {
+    const sourceText = [
+      "Supplier Performance",
+      "",
+      "What is supplier performance management?",
+      "",
+      "Track lead times carefully.",
+      "",
+      "Monitoring suppliers",
+      "",
+      "- Check quality",
+      "- Review warranty claims",
+    ].join("\n");
+    const html = renderMaterialHtml({
+      material_type: "clean_handout",
+      title: "Supplier Performance",
+      source_text: sourceText,
+      bold_phrases: ["lead times", "warranty claims"],
+      heading_phrases: ["What is supplier performance management?", "Monitoring suppliers"],
+      blocks: [],
+      id: "simple-source",
+      preset_id: "studio_academic",
+    });
+
+    expect(html).toContain("Track <strong>lead times</strong> carefully.");
+    expect(html).toContain("<h2>What is supplier performance management?</h2>");
+    expect(html).toContain("<h2>Monitoring suppliers</h2>");
+    expect(html).toContain("<li>Check quality</li>");
+    expect(html).toContain("<li>Review <strong>warranty claims</strong></li>");
+    expect(html.match(/Supplier Performance/g)).toHaveLength(2); // metadata + title, not repeated body text.
   });
   it("lets sections flow between pages but keeps atomic items unbreakable", () => {
     const html = renderMaterialHtml(FULL_MATERIAL);
@@ -106,12 +161,9 @@ function simpleHandoutJson(): string {
       {
         material_type: "clean_handout",
         title: "Remote work for trainers",
-        skill_focus: "reading",
-        interaction_pattern: "individual",
-        estimated_minutes: 10,
-        blocks: [
-          { type: "article", title: "Remote work for trainers", paragraphs: ["Paragraph one.", "Paragraph two."] },
-        ],
+        bold_phrases: [],
+        heading_phrases: [],
+        additions: [],
       },
     ],
   });
@@ -217,6 +269,85 @@ describe("documents LLM port", () => {
     expect(requests[0]).not.toContain("exactly 3 materials");
   });
 
+  it("keeps the teacher source immutable and returns only validated presentation directives", async () => {
+    const sectionHeading = "What is supplier performance management?";
+    const content = `${sectionHeading}\n\n${REQUEST_CONTENT} Lead times and warranty claims matter.`;
+    const response = JSON.stringify({
+      materials: [{
+        material_type: "clean_handout",
+        title: "Supplier performance",
+        bold_phrases: ["Lead times", "invented phrase"],
+        heading_phrases: [sectionHeading, "Invented heading"],
+        additions: [],
+      }],
+    });
+    const fetcher = (async () => llmResponse(response)) as typeof fetch;
+
+    const result = await callLLM(
+      { apiKey: "k", fetcher }, content, undefined,
+      undefined, undefined, "auto", "three_materials", "Make useful vocabulary bold.", "simple",
+    );
+
+    expect(result.materials[0]).toMatchObject({
+      material_type: "clean_handout",
+      source_text: content,
+      bold_phrases: ["Lead times"],
+      heading_phrases: [sectionHeading],
+    });
+    expect(result.materials[0]).not.toHaveProperty("skill_focus");
+    expect(result.materials[0]).not.toHaveProperty("interaction_pattern");
+    expect(result.materials[0]).not.toHaveProperty("estimated_minutes");
+  });
+
+  it("does not accept generated activities when the teacher requested formatting only", async () => {
+    const response = JSON.stringify({
+      materials: [{
+        material_type: "clean_handout",
+        title: "Supplier performance",
+        bold_phrases: ["trainers"],
+        heading_phrases: [],
+        additions: [{
+          type: "questions",
+          heading: "Questions",
+          items: [{ prompt: "What changed?", answer: "Everything." }],
+        }],
+      }],
+    });
+    const fetcher = (async () => llmResponse(response)) as typeof fetch;
+
+    const result = await callLLM(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT, undefined,
+      undefined, undefined, "auto", "three_materials", "Make useful vocabulary bold.", "simple",
+    );
+
+    expect(result.materials[0].blocks).toEqual([]);
+  });
+
+  it("keeps the exact addition the teacher explicitly requested", async () => {
+    const wordBank = {
+      type: "reference_list",
+      heading: "Word bank",
+      items: [{ term: "trainer", detail: "A person who teaches workplace skills." }],
+    };
+    const response = JSON.stringify({
+      materials: [{
+        material_type: "clean_handout",
+        title: "Remote work",
+        bold_phrases: [],
+        heading_phrases: [],
+        additions: [wordBank],
+      }],
+    });
+    const fetcher = (async () => llmResponse(response)) as typeof fetch;
+
+    const result = await callLLM(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT, undefined,
+      undefined, undefined, "auto", "three_materials", "Add a word bank at the end.", "simple",
+    );
+
+    expect(result.materials[0].blocks).toEqual([wordBank]);
+  });
+
   it("simple mode keeps only the first material if the model over-produces", async () => {
     const overProduced = JSON.parse(simpleHandoutJson()) as { materials: unknown[] };
     overProduced.materials.push(overProduced.materials[0]);
@@ -229,7 +360,9 @@ describe("documents LLM port", () => {
   });
 
   it("lesson mode still requires 3 materials (a 1-material payload triggers retry then failure)", async () => {
-    const fetcher = (async () => llmResponse(simpleHandoutJson())) as typeof fetch;
+    const oneLessonMaterial = JSON.parse(validMaterialsJson()) as { materials: unknown[] };
+    oneLessonMaterial.materials = oneLessonMaterial.materials.slice(0, 1);
+    const fetcher = (async () => llmResponse(JSON.stringify(oneLessonMaterial))) as typeof fetch;
     await expect(callLLM({ apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work")).rejects.toThrow(/Expected exactly 3/i);
   });
 });

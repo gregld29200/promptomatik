@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import type { InputKind, OutputIntent } from './types';
-import type { TransformMaterial } from './types';
+import type { InputKind, LessonTransformMaterial, OutputIntent } from './types';
 
 const stopWords = new Set([
   'the',
@@ -251,7 +250,7 @@ const freerTypes = new Set([
   'prediction_exercise',
 ]);
 
-function titleAndText(material: TransformMaterial): string {
+function titleAndText(material: LessonTransformMaterial): string {
   const blockText = material.blocks.flatMap((block) => {
     switch (block.type) {
       case 'instructions':
@@ -282,7 +281,7 @@ function sourceContainsPhrase(context: GenerationContext, phrase: string): boole
   return context.sourceLower.includes(phrase.toLowerCase());
 }
 
-export function validateMaterials(context: GenerationContext, materials: TransformMaterial[]): string[] {
+export function validateMaterials(context: GenerationContext, materials: LessonTransformMaterial[]): string[] {
   const errors: string[] = [];
 
   if (context.isOneOnOne) {

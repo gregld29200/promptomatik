@@ -158,6 +158,21 @@ export const MaterialSchema = z.object({
   blocks: z.array(MaterialBlockSchema).min(1),
 });
 
+// Simple mode never asks the model to reproduce the teacher's source. The
+// model may return presentation directives and explicitly requested additions;
+// the trusted source text is attached by the worker after validation.
+export const SimpleMaterialDirectiveSchema = z.object({
+  material_type: z.literal('clean_handout'),
+  title: z.string().min(1),
+  bold_phrases: z.array(z.string().min(1)),
+  heading_phrases: z.array(z.string().min(1)),
+  additions: z.array(MaterialBlockSchema),
+});
+
+export const SimpleTransformDirectiveResponseSchema = z.object({
+  materials: z.array(SimpleMaterialDirectiveSchema).length(1),
+});
+
 export const TransformResponseSchema = z.object({
   materials: z.array(MaterialSchema).min(1).max(3),
 });
@@ -171,10 +186,22 @@ export type SkillFocus = z.infer<typeof SkillFocusSchema>;
 export type InteractionPattern = z.infer<typeof InteractionPatternSchema>;
 export type StylePreset = z.infer<typeof StylePresetSchema>;
 export type MaterialBlock = z.infer<typeof MaterialBlockSchema>;
-export type TransformMaterial = z.infer<typeof MaterialSchema> & {
+export type LessonTransformMaterial = z.infer<typeof MaterialSchema> & {
   id: string;
   preset_id: StylePreset;
 };
+export type SimpleTransformMaterial = {
+  material_type: 'clean_handout';
+  title: string;
+  /** Optional only so previously completed jobs continue to render. */
+  source_text?: string;
+  bold_phrases?: string[];
+  heading_phrases?: string[];
+  blocks: MaterialBlock[];
+  id: string;
+  preset_id: StylePreset;
+};
+export type TransformMaterial = LessonTransformMaterial | SimpleTransformMaterial;
 export type TransformResponse = {
   materials: TransformMaterial[];
 };

@@ -3,10 +3,13 @@ import { presetForIndex } from './material-renderer';
 import { buildGenerationContext, validateMaterials } from './input-context';
 import { SIMPLE_SYSTEM_PROMPT, SYSTEM_PROMPT, buildSimpleUserPrompt, buildUserPrompt } from './system-prompt';
 import {
+  SimpleTransformDirectiveResponseSchema,
   TransformErrorSchema,
   TransformResponseSchema,
   type DocumentMode,
   type InputKind,
+  type LessonTransformMaterial,
+  type MaterialBlock,
   type OutputIntent,
   type TransformMaterial,
   type TransformResponse,
@@ -189,8 +192,12 @@ function objectProperty(value: unknown, key: string): Record<string, unknown> {
     : {};
 }
 
-function buildResponseFormat(expectedCount: number): Record<string, unknown> {
-  const schema = z.toJSONSchema(TransformResponseSchema, { target: 'draft-7' }) as Record<string, unknown>;
+function buildResponseFormat(mode: DocumentMode): Record<string, unknown> {
+  const expectedCount = mode === 'simple' ? 1 : 3;
+  const responseSchema = mode === 'simple'
+    ? SimpleTransformDirectiveResponseSchema
+    : TransformResponseSchema;
+  const schema = z.toJSONSchema(responseSchema, { target: 'draft-7' }) as Record<string, unknown>;
   delete schema.$schema;
 
   const properties = objectProperty(schema, 'properties');
@@ -221,7 +228,7 @@ function buildResponseFormat(expectedCount: number): Record<string, unknown> {
 async function requestCompletion(
   config: DocumentsLlmConfig,
   messages: ChatMessage[],
-  expectedCount: number,
+  mode: DocumentMode,
 ): Promise<unknown> {
   const fetcher = config.fetcher ?? fetch;
   const response = await fetcher('https://openrouter.ai/api/v1/chat/completions', {
@@ -237,7 +244,7 @@ async function requestCompletion(
       messages,
       temperature: 0.15,
       max_tokens: 24000,
-      response_format: buildResponseFormat(expectedCount),
+      response_format: buildResponseFormat(mode),
     }),
     signal: AbortSignal.timeout(180000),
   });
@@ -265,13 +272,77 @@ async function requestCompletion(
   }
 }
 
-function parseMaterials(payload: unknown, expectedCount: number): TransformMaterial[] {
+function sourcePhrase(content: string, requestedPhrase: string): string | null {
+  const phrase = requestedPhrase.trim();
+  if (!phrase) return null;
+  const index = content.toLocaleLowerCase().indexOf(phrase.toLocaleLowerCase());
+  return index === -1 ? null : content.slice(index, index + phrase.length);
+}
+
+function allowedSimpleAdditionTypes(request?: string): Set<MaterialBlock['type']> {
+  const text = request?.toLocaleLowerCase() ?? '';
+  const allowed = new Set<MaterialBlock['type']>();
+  if (/word bank|glossary|vocabulary list|banque de mots|lexique/.test(text)) allowed.add('reference_list');
+  if (/questions?|quiz|comprehension|compréhension/.test(text)) allowed.add('questions');
+  if (/matching|match exercise|appariement|associer/.test(text)) allowed.add('matching');
+  if (/gap[- ]?fill|fill[- ]?in|texte à trous|phrases? à trous/.test(text)) allowed.add('fill_blanks');
+  if (/role[- ]?play|role cards?|jeu de rôles?/.test(text)) allowed.add('role_cards');
+  if (/instructions?|consignes?|notes?/.test(text)) {
+    allowed.add('instructions');
+    allowed.add('notes');
+  }
+  return allowed;
+}
+
+function parseMaterials(
+  payload: unknown,
+  expectedCount: number,
+  mode: DocumentMode,
+  content: string,
+  requestedTitle?: string,
+  customRequest?: string,
+): TransformMaterial[] {
   const errorResult = TransformErrorSchema.safeParse(payload);
   if (errorResult.success) {
     throw new Error(errorResult.data.error);
   }
 
   const normalizedPayload = normalizePayloadShape(payload, expectedCount);
+  if (mode === 'simple') {
+    const simpleResult = SimpleTransformDirectiveResponseSchema.safeParse(normalizedPayload);
+    if (!simpleResult.success) {
+      console.error('[llm] Invalid simple response shape:', simpleResult.error.flatten());
+      throw new Error('AI returned an unexpected structure. Try again.');
+    }
+
+    const allowedAdditions = allowedSimpleAdditionTypes(customRequest);
+    return simpleResult.data.materials.map((material, index) => {
+      const boldPhrases = material.bold_phrases
+        .map((phrase) => sourcePhrase(content, phrase))
+        .filter((phrase): phrase is string => Boolean(phrase))
+        .filter((phrase, phraseIndex, phrases) => (
+          phrases.findIndex((candidate) => candidate.toLocaleLowerCase() === phrase.toLocaleLowerCase()) === phraseIndex
+        ));
+      const sourceLines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const headingPhrases = material.heading_phrases
+        .map((phrase) => sourceLines.find((line) => line.localeCompare(phrase.trim(), undefined, { sensitivity: 'base' }) === 0))
+        .filter((phrase): phrase is string => Boolean(phrase))
+        .filter((phrase, phraseIndex, phrases) => (
+          phrases.findIndex((candidate) => candidate.toLocaleLowerCase() === phrase.toLocaleLowerCase()) === phraseIndex
+        ));
+      return {
+        material_type: 'clean_handout' as const,
+        title: requestedTitle?.trim() || material.title,
+        source_text: content,
+        bold_phrases: boldPhrases,
+        heading_phrases: headingPhrases,
+        blocks: material.additions.filter((block) => allowedAdditions.has(block.type)),
+        id: `material-${Date.now()}-${index}`,
+        preset_id: presetForIndex(index),
+      };
+    });
+  }
+
   const result = TransformResponseSchema.safeParse(normalizedPayload);
   if (!result.success) {
     console.error('[llm] Invalid response shape:', result.error.flatten());
@@ -324,11 +395,11 @@ export async function callLLM(
   const attempts: ChatMessage[][] = [baseMessages];
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const payload = await requestCompletion(config, attempts[attempt], expectedCount);
+    const payload = await requestCompletion(config, attempts[attempt], mode);
 
     let materials: TransformMaterial[];
     try {
-      materials = parseMaterials(payload, expectedCount);
+      materials = parseMaterials(payload, expectedCount, mode, content, title, customRequest);
     } catch (error) {
       if (attempt === 1) throw error;
       const message = error instanceof Error ? error.message : 'Invalid response structure.';
@@ -339,7 +410,9 @@ export async function callLLM(
           content: [
             'Your previous output did not match the required JSON structure.',
             `Regenerate from scratch and return only valid JSON with exactly ${expectedCount} material(s).`,
-            'Each material must include: material_type, title, skill_focus, interaction_pattern, estimated_minutes, blocks.',
+            mode === 'simple'
+              ? 'The handout must include: material_type, title, bold_phrases, heading_phrases, additions.'
+              : 'Each material must include: material_type, title, skill_focus, interaction_pattern, estimated_minutes, blocks.',
             'Use only the allowed block types.',
             `Previous error: ${message}`,
           ].join('\n'),
@@ -348,7 +421,9 @@ export async function callLLM(
       continue;
     }
 
-    const validationErrors = validateMaterials(context, materials);
+    const validationErrors = mode === 'simple'
+      ? []
+      : validateMaterials(context, materials as LessonTransformMaterial[]);
     if (validationErrors.length === 0) {
       return { materials };
     }

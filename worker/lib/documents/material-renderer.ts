@@ -1,8 +1,10 @@
 import type {
   MaterialBlock,
+  LessonTransformMaterial,
   StylePreset,
   TransformMaterial,
 } from './types';
+import { renderSimpleMaterialHtml } from './simple-material-renderer';
 
 type PresetConfig = {
   label: string;
@@ -435,7 +437,7 @@ function renderBrandPanel(preset: PresetConfig): string {
   </div>`;
 }
 
-function renderHeader(material: TransformMaterial, preset: PresetConfig): string {
+function renderHeader(material: LessonTransformMaterial, preset: PresetConfig): string {
   return `<header class="doc-header">
     <div class="header-grid">
       <div class="header-main">
@@ -990,6 +992,11 @@ export function renderMaterialHtml(
   material: TransformMaterial,
   options?: { markers?: boolean },
 ): string {
+  if (material.material_type === 'clean_handout') {
+    return renderSimpleMaterialHtml(material);
+  }
+
+  const lessonMaterial = material as LessonTransformMaterial;
   const preset = resolvePreset(material.preset_id);
   const harness = options?.markers ?? false;
   const mark: AtomMarker = harness ? createAtomMarker() : null;
@@ -998,11 +1005,12 @@ export function renderMaterialHtml(
 <html>
   <head>
     <meta charset="utf-8" />
+    <title>${esc(material.title)}</title>
     <style>${buildCss(preset, harness)}</style>
   </head>
   <body>
     <div class="doc">
-      ${renderHeader(material, preset)}
+      ${renderHeader(lessonMaterial, preset)}
       ${material.blocks.map((block) => renderBlock(block, preset, material.title, mark)).join('')}
       ${buildAnswerKey(material)}
       <div class="footer-note">TeachInspire Studio • ${esc(material.material_type.replace(/_/g, ' '))} • ${esc(preset.label)}</div>

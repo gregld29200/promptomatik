@@ -12,10 +12,9 @@ describe("documents structured output", () => {
         materials: [{
           material_type: "clean_handout",
           title: "Remote Work",
-          skill_focus: "reading",
-          interaction_pattern: "individual",
-          estimated_minutes: 5,
-          blocks: [{ type: "article", paragraphs: ["A faithful paragraph."] }],
+          bold_phrases: [],
+          heading_phrases: [],
+          additions: [],
         }],
       });
       return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
