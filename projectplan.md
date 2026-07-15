@@ -66,3 +66,17 @@ The nav showed the Promptomatik logo, wrong for the multi-module studio. Replace
 - Added `account_id` to `wrangler.jsonc` — first deploy attempt targeted a wrong Cloudflare account (wrangler OAuth had 2 unrelated accounts; it auto-provisioned an empty R2 bucket there, deleted after verification). Production lives in account `d10290b8…`; wrangler must be logged in with that identity.
 - Deployed twice to production (versions `d5bb2bd3` hub/wordmark, `c0bfbe6a` auth rebrand) — studio.teachinspire.me + promptomatik.com, all queue bindings intact. Verified live: bundle hash matches local build; login page screenshotted in production.
 - Gotcha (recurring): after `npm run build`, a still-running wrangler dev serves the old asset manifest and new hashed assets fall back to index.html (blank app, empty #root). Restart wrangler dev — and check for orphaned `workerd` holding :8787.
+
+## Addendum 3 — Simple document fidelity + content-first rendering (2026-07-15)
+
+The first production handout exposed a second problem: Simple mode used the lesson renderer, printed Markdown markers literally, invented lesson metadata, and produced a floating branded footer plus a mostly empty second page.
+
+- The teacher's submitted source is now the immutable document body. The model returns presentation directives only: a title, exact source lines to treat as headings, exact source phrases to bold, and explicitly requested additions.
+- The worker validates every heading and bold phrase against the submitted source. It filters generated additions by the request, so a bold-only request cannot add questions or exercises.
+- `clean_handout` now selects a dedicated content-first renderer: white print background, title-only header, restrained headings, real lists, safe bold/italic rendering, no lesson chips, Name/Date line, cards, drop caps, duplicate headings, preset stamp, or internal material-type footer.
+- PDF export sets the real document title, respects A4 CSS sizing, and uses a quiet page-number-only footer instead of normal-flow branding.
+- Simple mode hides Level, Target language, focus/interaction/duration/style metadata, uses “Format document,” and offers “Adjust formatting” with the original source restored. EN/FR guide and dashboard claims now describe both Simple document and Lesson bundle accurately.
+- Copy text uses the immutable source and removes inline formatting markers. Previously completed handouts without `source_text` continue through the legacy-block fallback.
+- Lesson bundles retain the existing three-material schema, renderer, metadata, and actions.
+
+Verification: 17 test files / 127 tests pass; production build passes; desktop and 375 px browser QA pass with no runtime errors. The supplier-performance fixture renders on one balanced page with the requested vocabulary bold, real section headings and list bullets, no literal `**`, and correct PDF title metadata. Production deployment remains a separate, explicit action.
