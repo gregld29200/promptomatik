@@ -80,3 +80,17 @@ The first production handout exposed a second problem: Simple mode used the less
 - Lesson bundles retain the existing three-material schema, renderer, metadata, and actions.
 
 Verification: 17 test files / 127 tests pass; production build passes; desktop and 375 px browser QA pass with no runtime errors. The supplier-performance fixture renders on one balanced page with the requested vocabulary bold, real section headings and list bullets, no literal `**`, and correct PDF title metadata. Production deployment remains a separate, explicit action.
+
+## Addendum 4 — Premium teacher-owned templates (2026-07-15)
+
+The second supplier-performance PDF proved that content fidelity alone was not enough: the text was preserved, but normal pasted line breaks collapsed into a flat page with weak hierarchy, no semantic list, unreliable vocabulary emphasis, and little classroom appeal.
+
+- Simple mode now separates immutable teacher text, a validated structural map, and a presentation-only template. The model returns line IDs for headings, paragraphs, bullet lists, and numbered lists; the worker requires every non-empty source line exactly once and in order.
+- A later section heading is no longer removed merely because it resembles the document title. Only the opening duplicate title is suppressed.
+- Teachers get a dedicated “Vocabulary to highlight” field. Exact comma/newline-separated phrases are validated against the source and merged ahead of model suggestions, so explicit emphasis is deterministic.
+- Three CSS-only templates ship initially: **Editorial Reader**, **Classroom Handout**, and **Compact Professional**. They change typography, spacing, palette, and density without changing, regenerating, or charging for the content.
+- The template picker appears before formatting and remains available on results and preview. A validated `?template=` presentation query switches existing and new completed jobs instantly; the PDF download uses the same selected template.
+- One-page clean handouts suppress pagination. Multi-page handouts retain the quiet page-number footer. There are still no automatic brand panels, lesson metadata, Name/Date fields, or irrelevant running headers.
+- The Documents page was kept below 500 lines by extracting the preview, simple options, template picker, and guide styling into focused modules.
+
+Verification: full test/build gates, desktop and 375 px browser QA, accessible radio behavior, draft persistence, instant preview URL switching, and page-by-page Poppler inspection of all three A4 supplier-performance PDFs. All three templates fit the sample on one balanced page with real hierarchy, semantic bullets, and visible exact-term emphasis. Production deployment remains a separate, explicit action.
