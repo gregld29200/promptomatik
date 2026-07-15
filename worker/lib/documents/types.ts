@@ -60,6 +60,12 @@ export const StylePresetSchema = z.enum([
   'warm_coaching',
 ]);
 
+export const SimpleTemplateSchema = z.enum([
+  'editorial_reader',
+  'classroom_handout',
+  'compact_professional',
+]);
+
 const BlockBaseSchema = z.object({
   heading: z.string().optional(),
 });
@@ -166,6 +172,10 @@ export const SimpleMaterialDirectiveSchema = z.object({
   title: z.string().min(1),
   bold_phrases: z.array(z.string().min(1)),
   heading_phrases: z.array(z.string().min(1)),
+  structure: z.array(z.object({
+    type: z.enum(['heading', 'paragraph', 'bullet_list', 'numbered_list']),
+    line_ids: z.array(z.number().int().positive()).min(1),
+  })).min(1),
   additions: z.array(MaterialBlockSchema),
 });
 
@@ -185,6 +195,7 @@ export type MaterialType = z.infer<typeof MaterialTypeSchema>;
 export type SkillFocus = z.infer<typeof SkillFocusSchema>;
 export type InteractionPattern = z.infer<typeof InteractionPatternSchema>;
 export type StylePreset = z.infer<typeof StylePresetSchema>;
+export type SimpleTemplateId = z.infer<typeof SimpleTemplateSchema>;
 export type MaterialBlock = z.infer<typeof MaterialBlockSchema>;
 export type LessonTransformMaterial = z.infer<typeof MaterialSchema> & {
   id: string;
@@ -197,6 +208,11 @@ export type SimpleTransformMaterial = {
   source_text?: string;
   bold_phrases?: string[];
   heading_phrases?: string[];
+  template_id?: SimpleTemplateId;
+  structure?: Array<{
+    type: 'heading' | 'paragraph' | 'bullet_list' | 'numbered_list';
+    line_ids: number[];
+  }>;
   blocks: MaterialBlock[];
   id: string;
   preset_id: StylePreset;

@@ -5,7 +5,13 @@
 import { nanoid } from "nanoid";
 import type { Env } from "../env";
 import { callLLM, type DocumentsLlmConfig } from "./documents/generate";
-import { DocumentModeSchema, InputKindSchema, OutputIntentSchema, type TransformResponse } from "./documents/types";
+import {
+  DocumentModeSchema,
+  InputKindSchema,
+  OutputIntentSchema,
+  SimpleTemplateSchema,
+  type TransformResponse,
+} from "./documents/types";
 
 export interface DocumentRequest {
   content: string;
@@ -15,6 +21,8 @@ export interface DocumentRequest {
   inputKind?: string;
   outputIntent?: string;
   customRequest?: string;
+  emphasisTerms?: string[];
+  templateId?: string;
   mode?: string;
 }
 
@@ -58,7 +66,9 @@ const DEFAULT_GENERATOR: DocumentGenerator = (config, request) =>
     InputKindSchema.catch("auto").parse(request.inputKind),
     OutputIntentSchema.catch("three_materials").parse(request.outputIntent),
     request.customRequest,
-    DocumentModeSchema.catch("lesson").parse(request.mode)
+    DocumentModeSchema.catch("lesson").parse(request.mode),
+    request.emphasisTerms ?? [],
+    SimpleTemplateSchema.catch("editorial_reader").parse(request.templateId),
   );
 
 function countWords(input: string): number {
@@ -68,6 +78,16 @@ function countWords(input: string): number {
 export function validateDocumentRequest(request: DocumentRequest): string | null {
   const content = request.content?.trim() ?? "";
   if (request.mode !== undefined && !DocumentModeSchema.safeParse(request.mode).success) {
+    return "invalid_request";
+  }
+  if (request.emphasisTerms !== undefined && (
+    !Array.isArray(request.emphasisTerms)
+    || request.emphasisTerms.length > 50
+    || request.emphasisTerms.some((term) => typeof term !== "string" || !term.trim() || term.length > 100)
+  )) {
+    return "invalid_request";
+  }
+  if (request.templateId !== undefined && !SimpleTemplateSchema.safeParse(request.templateId).success) {
     return "invalid_request";
   }
   if (countWords(content) < 30) {

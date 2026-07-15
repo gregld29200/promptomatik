@@ -11,6 +11,7 @@ import {
   type LessonTransformMaterial,
   type MaterialBlock,
   type OutputIntent,
+  type SimpleTemplateId,
   type TransformMaterial,
   type TransformResponse,
 } from './types';
@@ -294,6 +295,15 @@ function allowedSimpleAdditionTypes(request?: string): Set<MaterialBlock['type']
   return allowed;
 }
 
+function isCompleteSourceStructure(
+  structure: Array<{ type: string; line_ids: number[] }>,
+  lineCount: number,
+): boolean {
+  const ids = structure.flatMap((block) => block.line_ids);
+  if (ids.length !== lineCount || !ids.every((id, index) => id === index + 1)) return false;
+  return structure.every((block) => block.type !== 'heading' || block.line_ids.length === 1);
+}
+
 function parseMaterials(
   payload: unknown,
   expectedCount: number,
@@ -301,6 +311,8 @@ function parseMaterials(
   content: string,
   requestedTitle?: string,
   customRequest?: string,
+  emphasisTerms: string[] = [],
+  templateId: SimpleTemplateId = 'editorial_reader',
 ): TransformMaterial[] {
   const errorResult = TransformErrorSchema.safeParse(payload);
   if (errorResult.success) {
@@ -317,13 +329,16 @@ function parseMaterials(
 
     const allowedAdditions = allowedSimpleAdditionTypes(customRequest);
     return simpleResult.data.materials.map((material, index) => {
-      const boldPhrases = material.bold_phrases
+      const boldPhrases = [...emphasisTerms, ...material.bold_phrases]
         .map((phrase) => sourcePhrase(content, phrase))
         .filter((phrase): phrase is string => Boolean(phrase))
         .filter((phrase, phraseIndex, phrases) => (
           phrases.findIndex((candidate) => candidate.toLocaleLowerCase() === phrase.toLocaleLowerCase()) === phraseIndex
         ));
       const sourceLines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (!isCompleteSourceStructure(material.structure, sourceLines.length)) {
+        throw new Error('Simple document structure must cover every source line exactly once and in order.');
+      }
       const headingPhrases = material.heading_phrases
         .map((phrase) => sourceLines.find((line) => line.localeCompare(phrase.trim(), undefined, { sensitivity: 'base' }) === 0))
         .filter((phrase): phrase is string => Boolean(phrase))
@@ -336,6 +351,8 @@ function parseMaterials(
         source_text: content,
         bold_phrases: boldPhrases,
         heading_phrases: headingPhrases,
+        structure: material.structure,
+        template_id: templateId,
         blocks: material.additions.filter((block) => allowedAdditions.has(block.type)),
         id: `material-${Date.now()}-${index}`,
         preset_id: presetForIndex(index),
@@ -376,6 +393,8 @@ export async function callLLM(
   outputIntent: OutputIntent = 'three_materials',
   customRequest?: string,
   mode: DocumentMode = 'lesson',
+  emphasisTerms: string[] = [],
+  templateId: SimpleTemplateId = 'editorial_reader',
 ): Promise<TransformResponse> {
   const expectedCount = mode === 'simple' ? 1 : 3;
   const rawContext = buildGenerationContext(content, title, inputKind, outputIntent, customRequest);
@@ -385,7 +404,7 @@ export async function callLLM(
     mode === 'simple'
       ? [
           { role: 'system', content: SIMPLE_SYSTEM_PROMPT },
-          { role: 'user', content: buildSimpleUserPrompt(content, title, level, languageFocus, customRequest) },
+          { role: 'user', content: buildSimpleUserPrompt(content, title, level, languageFocus, customRequest, emphasisTerms) },
         ]
       : [
           { role: 'system', content: SYSTEM_PROMPT },
@@ -399,7 +418,16 @@ export async function callLLM(
 
     let materials: TransformMaterial[];
     try {
-      materials = parseMaterials(payload, expectedCount, mode, content, title, customRequest);
+      materials = parseMaterials(
+        payload,
+        expectedCount,
+        mode,
+        content,
+        title,
+        customRequest,
+        emphasisTerms,
+        templateId,
+      );
     } catch (error) {
       if (attempt === 1) throw error;
       const message = error instanceof Error ? error.message : 'Invalid response structure.';
@@ -411,7 +439,7 @@ export async function callLLM(
             'Your previous output did not match the required JSON structure.',
             `Regenerate from scratch and return only valid JSON with exactly ${expectedCount} material(s).`,
             mode === 'simple'
-              ? 'The handout must include: material_type, title, bold_phrases, heading_phrases, additions.'
+              ? 'The handout must include: material_type, title, bold_phrases, heading_phrases, structure, additions.'
               : 'Each material must include: material_type, title, skill_focus, interaction_pattern, estimated_minutes, blocks.',
             'Use only the allowed block types.',
             `Previous error: ${message}`,

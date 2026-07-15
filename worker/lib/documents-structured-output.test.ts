@@ -14,6 +14,7 @@ describe("documents structured output", () => {
           title: "Remote Work",
           bold_phrases: [],
           heading_phrases: [],
+          structure: [{ type: "paragraph", line_ids: [1] }],
           additions: [],
         }],
       });

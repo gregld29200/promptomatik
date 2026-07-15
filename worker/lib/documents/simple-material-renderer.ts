@@ -1,4 +1,84 @@
-import type { MaterialBlock, TransformMaterial } from './types';
+import type { MaterialBlock, SimpleTemplateId, TransformMaterial } from './types';
+
+type SimpleTemplate = {
+  id: SimpleTemplateId;
+  pageMargin: string;
+  paper: string;
+  ink: string;
+  muted: string;
+  accent: string;
+  accentStrong: string;
+  accentSoft: string;
+  rule: string;
+  headingFont: string;
+  bodyFont: string;
+  bodySize: string;
+  bodyLeading: string;
+  titleSize: string;
+  headingSize: string;
+  sectionGap: string;
+};
+
+const SIMPLE_TEMPLATES: Record<SimpleTemplateId, SimpleTemplate> = {
+  editorial_reader: {
+    id: 'editorial_reader',
+    pageMargin: '14mm 18mm 16mm',
+    paper: '#fbfaf6',
+    ink: '#202b3d',
+    muted: '#697180',
+    accent: '#a35d45',
+    accentStrong: '#243b61',
+    accentSoft: '#f1e7df',
+    rule: '#cfd5dd',
+    headingFont: "'Cormorant Garamond', Georgia, serif",
+    bodyFont: "'Source Sans 3', 'Helvetica Neue', sans-serif",
+    bodySize: '10.7pt',
+    bodyLeading: '1.54',
+    titleSize: '22.5pt',
+    headingSize: '14pt',
+    sectionGap: '3.2mm',
+  },
+  classroom_handout: {
+    id: 'classroom_handout',
+    pageMargin: '14mm 17mm 16mm',
+    paper: '#faf7ef',
+    ink: '#26322b',
+    muted: '#687269',
+    accent: '#b45f3f',
+    accentStrong: '#355343',
+    accentSoft: '#e8eee7',
+    rule: '#ccd7ce',
+    headingFont: "'Fraunces', Georgia, serif",
+    bodyFont: "'Nunito Sans', 'Trebuchet MS', sans-serif",
+    bodySize: '10.4pt',
+    bodyLeading: '1.5',
+    titleSize: '20pt',
+    headingSize: '13.2pt',
+    sectionGap: '3mm',
+  },
+  compact_professional: {
+    id: 'compact_professional',
+    pageMargin: '14mm 17mm 17mm',
+    paper: '#f7f9f8',
+    ink: '#17262d',
+    muted: '#5d6c72',
+    accent: '#315f70',
+    accentStrong: '#214654',
+    accentSoft: '#e3ecee',
+    rule: '#c5d2d5',
+    headingFont: "'Space Grotesk', 'Trebuchet MS', sans-serif",
+    bodyFont: "'Manrope', 'Helvetica Neue', sans-serif",
+    bodySize: '10.3pt',
+    bodyLeading: '1.5',
+    titleSize: '20.5pt',
+    headingSize: '12.5pt',
+    sectionGap: '2.7mm',
+  },
+};
+
+function resolveSimpleTemplate(id?: SimpleTemplateId): SimpleTemplate {
+  return SIMPLE_TEMPLATES[id ?? 'editorial_reader'] ?? SIMPLE_TEMPLATES.editorial_reader;
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -131,6 +211,44 @@ function stripListMarker(line: string): string {
   return line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '');
 }
 
+function nonEmptySourceLines(source: string): string[] {
+  return source.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function hasCompleteStructure(material: TransformMaterial, lineCount: number): boolean {
+  if (!('structure' in material) || !material.structure?.length) return false;
+  const ids = material.structure.flatMap((block) => block.line_ids);
+  return ids.length === lineCount && ids.every((id, index) => id === index + 1);
+}
+
+function renderStructuredSource(material: TransformMaterial): string {
+  if (!('source_text' in material) || !material.source_text?.trim()) return '';
+  const lines = nonEmptySourceLines(material.source_text);
+  if (!hasCompleteStructure(material, lines.length) || !('structure' in material) || !material.structure) return '';
+  const boldPhrases = material.bold_phrases ?? [];
+
+  return material.structure.map((block, blockIndex) => {
+    const blockLines = block.line_ids.map((id) => lines[id - 1]).filter(Boolean);
+    if (blockLines.length === 0) return '';
+
+    if (block.type === 'heading') {
+      const text = blockLines.join(' ');
+      if (blockIndex === 0 && block.line_ids[0] === 1 && sameText(text, material.title)) return '';
+      return `<h2>${renderInlineText(text, boldPhrases)}</h2>`;
+    }
+
+    if (block.type === 'bullet_list' || block.type === 'numbered_list') {
+      const tag = block.type === 'bullet_list' ? 'ul' : 'ol';
+      const items = blockLines
+        .map((line) => `<li>${renderInlineText(stripListMarker(line), boldPhrases)}</li>`)
+        .join('');
+      return `<section><${tag}>${items}</${tag}></section>`;
+    }
+
+    return `<section><p>${renderInlineText(blockLines.join(' '), boldPhrases)}</p></section>`;
+  }).filter(Boolean).join('');
+}
+
 function renderSourceChunk(
   chunk: string,
   materialTitle: string,
@@ -168,6 +286,8 @@ function renderSourceChunk(
 
 function renderSource(material: TransformMaterial): string {
   if (!('source_text' in material) || !material.source_text?.trim()) return '';
+  const structured = renderStructuredSource(material);
+  if (structured) return structured;
   const boldPhrases = material.bold_phrases ?? [];
   const headingPhrases = material.heading_phrases ?? [];
   return material.source_text
@@ -179,76 +299,121 @@ function renderSource(material: TransformMaterial): string {
     .join('');
 }
 
-function buildCss(): string {
-  return `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap');
+function buildCss(template: SimpleTemplate): string {
+  return `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Nunito+Sans:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
 
-  @page { size: A4; margin: 17mm 19mm 18mm; }
+  @page { size: A4; margin: ${template.pageMargin}; }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    background: #ffffff;
-    color: #202633;
-    font-family: 'Source Sans 3', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 11pt;
-    line-height: 1.58;
+    background: ${template.paper};
+    color: ${template.ink};
+    font-family: ${template.bodyFont};
+    font-size: ${template.bodySize};
+    line-height: ${template.bodyLeading};
     orphans: 3;
     widows: 3;
+    text-rendering: optimizeLegibility;
   }
-  main { max-width: 165mm; margin: 0 auto; }
+  main { max-width: 158mm; margin: 0 auto; }
   header {
-    margin-bottom: 8mm;
-    padding-bottom: 4mm;
-    border-bottom: 1.5px solid #243b61;
+    position: relative;
+    margin-bottom: 6mm;
+    padding: 0 0 4mm;
+    border-bottom: 1px solid ${template.rule};
     break-after: avoid;
+  }
+  header::before {
+    display: block;
+    width: 18mm;
+    height: 1.4mm;
+    margin-bottom: 4mm;
+    background: ${template.accent};
+    content: '';
   }
   h1 {
     margin: 0;
-    color: #16253f;
-    font-family: 'Cormorant Garamond', 'Times New Roman', serif;
-    font-size: 27pt;
-    line-height: 1.08;
+    max-width: 150mm;
+    color: ${template.accentStrong};
+    font-family: ${template.headingFont};
+    font-size: ${template.titleSize};
+    font-weight: 700;
+    line-height: 1.12;
+    letter-spacing: -0.012em;
   }
-  section { margin: 0 0 5.5mm; }
+  section { margin: 0 0 ${template.sectionGap}; }
   section:last-child { margin-bottom: 0; }
   h2 {
-    margin: 0 0 2.5mm;
-    color: #16253f;
-    font-family: 'Cormorant Garamond', 'Times New Roman', serif;
-    font-size: 17pt;
-    line-height: 1.15;
+    margin: 5.5mm 0 2mm;
+    color: ${template.accentStrong};
+    font-family: ${template.headingFont};
+    font-size: ${template.headingSize};
+    font-weight: 700;
+    line-height: 1.22;
     break-after: avoid;
   }
-  h3 { margin: 0 0 2mm; color: #16253f; font-size: 12pt; }
-  p { margin: 0 0 3.5mm; }
+  header + h2 { margin-top: 0; }
+  h3 { margin: 0 0 2mm; color: ${template.accentStrong}; font-size: 12pt; }
+  p { margin: 0 0 3mm; }
   p:last-child { margin-bottom: 0; }
-  strong { color: #16253f; font-weight: 700; }
-  ul, ol { margin: 2mm 0 0 6mm; padding-left: 5mm; }
-  li { margin-bottom: 1.5mm; break-inside: avoid; }
+  strong { color: ${template.accentStrong}; font-weight: 700; }
+  ul, ol { margin: 1mm 0 0; padding: 3mm 5mm 3mm 9mm; background: ${template.accentSoft}; }
+  li { margin-bottom: 1.4mm; padding-left: 1.5mm; break-inside: avoid; }
+  li:last-child { margin-bottom: 0; }
+  li::marker { color: ${template.accent}; font-weight: 700; }
   dl { margin: 0; }
   .reference-item {
     display: grid;
     grid-template-columns: minmax(32mm, 0.35fr) 1fr;
     gap: 5mm;
     padding: 2.5mm 0;
-    border-bottom: 1px solid #d9dee7;
+    border-bottom: 1px solid ${template.rule};
     break-inside: avoid;
   }
-  dt { color: #16253f; font-weight: 700; }
+  dt { color: ${template.accentStrong}; font-weight: 700; }
   dd { margin: 0; }
-  .example { display: block; margin-top: 1mm; color: #626b78; font-style: italic; }
-  .word-bank { padding: 3mm 4mm; background: #eef2f7; border-left: 2px solid #243b61; }
+  .example { display: block; margin-top: 1mm; color: ${template.muted}; font-style: italic; }
+  .word-bank { padding: 3mm 4mm; background: ${template.accentSoft}; }
   .matching { margin-left: 0; padding: 0; list-style: none; }
-  .matching li { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; padding: 2mm 0; border-bottom: 1px solid #d9dee7; }
+  .matching li { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; padding: 2mm 0; border-bottom: 1px solid ${template.rule}; }
   .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
-  .role-card { padding: 4mm; border: 1px solid #d9dee7; break-inside: avoid; }
+  .role-card { padding: 4mm; border: 1px solid ${template.rule}; break-inside: avoid; }
   .role-card p { margin-bottom: 2mm; }
+
+  body[data-template='classroom_handout'] header {
+    padding: 3mm 5mm;
+    border: 1px solid ${template.rule};
+    background: ${template.accentSoft};
+  }
+  body[data-template='classroom_handout'] header::before { width: 10mm; height: 1mm; margin-bottom: 3mm; }
+  body[data-template='classroom_handout'] h2 {
+    padding-bottom: 1.4mm;
+    border-bottom: 1px solid ${template.rule};
+  }
+  body[data-template='classroom_handout'] strong {
+    padding: 0 0.7mm;
+    background: ${template.accentSoft};
+  }
+
+  body[data-template='compact_professional'] main { max-width: 163mm; }
+  body[data-template='compact_professional'] header { margin-bottom: 6mm; padding-bottom: 3.5mm; border-top: 1.2mm solid ${template.accent}; }
+  body[data-template='compact_professional'] header::before { display: none; }
+  body[data-template='compact_professional'] h1 { letter-spacing: -0.02em; }
+  body[data-template='compact_professional'] h2 {
+    margin-top: 5mm;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+  }
+  body[data-template='compact_professional'] ul,
+  body[data-template='compact_professional'] ol { padding-top: 2.5mm; padding-bottom: 2.5mm; }
+
   @media screen {
-    body { padding: 17mm 19mm 18mm; }
-    main { min-height: 262mm; }
+    body { min-height: 297mm; padding: ${template.pageMargin}; }
   }`;
 }
 
-export function renderSimpleMaterialHtml(material: TransformMaterial): string {
+export function renderSimpleMaterialHtml(material: TransformMaterial, templateId?: SimpleTemplateId): string {
+  const template = resolveSimpleTemplate(templateId ?? ('template_id' in material ? material.template_id : undefined));
   const source = renderSource(material);
   return `<!DOCTYPE html>
 <html lang="en">
@@ -256,9 +421,9 @@ export function renderSimpleMaterialHtml(material: TransformMaterial): string {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(material.title)}</title>
-    <style>${buildCss()}</style>
+    <style>${buildCss(template)}</style>
   </head>
-  <body>
+  <body data-template="${template.id}">
     <main>
       <header><h1>${renderInlineText(material.title)}</h1></header>
       ${source || material.blocks.map((block) => renderBlock(block, material.title)).join('')}

@@ -113,6 +113,11 @@ RULE TWO: STRUCTURE ONLY
 - title is the supplied title, a title already present in the source, or a short neutral title when neither exists.
 - bold_phrases contains only exact phrases copied from the source. Include phrases only when the user explicitly requests emphasis. Never invent a phrase.
 - heading_phrases contains exact, complete source lines that are clearly section headings. Return an empty array when unsure.
+- structure maps every numbered, non-empty source line exactly once and in order.
+- Use { "type": "heading", "line_ids": [n] } for a section heading. A heading always has exactly one line id.
+- Use { "type": "paragraph", "line_ids": [n, ...] } for one logical paragraph. Join wrapped source lines into the same paragraph.
+- Use { "type": "bullet_list", "line_ids": [n, ...] } or { "type": "numbered_list", "line_ids": [n, ...] } only for genuine lists.
+- Structural roles change presentation only. Never omit a source line, include a line twice, or change its order.
 - additions contains only content the user explicitly asks you to add. It is otherwise an empty array.
 
 OUTPUT FORMAT
@@ -124,6 +129,11 @@ Return exactly:
       "title": "The real title of the content",
       "bold_phrases": [],
       "heading_phrases": [],
+      "structure": [
+        { "type": "heading", "line_ids": [1] },
+        { "type": "paragraph", "line_ids": [2, 3] },
+        { "type": "bullet_list", "line_ids": [4, 5, 6] }
+      ],
       "additions": []
     }
   ]
@@ -134,7 +144,17 @@ QUALITY GATES
 2. No invented activities, questions, or notes beyond what the user request asked for.
 3. Every bold phrase is an exact substring of the source.
 4. Every heading phrase is an exact complete line from the source.
-5. Return valid JSON only.`;
+5. Structure covers all numbered source lines exactly once, in ascending order.
+6. Return valid JSON only.`;
+
+function numberedSource(content: string): string {
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => `LINE ${index + 1}: ${line}`)
+    .join('\n');
+}
 
 export function buildSimpleUserPrompt(
   content: string,
@@ -142,6 +162,7 @@ export function buildSimpleUserPrompt(
   level?: string,
   languageFocus?: string,
   customRequest?: string | null,
+  emphasisTerms: string[] = [],
 ): string {
   const parts: string[] = [
     'MODE: SIMPLE_DOCUMENT',
@@ -151,8 +172,11 @@ export function buildSimpleUserPrompt(
   if (level?.trim()) parts.push(`Learner level (affects nothing unless a rewrite is requested): ${level.trim()}`);
   if (languageFocus?.trim()) parts.push(`Target language: ${languageFocus.trim()}`);
   if (customRequest?.trim()) parts.push(`User request (the only allowed additions/changes): ${customRequest.trim()}`);
+  if (emphasisTerms.length > 0) {
+    parts.push(`Teacher-selected phrases that the application will bold exactly: ${emphasisTerms.join(' | ')}`);
+  }
   parts.push('---');
-  parts.push(content.trim());
+  parts.push(numberedSource(content));
   return parts.join('\n');
 }
 

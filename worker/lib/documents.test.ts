@@ -119,6 +119,105 @@ describe("material renderer (ported)", () => {
     expect(html).toContain("<li>Review <strong>warranty claims</strong></li>");
     expect(html.match(/Supplier Performance/g)).toHaveLength(2); // metadata + title, not repeated body text.
   });
+
+  it("renders a validated source layout when pasted text only uses single line breaks", () => {
+    const sourceText = [
+      "Supplier Performance",
+      "What is supplier performance management?",
+      "Supplier performance affects the entire supply chain.",
+      "Clear targets belong in the Service Level Agreement.",
+      "How to monitor suppliers",
+      "Here are three common categories:",
+      "Vendor scorecards: Monitor order fulfilment and response times.",
+      "General metrics: Track financial health and compliance.",
+      "Key Performance Indicators: Measure specific goals.",
+    ].join("\n");
+    const html = renderMaterialHtml({
+      material_type: "clean_handout",
+      title: "Supplier Performance",
+      source_text: sourceText,
+      bold_phrases: ["Service Level Agreement", "Key Performance Indicators"],
+      heading_phrases: [],
+      structure: [
+        { type: "heading", line_ids: [1] },
+        { type: "heading", line_ids: [2] },
+        { type: "paragraph", line_ids: [3] },
+        { type: "paragraph", line_ids: [4] },
+        { type: "heading", line_ids: [5] },
+        { type: "paragraph", line_ids: [6] },
+        { type: "bullet_list", line_ids: [7, 8, 9] },
+      ],
+      blocks: [],
+      id: "single-newlines",
+      preset_id: "studio_academic",
+    } as unknown as TransformMaterial);
+
+    expect(html).toContain("<h2>What is supplier performance management?</h2>");
+    expect(html).toContain("<p>Supplier performance affects the entire supply chain.</p>");
+    expect(html).toContain("<p>Clear targets belong in the <strong>Service Level Agreement</strong>.</p>");
+    expect(html).toContain("<ul>");
+    expect(html).toContain("<li>Vendor scorecards: Monitor order fulfilment and response times.</li>");
+    expect(html).toContain("<li><strong>Key Performance Indicators</strong>: Measure specific goals.</li>");
+    expect(html.match(/Supplier Performance/g)).toHaveLength(2);
+  });
+
+  it("switches simple-document templates without changing the teacher-owned content", () => {
+    const material = {
+      material_type: "clean_handout",
+      title: "Supplier Performance",
+      source_text: "Supplier Performance\nMonitoring suppliers\nTrack lead times carefully.",
+      bold_phrases: ["lead times"],
+      heading_phrases: ["Monitoring suppliers"],
+      structure: [
+        { type: "heading", line_ids: [1] },
+        { type: "heading", line_ids: [2] },
+        { type: "paragraph", line_ids: [3] },
+      ],
+      blocks: [],
+      id: "template-switch",
+      preset_id: "studio_academic",
+    } as unknown as TransformMaterial;
+
+    const editorial = renderMaterialHtml(material, { simpleTemplate: "editorial_reader" });
+    const classroom = renderMaterialHtml(material, { simpleTemplate: "classroom_handout" });
+    const compact = renderMaterialHtml(material, { simpleTemplate: "compact_professional" });
+    const main = (html: string) => html.match(/<main>[\s\S]*<\/main>/)?.[0];
+
+    expect(editorial).toContain('data-template="editorial_reader"');
+    expect(classroom).toContain('data-template="classroom_handout"');
+    expect(compact).toContain('data-template="compact_professional"');
+    expect(main(editorial)).toBe(main(classroom));
+    expect(main(classroom)).toBe(main(compact));
+    expect(editorial).not.toBe(classroom);
+    expect(classroom).not.toBe(compact);
+    expect(editorial).not.toContain("TeachInspire Studio");
+    expect(classroom).not.toContain("Name __________________");
+  });
+
+  it("removes only the opening duplicate title, not a later section heading with the same wording", () => {
+    const html = renderMaterialHtml({
+      material_type: "clean_handout",
+      title: "How to Manage Supplier Performance",
+      source_text: [
+        "How to Manage Supplier Performance",
+        "Opening paragraph.",
+        "How to manage supplier performance",
+        "Section paragraph.",
+      ].join("\n"),
+      structure: [
+        { type: "heading", line_ids: [1] },
+        { type: "paragraph", line_ids: [2] },
+        { type: "heading", line_ids: [3] },
+        { type: "paragraph", line_ids: [4] },
+      ],
+      blocks: [],
+      id: "repeated-heading",
+      preset_id: "studio_academic",
+    } as unknown as TransformMaterial);
+
+    expect(html).toContain("<h2>How to manage supplier performance</h2>");
+    expect(html.match(/How to Manage Supplier Performance/gi)).toHaveLength(3);
+  });
   it("lets sections flow between pages but keeps atomic items unbreakable", () => {
     const html = renderMaterialHtml(FULL_MATERIAL);
     // The section shell must NOT force page-break-inside: avoid — that was the
@@ -163,6 +262,7 @@ function simpleHandoutJson(): string {
         title: "Remote work for trainers",
         bold_phrases: [],
         heading_phrases: [],
+        structure: [{ type: "paragraph", line_ids: [1] }],
         additions: [],
       },
     ],
@@ -224,6 +324,24 @@ const FULL_RESULT: TransformResponse = {
     },
   ],
 };
+const SIMPLE_RESULT: TransformResponse = {
+  materials: [{
+    material_type: "clean_handout",
+    title: "Supplier Performance",
+    source_text: "Supplier Performance\nMonitoring suppliers\nTrack lead times carefully.",
+    bold_phrases: ["lead times"],
+    heading_phrases: ["Monitoring suppliers"],
+    template_id: "editorial_reader",
+    structure: [
+      { type: "heading", line_ids: [1] },
+      { type: "heading", line_ids: [2] },
+      { type: "paragraph", line_ids: [3] },
+    ],
+    blocks: [],
+    id: "simple-result",
+    preset_id: "studio_academic",
+  }],
+};
 describe("documents LLM port", () => {
   it("parses fenced JSON, normalizes aliases, and returns 3 materials with presets", async () => {
     const fenced = "```json\n" + validMaterialsJson() + "\n```";
@@ -259,11 +377,12 @@ describe("documents LLM port", () => {
     }) as typeof fetch;
     const result = await callLLM(
       { apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work",
-      undefined, undefined, "auto", "three_materials", undefined, "simple",
+      undefined, undefined, "auto", "three_materials", undefined, "simple", [], "classroom_handout",
     );
     expect(result.materials).toHaveLength(1);
     expect(result.materials[0].material_type).toBe("clean_handout");
     expect(result.materials[0].preset_id).toBe("studio_academic");
+    expect(result.materials[0]).toMatchObject({ template_id: "classroom_handout" });
     expect(requests[0]).toContain("Simple Document mode");
     expect(requests[0]).toContain("MODE: SIMPLE_DOCUMENT");
     expect(requests[0]).not.toContain("exactly 3 materials");
@@ -278,6 +397,10 @@ describe("documents LLM port", () => {
         title: "Supplier performance",
         bold_phrases: ["Lead times", "invented phrase"],
         heading_phrases: [sectionHeading, "Invented heading"],
+        structure: [
+          { type: "heading", line_ids: [1] },
+          { type: "paragraph", line_ids: [2] },
+        ],
         additions: [],
       }],
     });
@@ -299,6 +422,22 @@ describe("documents LLM port", () => {
     expect(result.materials[0]).not.toHaveProperty("estimated_minutes");
   });
 
+  it("guarantees explicit teacher-selected vocabulary emphasis without relying on the model", async () => {
+    const content = "Track warranty claims and SLA targets carefully throughout the supplier review.";
+    const fetcher = (async () => llmResponse(simpleHandoutJson())) as typeof fetch;
+
+    const result = await callLLM(
+      { apiKey: "k", fetcher }, content, "Supplier review",
+      undefined, undefined, "auto", "three_materials", undefined, "simple",
+      ["warranty claims", "sla", "not in source"],
+    );
+
+    expect(result.materials[0]).toMatchObject({
+      source_text: content,
+      bold_phrases: ["warranty claims", "SLA"],
+    });
+  });
+
   it("does not accept generated activities when the teacher requested formatting only", async () => {
     const response = JSON.stringify({
       materials: [{
@@ -306,6 +445,7 @@ describe("documents LLM port", () => {
         title: "Supplier performance",
         bold_phrases: ["trainers"],
         heading_phrases: [],
+        structure: [{ type: "paragraph", line_ids: [1] }],
         additions: [{
           type: "questions",
           heading: "Questions",
@@ -335,6 +475,7 @@ describe("documents LLM port", () => {
         title: "Remote work",
         bold_phrases: [],
         heading_phrases: [],
+        structure: [{ type: "paragraph", line_ids: [1] }],
         additions: [wordBank],
       }],
     });
@@ -375,6 +516,37 @@ describe("document request validation", () => {
 
   it("rejects an unknown document mode", () => {
     expect(validateDocumentRequest({ content: REQUEST_CONTENT, mode: "surprise_me" })).toBe("invalid_request");
+  });
+
+  it("accepts a bounded vocabulary list and rejects malformed emphasis terms", () => {
+    expect(validateDocumentRequest({
+      content: REQUEST_CONTENT,
+      mode: "simple",
+      emphasisTerms: ["lead times", "SLA"],
+    })).toBeNull();
+    expect(validateDocumentRequest({
+      content: REQUEST_CONTENT,
+      mode: "simple",
+      emphasisTerms: Array.from({ length: 51 }, () => "term"),
+    })).toBe("invalid_request");
+    expect(validateDocumentRequest({
+      content: REQUEST_CONTENT,
+      mode: "simple",
+      emphasisTerms: ["x".repeat(101)],
+    })).toBe("invalid_request");
+  });
+
+  it("accepts known simple templates and rejects unknown template ids", () => {
+    expect(validateDocumentRequest({
+      content: REQUEST_CONTENT,
+      mode: "simple",
+      templateId: "editorial_reader",
+    })).toBeNull();
+    expect(validateDocumentRequest({
+      content: REQUEST_CONTENT,
+      mode: "simple",
+      templateId: "make_it_pop",
+    })).toBe("invalid_request");
   });
 });
 const TEST_SCHEMA = [
@@ -624,6 +796,27 @@ describe("documents routes", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(response.headers.get("x-frame-options")).toBe("SAMEORIGIN");
     await expect(response.text()).resolves.toContain("Remote Work &amp; &lt;Trainers&gt;");
+  });
+  it("switches a completed simple document template through a validated presentation query", async () => {
+    await seedUser("participant-user", "participant");
+    await insertDocumentJob({
+      id: "simple-job",
+      userId: "participant-user",
+      status: "completed",
+      result: SIMPLE_RESULT,
+    });
+    const response = await fetchAs(
+      "participant-user",
+      "/api/documents/jobs/simple-job/materials/0.html?template=compact_professional",
+    );
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toContain('data-template="compact_professional"');
+
+    const invalid = await fetchAs(
+      "participant-user",
+      "/api/documents/jobs/simple-job/materials/0.html?template=make_it_pop",
+    );
+    expect(invalid.status).toBe(400);
   });
   it("does not expose another user's material HTML", async () => {
     await seedUser("participant-user", "participant");

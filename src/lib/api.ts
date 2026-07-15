@@ -773,6 +773,7 @@ export type DocumentOutputIntent =
   | "custom";
 export type DocumentMode = "lesson" | "simple";
 export type DocumentPresetId = "studio_academic" | "modern_training" | "warm_coaching";
+export type SimpleDocumentTemplateId = "editorial_reader" | "classroom_handout" | "compact_professional";
 export type DocumentMaterialType =
   | "gap_fill"
   | "comprehension_quiz"
@@ -830,6 +831,8 @@ export interface TransformDocumentPayload {
   inputKind?: DocumentInputKind;
   outputIntent?: DocumentOutputIntent;
   customRequest?: string;
+  emphasisTerms?: string[];
+  templateId?: SimpleDocumentTemplateId;
   mode?: DocumentMode;
 }
 
@@ -875,6 +878,7 @@ export interface SimpleDocumentMaterial extends DocumentMaterialBase {
   source_text?: string;
   bold_phrases?: string[];
   heading_phrases?: string[];
+  template_id?: SimpleDocumentTemplateId;
 }
 
 export interface LessonDocumentMaterial extends DocumentMaterialBase {

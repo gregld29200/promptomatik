@@ -4,6 +4,7 @@ import type { SessionData } from "../lib/session";
 import { requireAuth, requireParticipant } from "../lib/auth-middleware";
 import { renderMaterialHtml } from "../lib/documents/material-renderer";
 import { renderMaterialPdf } from "../lib/documents/pdf";
+import { SimpleTemplateSchema, type SimpleTemplateId, type TransformMaterial } from "../lib/documents/types";
 import {
   createDocumentJob,
   getDocumentJobForUser,
@@ -48,9 +49,11 @@ documents.get("/jobs/:id/materials/:file", requireParticipant, async (c) => {
 
   const material = await getCompletedMaterial(c, c.req.param("id"), parsed.idx);
   if (material instanceof Response) return material;
+  const template = resolveSimpleTemplate(c, material);
+  if (template instanceof Response) return template;
 
   if (parsed.extension === "html") {
-    return new Response(renderMaterialHtml(material), {
+    return new Response(renderMaterialHtml(material, { simpleTemplate: template }), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "X-Frame-Options": "SAMEORIGIN",
@@ -62,10 +65,10 @@ documents.get("/jobs/:id/materials/:file", requireParticipant, async (c) => {
     return c.json({ error: "documents_pdf_unavailable" }, 503);
   }
 
-  const html = renderMaterialHtml(material);
+  const html = renderMaterialHtml(material, { simpleTemplate: template });
   const pdf = await renderMaterialPdf(c.env, html, {
     title: material.title,
-    pageNumbers: material.material_type === "clean_handout",
+    pageNumbers: material.material_type === "clean_handout" ? "multiple-only" : false,
   });
   const filename = `${slugify(material.title)}-${parsed.idx + 1}.pdf`;
   return new Response(pdf, {
@@ -75,6 +78,18 @@ documents.get("/jobs/:id/materials/:file", requireParticipant, async (c) => {
     },
   });
 });
+
+function resolveSimpleTemplate(
+  c: DocumentsContext,
+  material: TransformMaterial,
+): SimpleTemplateId | undefined | Response {
+  if (material.material_type !== "clean_handout") return undefined;
+  const storedTemplate = "template_id" in material ? material.template_id : undefined;
+  const requested = c.req.query("template") ?? storedTemplate ?? "editorial_reader";
+  const parsed = SimpleTemplateSchema.safeParse(requested);
+  if (!parsed.success) return c.json({ error: "invalid_template" }, 400);
+  return parsed.data;
+}
 
 documents.get("/jobs/:id", requireParticipant, async (c) => {
   const session = c.get("session");
