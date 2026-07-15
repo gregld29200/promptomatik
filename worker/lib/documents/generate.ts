@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { presetForIndex } from './material-renderer';
 import { buildGenerationContext, validateMaterials } from './input-context';
 import { SIMPLE_SYSTEM_PROMPT, SYSTEM_PROMPT, buildSimpleUserPrompt, buildUserPrompt } from './system-prompt';
@@ -180,7 +181,48 @@ function normalizePayloadShape(payload: unknown, expectedCount: number): unknown
   };
 }
 
-async function requestCompletion(config: DocumentsLlmConfig, messages: ChatMessage[]): Promise<unknown> {
+function objectProperty(value: unknown, key: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const property = (value as Record<string, unknown>)[key];
+  return property && typeof property === 'object' && !Array.isArray(property)
+    ? property as Record<string, unknown>
+    : {};
+}
+
+function buildResponseFormat(expectedCount: number): Record<string, unknown> {
+  const schema = z.toJSONSchema(TransformResponseSchema, { target: 'draft-7' }) as Record<string, unknown>;
+  delete schema.$schema;
+
+  const properties = objectProperty(schema, 'properties');
+  const materials = objectProperty(properties, 'materials');
+  materials.minItems = expectedCount;
+  materials.maxItems = expectedCount;
+
+  // Simple mode has one semantic material type. Enforcing it here prevents
+  // the model from drifting back toward a lesson activity before Zod parses it.
+  if (expectedCount === 1) {
+    const material = objectProperty(materials, 'items');
+    const materialProperties = objectProperty(material, 'properties');
+    const materialType = objectProperty(materialProperties, 'material_type');
+    delete materialType.enum;
+    materialType.const = 'clean_handout';
+  }
+
+  return {
+    type: 'json_schema',
+    json_schema: {
+      name: expectedCount === 1 ? 'teachinspire_simple_document' : 'teachinspire_lesson_bundle',
+      strict: true,
+      schema,
+    },
+  };
+}
+
+async function requestCompletion(
+  config: DocumentsLlmConfig,
+  messages: ChatMessage[],
+  expectedCount: number,
+): Promise<unknown> {
   const fetcher = config.fetcher ?? fetch;
   const response = await fetcher('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -195,6 +237,7 @@ async function requestCompletion(config: DocumentsLlmConfig, messages: ChatMessa
       messages,
       temperature: 0.15,
       max_tokens: 24000,
+      response_format: buildResponseFormat(expectedCount),
     }),
     signal: AbortSignal.timeout(180000),
   });
@@ -281,7 +324,7 @@ export async function callLLM(
   const attempts: ChatMessage[][] = [baseMessages];
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const payload = await requestCompletion(config, attempts[attempt]);
+    const payload = await requestCompletion(config, attempts[attempt], expectedCount);
 
     let materials: TransformMaterial[];
     try {
