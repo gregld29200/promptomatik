@@ -438,7 +438,9 @@
     padding: 0.65rem 1rem;
   }
 
-  .accountSummary span:last-child {
+  /* Stacked (hamburger) mode: the role badge is redundant with the mobile
+     menu and is the first thing to overflow next to the CTA — drop it. */
+  .accountSummary {
     display: none;
   }
 
@@ -455,23 +457,23 @@
   }
 }
 
-@media (max-width: 520px) {
+/* Below this the breadcrumb section prefix + full CTA label can't share the
+   row without clipping, so collapse the breadcrumb to the page name and make
+   the CTA icon-only. */
+@media (max-width: 620px) {
   .breadcrumb > span:first-child,
   .breadcrumb > span:nth-child(2) {
     display: none;
   }
 
   .contextAction {
+    gap: 0;
     font-size: 0;
   }
 
   .contextAction svg {
     width: 18px;
     height: 18px;
-  }
-
-  .accountSummary {
-    display: none;
   }
 
   .topbarRight {

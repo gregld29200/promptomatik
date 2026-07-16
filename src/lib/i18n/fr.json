@@ -741,7 +741,7 @@
     "participant_access": "Participant · Tous les ateliers ouverts",
     "free_access": "Accès gratuit · Atelier prompts ouvert",
     "start_workshop": "Commencer un atelier",
-    "prompts_title": "Prompts · Promptomatik",
+    "prompts_title": "Prompts",
     "prompts_desc": "Décrivez votre besoin, l'atelier construit un prompt structuré, prêt à copier dans votre IA.",
     "prompts_desc_short": "Transformez une idée de cours en prompt structuré.",
     "prompts_image_alt": "Un besoin enseignant transformé en prompt structuré",
