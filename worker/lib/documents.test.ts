@@ -852,4 +852,39 @@ describe("documents routes", () => {
     const response = await fetchAs("free-user", "/api/documents/jobs/completed-job/materials/0.pdf");
     expect(response.status).toBe(403);
   });
+  it("deletes a job from history for its owner only", async () => {
+    await seedUser("participant-user", "participant");
+    await seedUser("other-user", "participant");
+    await insertDocumentJob({
+      id: "history-job",
+      userId: "participant-user",
+      status: "completed",
+      result: FULL_RESULT,
+    });
+
+    const foreign = await fetchAs("other-user", "/api/documents/jobs/history-job", { method: "DELETE" });
+    expect(foreign.status).toBe(404);
+
+    const deleted = await fetchAs("participant-user", "/api/documents/jobs/history-job", { method: "DELETE" });
+    expect(deleted.status).toBe(200);
+    await expect(deleted.json()).resolves.toEqual({ ok: true });
+
+    const listing = await fetchAs("participant-user", "/api/documents/jobs");
+    const { jobs } = await listing.json() as { jobs: Array<{ id: string }> };
+    expect(jobs.find((job) => job.id === "history-job")).toBeUndefined();
+
+    const again = await fetchAs("participant-user", "/api/documents/jobs/history-job", { method: "DELETE" });
+    expect(again.status).toBe(404);
+  });
+  it("keeps history deletion behind the participant tier", async () => {
+    await seedUser("free-user", "free");
+    await insertDocumentJob({
+      id: "free-history-job",
+      userId: "free-user",
+      status: "completed",
+      result: FULL_RESULT,
+    });
+    const response = await fetchAs("free-user", "/api/documents/jobs/free-history-job", { method: "DELETE" });
+    expect(response.status).toBe(403);
+  });
 });

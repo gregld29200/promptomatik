@@ -121,6 +121,17 @@ export function rowToResponse(row: DocumentJobRow): DocumentJobResponse {
   };
 }
 
+export async function deleteDocumentJobForUser(
+  env: Env,
+  jobId: string,
+  userId: string
+): Promise<boolean> {
+  const result = await env.DB.prepare("DELETE FROM document_jobs WHERE id = ? AND user_id = ?")
+    .bind(jobId, userId)
+    .run();
+  return result.meta.changes > 0;
+}
+
 export async function getDocumentJobForUser(
   env: Env,
   jobId: string,

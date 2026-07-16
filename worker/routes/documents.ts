@@ -7,6 +7,7 @@ import { renderMaterialPdf } from "../lib/documents/pdf";
 import { SimpleTemplateSchema, type SimpleTemplateId, type TransformMaterial } from "../lib/documents/types";
 import {
   createDocumentJob,
+  deleteDocumentJobForUser,
   getDocumentJobForUser,
   listDocumentJobsForUser,
   validateDocumentRequest,
@@ -98,6 +99,15 @@ documents.get("/jobs/:id", requireParticipant, async (c) => {
     return c.json({ error: "Job not found." }, 404);
   }
   return c.json({ job });
+});
+
+documents.delete("/jobs/:id", requireParticipant, async (c) => {
+  const session = c.get("session");
+  const deleted = await deleteDocumentJobForUser(c.env, c.req.param("id"), session.userId);
+  if (!deleted) {
+    return c.json({ error: "Job not found." }, 404);
+  }
+  return c.json({ ok: true });
 });
 
 async function getCompletedMaterial(

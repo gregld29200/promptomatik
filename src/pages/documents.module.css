@@ -263,6 +263,12 @@
   display: grid;
   gap: var(--space-2);
 }
+.recentRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  align-items: stretch;
+}
 .recentList button {
   display: grid;
   gap: var(--space-1);
@@ -271,6 +277,19 @@
   min-height: 62px;
   padding: var(--space-3);
   text-align: left;
+}
+.recentList .recentDelete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  min-height: 62px;
+  padding: 0;
+  color: var(--color-text-secondary);
+}
+.recentList .recentDelete:hover {
+  border-color: var(--color-terracotta-600);
+  color: var(--color-terracotta-600);
 }
 .recentList span {
   overflow: hidden;

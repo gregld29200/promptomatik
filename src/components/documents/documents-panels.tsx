@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { RefreshCcw, X } from "lucide-react";
+import { RefreshCcw, Trash2, X } from "lucide-react";
 import { getLanguage, t } from "@/lib/i18n";
 import type * as api from "@/lib/api";
 import s from "@/pages/documents.module.css";
@@ -52,6 +52,7 @@ export function RecentJobs(props: {
   jobs: api.DocumentJobSummary[];
   loading: boolean;
   onOpen: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <aside className={s.recentPanel}>
@@ -66,10 +67,21 @@ export function RecentJobs(props: {
       {!props.loading && props.jobs.length === 0 && <p className={s.muted}>{t("documents.recent_empty")}</p>}
       <div className={s.recentList}>
         {props.jobs.map((job) => (
-          <button key={job.id} type="button" disabled={job.status !== "completed"} onClick={() => props.onOpen(job.id)}>
-            <span>{job.label}</span>
-            <small>{formatDate(job.createdAt)} · {t(`documents.status.${job.status}`)}</small>
-          </button>
+          <div key={job.id} className={s.recentRow}>
+            <button type="button" disabled={job.status !== "completed"} onClick={() => props.onOpen(job.id)}>
+              <span>{job.label}</span>
+              <small>{formatDate(job.createdAt)} · {t(`documents.status.${job.status}`)}</small>
+            </button>
+            <button
+              type="button"
+              className={s.recentDelete}
+              title={t("common.delete")}
+              aria-label={t("common.delete")}
+              onClick={() => props.onDelete(job.id)}
+            >
+              <Trash2 size={15} aria-hidden />
+            </button>
+          </div>
         ))}
       </div>
     </aside>

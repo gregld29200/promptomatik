@@ -920,6 +920,12 @@ export function getDocumentJobs() {
   return request<{ jobs: DocumentJobSummary[] }>("/api/documents/jobs");
 }
 
+export function deleteDocumentJob(id: string) {
+  return request<{ ok: boolean }>(`/api/documents/jobs/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
 // ---- Audio Studio admin ----
 
 export interface AudioAdminJobCounts {

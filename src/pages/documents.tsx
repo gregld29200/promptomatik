@@ -180,6 +180,22 @@ export function DocumentsPage() {
     setView("waiting");
     window.history.replaceState(null, "", `${window.location.pathname}?job=${encodeURIComponent(nextJob.id)}`);
   }
+  async function deleteRecentJob(jobId: string) {
+    if (!window.confirm(t("documents.delete_confirm"))) return;
+    const res = await api.deleteDocumentJob(jobId);
+    if (res.error) {
+      setToast(t("documents.delete_error"));
+      return;
+    }
+    if (job?.id === jobId) {
+      setJob(null);
+      setSelectedIndex(0);
+      setView("input");
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    setToast(t("documents.deleted"));
+    void refreshRecentJobs();
+  }
   function resetForNewDocument() {
     setDraft(EMPTY_DRAFT);
     setMode("lesson");
@@ -383,7 +399,7 @@ export function DocumentsPage() {
         <RecentJobs jobs={recentJobs} loading={recentLoading} onOpen={(id) => {
           window.history.replaceState(null, "", `${window.location.pathname}?job=${encodeURIComponent(id)}`);
           void loadJob(id);
-        }} />
+        }} onDelete={(id) => void deleteRecentJob(id)} />
       </div>
     );
   }
