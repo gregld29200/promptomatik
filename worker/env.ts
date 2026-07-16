@@ -19,6 +19,7 @@ export interface Env {
   LLM_MODEL_PREP?: string;
   /** Documents module generation model (OpenRouter id). */
   DOCS_MODEL?: string;
+  DOCS_STRUCTURE_MODEL?: string;
   GEMINI_API_KEY?: string;
   RESEND_API_KEY: string;
   APP_SECRET: string;

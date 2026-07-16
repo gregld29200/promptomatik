@@ -193,7 +193,10 @@ export async function processDocumentJob(
   try {
     if (!env.OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured.");
     const request = JSON.parse(row.request_payload) as DocumentRequest;
-    const result = await generator({ apiKey: env.OPENROUTER_API_KEY, model: env.DOCS_MODEL }, request);
+    const result = await generator(
+      { apiKey: env.OPENROUTER_API_KEY, model: env.DOCS_MODEL, structureModel: env.DOCS_STRUCTURE_MODEL },
+      request
+    );
     await env.DB.prepare(
       `UPDATE document_jobs
        SET status = 'completed', result_payload = ?, error_message = NULL,

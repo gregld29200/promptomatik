@@ -171,6 +171,16 @@ export const SimpleAdditionsResponseSchema = z.object({
   additions: z.array(MaterialBlockSchema).min(1).max(4),
 });
 
+// Structure rescue: when the local parser detects its own failure (a paste so
+// mangled it collapses into a blob), a light model may re-classify lines —
+// directives only, the source text itself never passes through the model.
+export const SimpleStructureRescueResponseSchema = z.object({
+  structure: z.array(z.object({
+    type: z.enum(['heading', 'paragraph', 'bullet_list', 'numbered_list']),
+    line_ids: z.array(z.number().int().positive()).min(1),
+  })).min(1),
+});
+
 export const TransformResponseSchema = z.object({
   materials: z.array(MaterialSchema).min(1).max(3),
 });

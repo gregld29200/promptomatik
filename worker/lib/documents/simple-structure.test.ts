@@ -4,7 +4,8 @@
 
 import { describe, expect, it } from "vitest";
 import fixture from "./fixtures/supplier-performance.json";
-import { buildSimpleMaterial, parseSimpleStructure } from "./simple-structure";
+import singleLineFixture from "./fixtures/supplier-performance-singleline.json";
+import { buildSimpleMaterial, isCollapsedStructure, parseSimpleStructure } from "./simple-structure";
 import { renderSimpleMaterialHtml } from "./simple-material-renderer";
 
 const SOURCE = fixture.source as string;
@@ -78,6 +79,34 @@ describe("supplier-performance fixture (production ground truth)", () => {
   });
 });
 
+describe("single-newline paste (production regression 2026-07-16, job XYC9KEGz6…)", () => {
+  // Same document, but pasted the way teachers actually paste from
+  // Docs/Word/web: single newlines between every block, no blank lines,
+  // no list markers. This exact input collapsed into one paragraph in prod.
+  const SOURCE_1LN = singleLineFixture.source as string;
+  const TITLE_1LN = singleLineFixture.title as string;
+
+  it("does not collapse: headings and paragraphs are recovered without blank lines", () => {
+    const { lines, structure } = parseSimpleStructure(SOURCE_1LN);
+    expect(lines).toHaveLength(16);
+    expect(isCollapsedStructure(structure)).toBe(false);
+    const headingIds = structure.filter((block) => block.type === "heading").map((block) => block.line_ids[0]);
+    expect(headingIds).toEqual([1, 2, 5, 11, 14]);
+    const ids = structure.flatMap((block) => block.line_ids);
+    expect(ids).toEqual(lines.map((_, index) => index + 1));
+  });
+
+  it("renders one title and the four section headings, title-line deduplicated", () => {
+    const material = buildSimpleMaterial(SOURCE_1LN, TITLE_1LN, [], "editorial_reader");
+    const html = renderSimpleMaterialHtml(material);
+    // Line 1 repeats the material title and is suppressed in the body.
+    expect(html.match(/<h1>/g)).toHaveLength(1);
+    expect(html.match(/<h2>/g)).toHaveLength(4);
+    expect(html).toContain("<h2>What is supplier performance management?</h2>");
+    expect(html).toContain("<h2>Successful performance management</h2>");
+  });
+});
+
 describe("deterministic parser behavior", () => {
   it("groups an intro line followed by bullets inside the same chunk", () => {
     const { structure } = parseSimpleStructure("Tools you can use:\n- Scorecards\n- Metrics");
@@ -117,6 +146,20 @@ describe("deterministic parser behavior", () => {
     // The title heading is suppressed in the body: one h1, one h2.
     expect(html.match(/<h1>/g)).toHaveLength(1);
     expect(html.match(/<h2>/g)).toHaveLength(1);
+  });
+
+  it("joins hard-wrapped prose without inventing headings, and flags a collapsed blob for rescue", () => {
+    const wrapped = [
+      "The supplier review process continues across",
+      "several regions and depends on consistent",
+      "reporting from every local team involved in",
+      "the quarterly evaluation cycle as well as",
+      "steady communication between buyers and",
+      "suppliers throughout the whole contract period.",
+    ].join("\n");
+    const { structure } = parseSimpleStructure(wrapped);
+    expect(structure).toEqual([{ type: "paragraph", line_ids: [1, 2, 3, 4, 5, 6] }]);
+    expect(isCollapsedStructure(structure)).toBe(true);
   });
 
   it("derives a clipped title from the first line when nothing looks like a heading", () => {

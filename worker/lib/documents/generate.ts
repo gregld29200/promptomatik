@@ -1,15 +1,23 @@
 import { z } from 'zod';
 import { presetForIndex } from './material-renderer';
 import { buildGenerationContext, validateMaterials } from './input-context';
-import { buildSimpleMaterial } from './simple-structure';
+import {
+  buildSimpleMaterial,
+  isCollapsedStructure,
+  isValidStructureCoverage,
+  stripHeadingMarker,
+} from './simple-structure';
 import {
   SIMPLE_ADDITIONS_SYSTEM_PROMPT,
+  STRUCTURE_RESCUE_SYSTEM_PROMPT,
   SYSTEM_PROMPT,
   buildSimpleAdditionsUserPrompt,
+  buildStructureRescueUserPrompt,
   buildUserPrompt,
 } from './system-prompt';
 import {
   SimpleAdditionsResponseSchema,
+  SimpleStructureRescueResponseSchema,
   TransformErrorSchema,
   TransformResponseSchema,
   type DocumentMode,
@@ -27,8 +35,12 @@ const DEFAULT_MODEL = 'google/gemini-3.1-pro-preview';
 export interface DocumentsLlmConfig {
   apiKey: string;
   model?: string;
+  /** Light model for the simple-mode structure rescue. */
+  structureModel?: string;
   fetcher?: typeof fetch;
 }
+
+const DEFAULT_STRUCTURE_MODEL = 'google/gemini-2.5-flash';
 
 function resolveModel(config: DocumentsLlmConfig): string {
   return config.model?.trim() || DEFAULT_MODEL;
@@ -235,6 +247,7 @@ async function requestCompletion(
   config: DocumentsLlmConfig,
   messages: ChatMessage[],
   mode: DocumentMode,
+  overrides?: { model?: string; responseFormat?: Record<string, unknown> },
 ): Promise<unknown> {
   const fetcher = config.fetcher ?? fetch;
   const response = await fetcher('https://openrouter.ai/api/v1/chat/completions', {
@@ -246,11 +259,11 @@ async function requestCompletion(
       'X-Title': 'TeachInspire Documents',
     },
     body: JSON.stringify({
-      model: resolveModel(config),
+      model: overrides?.model ?? resolveModel(config),
       messages,
       temperature: 0.15,
       max_tokens: 24000,
-      response_format: buildResponseFormat(mode),
+      response_format: overrides?.responseFormat ?? buildResponseFormat(mode),
     }),
     signal: AbortSignal.timeout(180000),
   });
@@ -324,6 +337,46 @@ function parseMaterials(payload: unknown, expectedCount: number): TransformMater
 }
 
 /**
+ * Structure rescue for pastes the local parser could not untangle (detected
+ * via isCollapsedStructure). A light model re-classifies the numbered lines —
+ * directives only, one attempt, and any failure falls back silently to the
+ * local result so the teacher always gets a document.
+ */
+async function rescueSimpleStructure(
+  config: DocumentsLlmConfig,
+  lines: string[],
+): Promise<{ structure: { type: 'heading' | 'paragraph' | 'bullet_list' | 'numbered_list'; line_ids: number[] }[] } | null> {
+  try {
+    const schema = z.toJSONSchema(SimpleStructureRescueResponseSchema, { target: 'draft-7' }) as Record<string, unknown>;
+    delete schema.$schema;
+    const payload = await requestCompletion(
+      config,
+      [
+        { role: 'system', content: STRUCTURE_RESCUE_SYSTEM_PROMPT },
+        { role: 'user', content: buildStructureRescueUserPrompt(lines) },
+      ],
+      'simple',
+      {
+        model: config.structureModel?.trim() || DEFAULT_STRUCTURE_MODEL,
+        responseFormat: {
+          type: 'json_schema',
+          json_schema: { name: 'teachinspire_structure_rescue', strict: true, schema },
+        },
+      },
+    );
+    const result = SimpleStructureRescueResponseSchema.safeParse(payload);
+    if (!result.success || !isValidStructureCoverage(result.data.structure, lines.length)) {
+      console.warn('[llm] Structure rescue rejected: invalid shape or coverage.');
+      return null;
+    }
+    return result.data;
+  } catch (error) {
+    console.warn('[llm] Structure rescue failed:', error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/**
  * Additions-only LLM call for Simple Document mode. The document body is
  * already built locally; the model only produces the explicitly requested
  * extra blocks, which are then filtered to the recognized addition types.
@@ -386,6 +439,20 @@ export async function callLLM(
   if (mode === 'simple') {
     // Formatting is code, not AI judgement: same input, same document.
     const material = buildSimpleMaterial(content.trim(), title, emphasisTerms, templateId);
+
+    // Safety net for mangled pastes only: if the local parse collapsed into a
+    // blob, let a light model re-classify the lines (directives, not text).
+    if (material.structure && isCollapsedStructure(material.structure)) {
+      const lines = content.trim().split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const rescued = await rescueSimpleStructure(config, lines);
+      if (rescued) {
+        material.structure = rescued.structure;
+        material.heading_phrases = rescued.structure
+          .filter((block) => block.type === 'heading')
+          .map((block) => stripHeadingMarker(lines[block.line_ids[0] - 1]));
+      }
+    }
+
     const allowed = allowedSimpleAdditionTypes(customRequest);
     if (customRequest?.trim() && allowed.size > 0) {
       material.blocks = await generateSimpleAdditions(

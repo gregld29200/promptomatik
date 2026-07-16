@@ -5,11 +5,14 @@
 // for explicitly requested additions (see generate.ts).
 //
 // Input contract (deliberate, documented Markdown subset):
-// - Blank lines separate chunks (paragraphs/sections).
 // - `#`–`######` at the start of a line forces a heading; markers are stripped.
 // - `- ` / `* ` / `• ` lines form bullet lists; `1.` / `1)` lines numbered lists.
-// - A single short line (≤ 90 chars) on its own, not ending in ". , ; :",
-//   reads as a section heading (questions and exclamations allowed).
+// - A short line (≤ 90 chars) not ending in ". , ; :" and not starting
+//   lowercase reads as a section heading (questions/exclamations allowed) —
+//   whether separated by blank lines or by single newlines. Real teacher
+//   pastes (Docs/Word/web) often carry no blank lines at all.
+// - A line that does not close a sentence continues into the next line
+//   (hard-wrapped prose is joined, and never mistaken for headings).
 // - Inline `**bold**` / `*italic*` are rendered as emphasis by the renderer.
 // - Everything else is plain text, preserved verbatim.
 
@@ -37,9 +40,21 @@ function lineKind(line: string): 'bullet' | 'numbered' | 'plain' {
   return 'plain';
 }
 
-function isHeadingLine(line: string): boolean {
+// A line that closes a sentence (or ends with list-intro punctuation).
+// Lines that do NOT match are treated as hard-wrapped and joined onward.
+const SENTENCE_END_PATTERN = /[.!?:;,…]["'»”’)\]]*$/;
+const STARTS_LOWERCASE_PATTERN = /^[a-zà-öø-ÿ]/;
+
+function isHeadingLine(line: string, nextLine?: string): boolean {
   if (MARKDOWN_HEADING_PATTERN.test(line)) return true;
-  return line.length <= MAX_HEADING_LENGTH && !/[.,;:]$/.test(line);
+  return (
+    line.length <= MAX_HEADING_LENGTH
+    && !/[.,;:]$/.test(line)
+    // Headings start with a capital/digit; a lowercase start is prose.
+    && !STARTS_LOWERCASE_PATTERN.test(line)
+    // A following lowercase line means this line was hard-wrapped prose.
+    && (nextLine === undefined || !STARTS_LOWERCASE_PATTERN.test(nextLine))
+  );
 }
 
 interface NumberedLine {
@@ -48,8 +63,12 @@ interface NumberedLine {
 }
 
 /**
- * Chunk on blank lines, then group consecutive same-kind lines inside each
- * chunk. Line ids are 1-based over the non-empty trimmed lines, matching the
+ * Classify each non-empty line: markers win (bullet/numbered/markdown
+ * heading), short capitalized lines without closing punctuation read as
+ * headings, sentence lines become paragraphs, and unfinished lines join into
+ * the next line (hard-wrap). Works with or without blank lines — real
+ * teacher pastes (Docs/Word/web) often separate blocks with single newlines
+ * only. Line ids are 1-based over the non-empty trimmed lines, matching the
  * contract the renderer and validator already enforce.
  */
 export function parseSimpleStructure(content: string): {
@@ -77,32 +96,56 @@ export function parseSimpleStructure(content: string): {
   const headings: string[] = [];
 
   for (const chunk of chunks) {
-    let run: NumberedLine[] = [];
-    let runKind: 'bullet' | 'numbered' | 'plain' | null = null;
+    let listRun: NumberedLine[] = [];
+    let listKind: 'bullet' | 'numbered' | null = null;
+    let paragraph: NumberedLine[] = [];
 
-    const flush = () => {
-      if (run.length === 0 || runKind === null) return;
-      if (runKind === 'bullet') {
-        structure.push({ type: 'bullet_list', line_ids: run.map((line) => line.id) });
-      } else if (runKind === 'numbered') {
-        structure.push({ type: 'numbered_list', line_ids: run.map((line) => line.id) });
-      } else if (run.length === 1 && isHeadingLine(run[0].text)) {
-        structure.push({ type: 'heading', line_ids: [run[0].id] });
-        headings.push(stripHeadingMarker(run[0].text));
-      } else {
-        structure.push({ type: 'paragraph', line_ids: run.map((line) => line.id) });
-      }
-      run = [];
-      runKind = null;
+    const flushList = () => {
+      if (listRun.length === 0 || listKind === null) return;
+      structure.push({
+        type: listKind === 'bullet' ? 'bullet_list' : 'numbered_list',
+        line_ids: listRun.map((line) => line.id),
+      });
+      listRun = [];
+      listKind = null;
+    };
+    const flushParagraph = () => {
+      if (paragraph.length === 0) return;
+      structure.push({ type: 'paragraph', line_ids: paragraph.map((line) => line.id) });
+      paragraph = [];
     };
 
-    for (const line of chunk) {
+    chunk.forEach((line, index) => {
       const kind = lineKind(line.text);
-      if (kind !== runKind) flush();
-      runKind = kind;
-      run.push(line);
-    }
-    flush();
+      if (kind !== 'plain') {
+        flushParagraph();
+        if (kind !== listKind) flushList();
+        listKind = kind;
+        listRun.push(line);
+        return;
+      }
+      flushList();
+
+      // Hard-wrap continuation: the open paragraph's last line did not close
+      // a sentence, so this line belongs to it — never a heading.
+      const open = paragraph[paragraph.length - 1];
+      if (open && !SENTENCE_END_PATTERN.test(open.text)) {
+        paragraph.push(line);
+        return;
+      }
+
+      if (isHeadingLine(line.text, chunk[index + 1]?.text)) {
+        flushParagraph();
+        structure.push({ type: 'heading', line_ids: [line.id] });
+        headings.push(stripHeadingMarker(line.text));
+        return;
+      }
+
+      flushParagraph();
+      paragraph.push(line);
+    });
+    flushList();
+    flushParagraph();
   }
 
   return {
@@ -110,6 +153,25 @@ export function parseSimpleStructure(content: string): {
     structure,
     headings,
   };
+}
+
+/**
+ * The local parser's one known failure mode: a paste so mangled (e.g. copied
+ * out of a PDF) that many lines collapse into a single paragraph blob. Such a
+ * result is eligible for the LLM structure rescue.
+ */
+export function isCollapsedStructure(structure: SimpleStructureBlock[]): boolean {
+  return structure.some((block) => block.type === 'paragraph' && block.line_ids.length >= 6);
+}
+
+/** Every line covered exactly once and in order; headings one line each. */
+export function isValidStructureCoverage(
+  structure: SimpleStructureBlock[],
+  lineCount: number,
+): boolean {
+  const ids = structure.flatMap((block) => block.line_ids);
+  if (ids.length !== lineCount || !ids.every((id, index) => id === index + 1)) return false;
+  return structure.every((block) => block.type !== 'heading' || block.line_ids.length === 1);
 }
 
 /** Exact source casing for a requested phrase, or null when absent. */

@@ -144,6 +144,23 @@ export function buildSimpleAdditionsUserPrompt(
   return parts.join('\n');
 }
 
+export const STRUCTURE_RESCUE_SYSTEM_PROMPT = `You classify the lines of a teacher's pasted document for presentation. You never rewrite, reorder, or return the text itself — only structural roles.
+
+RULES
+- Return JSON only: { "structure": [ { "type": "...", "line_ids": [n, ...] } ] }.
+- Cover every numbered line exactly once, in ascending order.
+- "heading": a section heading. Always exactly one line id.
+- "paragraph": one logical paragraph. Join hard-wrapped lines into the same paragraph.
+- "bullet_list" / "numbered_list": only for genuine list items.
+- When unsure, prefer "paragraph". Never invent, drop, or duplicate a line id.`;
+
+export function buildStructureRescueUserPrompt(lines: string[]): string {
+  return [
+    'Classify these lines:',
+    ...lines.map((line, index) => `LINE ${index + 1}: ${line}`),
+  ].join('\n');
+}
+
 function buildStructuredPrompt(context: GenerationContext, level?: string, languageFocus?: string): string {
   const instructions: string[] = [
     `MODE: ${context.inputMode.toUpperCase()}`,
