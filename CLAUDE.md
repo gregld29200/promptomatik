@@ -139,6 +139,32 @@ Invite-only: Admin sends invite → token link → user registers → session co
 
 ---
 
+## Design Context
+
+### Users
+
+TeachInspire Studio serves language teachers and instructional designers, especially French-speaking educators working with adult learners in private institutes or independent practice. They often prepare lessons between other responsibilities and need to move quickly from a teaching intention to a reusable prompt, listening activity, printable document, or training resource. The interface should reduce cognitive load, preserve their wording and pedagogical judgment, and make sophisticated AI workflows feel understandable rather than technical.
+
+### Brand Personality
+
+**Calm, crafted, confident.** TeachInspire should feel like a thoughtful teaching studio: authoritative without being institutional, warm without becoming childish, and distinctive without distracting from preparation work. The emotional outcome is quiet confidence—teachers should feel oriented, capable, and in control.
+
+### Aesthetic Direction
+
+Use a light, Swiss-editorial application structure with Fraunces for expressive headings and DM Sans for interface clarity. The core palette is ink navy, warm cream, sage, muted gold, and restrained terracotta. Digital collage is the signature brand device: torn paper, tape, source fragments, halftone, ruled paper, and small arrows. Keep collage inside fixed semantic image regions; navigation, content, controls, and state remain reproducible HTML/CSS/SVG on a disciplined grid. People are never shown with faces; only completely blank, faceless paper-cut silhouettes are allowed. Prefer sharp or subtly softened corners, fine rules, modest depth, and one or two purposeful motion moments. Light mode is the canonical theme.
+
+Avoid generic AI dashboards, purple-on-white gradients, glassmorphism, floating bento cards, fake analytics, photorealistic people, 3D scenes, excessive shadows, decorative collage escaping into functional UI, and arbitrary animation.
+
+### Design Principles
+
+1. **Orientation before decoration.** Product hierarchy, page context, status, and next action must be immediately legible; brand expression supports these signals rather than competing with them.
+2. **Collage marks meaning.** Use digital collage only to distinguish workshops, sources, transformations, or teaching concepts. Keep all interactive chrome as real, accessible UI.
+3. **Teacher language, not software language.** Write concise, idiomatic French first, provide complete EN/ES localization, and describe outcomes in pedagogical terms rather than implementation jargon.
+4. **Calm density.** Favor structured rows, consistent alignment, generous whitespace, and progressive disclosure. A teacher should be able to scan the screen once and know where to go.
+5. **Accessible by construction.** Target WCAG 2.2 AA: semantic landmarks and headings, keyboard access, visible focus, sufficient contrast, 44px touch targets where practical, descriptive alternative text, no color-only meaning, and reduced-motion support.
+
+---
+
 ## Out of Scope (v1)
 
 - Student cards / learner profiles → v1.1
