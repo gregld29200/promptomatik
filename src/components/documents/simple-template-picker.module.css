@@ -157,7 +157,8 @@
 }
 
 .compact .options {
-  grid-template-columns: repeat(3, minmax(150px, 1fr));
+  /* Auto-fit so the options wrap instead of clipping in narrow cards. */
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
 }
 
 .compact .option {
