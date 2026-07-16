@@ -26,6 +26,7 @@ Audit findings driving this plan:
 - **LLM scope**: only an explicitly recognized addition request triggers a single narrow call returning `{ additions: [...] }` (strict JSON schema `teachinspire_simple_additions`), filtered to the requested types. Everything else — structure, title, bold vocabulary, template — is code.
 - **Fonts**: no runtime network dependency in either renderer; 16 static faces, ~342 KB base64 (worker bundle ~1.9 MB raw). Regenerate with `npm run docs:fonts` after fontsource upgrades.
 - **Markdown contract** (user-visible behavior, deliberate): heading markers `#`–`######` are honored and stripped in both HTML and copied text; list markers and inline `**`/`*` emphasis honored; all other text verbatim.
+- **Production verification (2026-07-16, version `695f6750`)**: authenticated supplier-fixture generation on studio.teachinspire.me completed with structure/bolding equal to ground truth and zero additions; production HTML byte-identical (same MD5) to the three local-queue runs; PDF is one quiet A4 page with only CID TrueType subsets (`pdffonts` — no Type 3), rendered cleanly by Poppler **Splash** (previously black blocks), **Cairo**, and Chrome **PDFium**. Simple generations now complete in ~1s (no LLM).
 
 ---
 
