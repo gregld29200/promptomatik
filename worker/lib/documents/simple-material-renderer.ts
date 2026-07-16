@@ -1,4 +1,5 @@
 import type { MaterialBlock, SimpleTemplateId, TransformMaterial } from './types';
+import { documentFontFaceCss } from './fonts.generated';
 
 type SimpleTemplate = {
   id: SimpleTemplateId;
@@ -211,6 +212,12 @@ function stripListMarker(line: string): string {
   return line.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '');
 }
 
+// Kept local (not imported from simple-structure) to avoid a module cycle
+// through material-renderer. Same deliberate Markdown subset.
+function stripHeadingMarker(line: string): string {
+  return line.replace(/^#{1,6}\s+/, '');
+}
+
 function nonEmptySourceLines(source: string): string[] {
   return source.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }
@@ -232,7 +239,7 @@ function renderStructuredSource(material: TransformMaterial): string {
     if (blockLines.length === 0) return '';
 
     if (block.type === 'heading') {
-      const text = blockLines.join(' ');
+      const text = stripHeadingMarker(blockLines.join(' '));
       if (blockIndex === 0 && block.line_ids[0] === 1 && sameText(text, material.title)) return '';
       return `<h2>${renderInlineText(text, boldPhrases)}</h2>`;
     }
@@ -269,7 +276,7 @@ function renderSourceChunk(
   const directedHeading = lines.length === 1
     ? headingPhrases.find((candidate) => sameText(candidate, lines[0]))
     : undefined;
-  const explicitHeading = lines.length === 1 ? lines[0].match(/^#{1,3}\s+(.+)$/)?.[1] : undefined;
+  const explicitHeading = lines.length === 1 ? lines[0].match(/^#{1,6}\s+(.+)$/)?.[1] : undefined;
   const implicitHeading = lines.length === 1
     && lines[0].length <= 90
     && !/[.!?;:]$/.test(lines[0])
@@ -299,8 +306,16 @@ function renderSource(material: TransformMaterial): string {
     .join('');
 }
 
+// First quoted family name of each font stack — the face we self-host.
+function primaryFamilies(...stacks: string[]): string[] {
+  const families = stacks
+    .map((stack) => stack.match(/^'([^']+)'/)?.[1])
+    .filter((family): family is string => Boolean(family));
+  return Array.from(new Set(families));
+}
+
 function buildCss(template: SimpleTemplate): string {
-  return `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Source+Sans+3:wght@400;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Nunito+Sans:wght@400;600;700&family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap');
+  return `${documentFontFaceCss(primaryFamilies(template.headingFont, template.bodyFont))}
 
   @page { size: A4; margin: ${template.pageMargin}; }
   * { box-sizing: border-box; }

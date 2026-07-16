@@ -1,0 +1,99 @@
+{
+  "source": "What is supplier performance management?\n\nSupplier performance directly affects the efficiency of your entire supply chain. Therefore, it is essential to establish methods to measure performance, ensure service quality, and manage a remediation plan if standards drop.\n\nYou can assess performance by evaluating several hard metrics, which include product quality, delivery accuracy, and the number of warranty claims. You should also measure lead times and commercial costs. It is important that these targets are clearly defined in the Service Level Agreement (SLA) before the contract starts.\n\nHow to manage supplier performance\n\nThere are several ways to monitor your suppliers. To begin, your central administrative team should design a vendor scorecard to accurately track the supplier's work. Stakeholder feedback is essential, so you should encourage other departments to participate in the evaluation process.\n\nHere are three common categories of tools to help you monitor performance:\n\n- Vendor scorecards: Monitor order fulfilment, delivery costs, and response times.\n- General metrics: Track financial health, operational performance, and contract compliance.\n- Key Performance Indicators (KPIs): Measure specific goals like cost reduction, vendor risk, innovation, and corporate social responsibility.\n\nAdvantages of managing supplier performance\n\nMonitoring your suppliers helps you maintain high-quality products across the business. It also allows you to reduce your total number of suppliers while keeping high standards.\n\nPerformance management provides a solid foundation for continuous improvement. It helps buyers identify future cost savings, increase flexibility, and improve delivery times. Finally, sharing this data means both buyers and suppliers have access to consistent, authorized information.\n\nSuccessful performance management\n\nTo manage performance successfully, you must first gather objective data, including quality standards, pricing, and any penalty clauses outlined in the contract. Next, collect feedback from your internal customers regarding the supplier's attitude and response rates.\n\nFinally, consider the supplier’s experience of working with your organisation. This must be included in your evaluation. Suppliers may be facing internal obstacles, and a good professional relationship requires two-way communication.",
+  "title": "How to Manage Supplier Performance",
+  "vocabulary": [
+    "remediation plan",
+    "hard metrics",
+    "warranty claims",
+    "lead times",
+    "Service Level Agreement (SLA)",
+    "vendor scorecard",
+    "Stakeholder feedback",
+    "Key Performance Indicators (KPIs)",
+    "continuous improvement",
+    "penalty clauses",
+    "two-way communication"
+  ],
+  "structure": [
+    {
+      "type": "heading",
+      "line_ids": [
+        1
+      ]
+    },
+    {
+      "type": "paragraph",
+      "line_ids": [
+        2
+      ]
+    },
+    {
+      "type": "paragraph",
+      "line_ids": [
+        3
+      ]
+    },
+    {
+      "type": "heading",
+      "line_ids": [
+        4
+      ]
+    },
+    {
+      "type": "paragraph",
+      "line_ids": [
+        5
+      ]
+    },
+    {
+      "type": "paragraph",
+      "line_ids": [
+        6
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "line_ids": [
+        7,
+        8,
+        9
+      ]
+    },
+    {
+      "type": "heading",
+      "line_ids": [
+        10
+      ]
+    },
+    {
+      "type": "paragraph",
+      "line_ids": [
+        11
+      ]
+    },
+    {
+      "type": "paragraph",
+      "line_ids": [
+        12
+      ]
+    },
+    {
+      "type": "heading",
+      "line_ids": [
+        13
+      ]
+    },
+    {
+      "type": "paragraph",
+      "line_ids": [
+        14
+      ]
+    },
+    {
+      "type": "paragraph",
+      "line_ids": [
+        15
+      ]
+    }
+  ]
+}

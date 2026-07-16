@@ -6,6 +6,7 @@ import type {
   TransformMaterial,
 } from './types';
 import { renderSimpleMaterialHtml } from './simple-material-renderer';
+import { documentFontFaceCss } from './fonts.generated';
 
 type PresetConfig = {
   label: string;
@@ -485,8 +486,16 @@ function buildAnswerKey(material: TransformMaterial): string {
   </section>`;
 }
 
+// First quoted family name of each font stack — the face we self-host.
+function primaryFamilies(...stacks: string[]): string[] {
+  const families = stacks
+    .map((stack) => stack.match(/^'([^']+)'/)?.[1])
+    .filter((family): family is string => Boolean(family));
+  return Array.from(new Set(families));
+}
+
 function buildCss(preset: PresetConfig, harness = false): string {
-  return `@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=Space+Grotesk:wght@500;700&family=Manrope:wght@400;600;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Nunito+Sans:wght@400;600;700&display=swap');
+  return `${documentFontFaceCss(primaryFamilies(preset.headingFont, preset.bodyFont, preset.displayFont))}
 
   @page {
     size: A4;

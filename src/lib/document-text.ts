@@ -9,6 +9,7 @@ function sameText(left: string, right: string): boolean {
 
 function stripInlineFormatting(value: string): string {
   return value
+    .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*([^*\n]+)\*\*/g, "$1")
     .replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1$2");
 }

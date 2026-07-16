@@ -1,4 +1,35 @@
-# Project Plan — Documents: "Simple document" mode + clean copy
+# Project Plan — Documents: deterministic simple mode, production readiness
+
+Previous plan (simple mode + templates + copy) is complete — see archive below and git history.
+
+## Goal
+
+Make the simple-document path fully deterministic and pass the production release gate. Key decision (Greg + audit, 2026-07-16): **formatting-only must become code, not AI judgement.**
+
+Audit findings driving this plan:
+- The renderer is already deterministic once it has structure + source + vocabulary + template; the remaining drift is the LLM call (temp 0.15) that classifies headings/paragraphs/lists.
+- `## Heading` is preserved literally — Markdown behavior is undefined.
+- The simple renderer imports Google Fonts over the network at PDF time; Poppler's Splash renderer reports invalid Type 3 font bounds (black blocks). Also a determinism + GDPR concern (project convention is self-hosted fonts).
+
+## Todo
+
+- [x] 1. **Local structure parser** (`worker/lib/documents/simple-structure.ts`): blank-line chunking, per-chunk grouping into heading / paragraph / bullet_list / numbered_list, deterministic title fallback, bold phrases from the vocabulary field only. Produces the same `SimpleTransformMaterial` shape the renderer already consumes.
+- [x] 2. **Markdown behavior (defined)**: `#`–`######` heading markers force a heading and are stripped at render + copy; `-`/`*`/`•` and `1.`/`1)` list markers are recognized (already); inline `**bold**`/`*italic*` render as emphasis (already). Everything else is plain text.
+- [x] 3. **LLM for explicit additions only**: no `customRequest` (or no recognized addition) → zero LLM calls. A recognized request ("add a word bank", "3 questions"…) → narrow additions-only LLM call returning just the added blocks; the source layout stays locally determined. Directive prompt/schema removed.
+- [x] 4. **Regression fixtures**: the real production supplier-performance source + vocabulary as `worker/lib/documents/fixtures/supplier-performance.json`; `simple-structure.test.ts` asserts exact line coverage/order, heading/list classification, bold phrases, identical HTML across 3 runs, no unrequested blocks, no duplicate title, no page footer; `documents-structured-output.test.ts` asserts zero LLM calls on the default path.
+- [x] 5. **Font portability**: root cause confirmed — Google css2 serves *variable* fonts, and Chromium's PDF backend writes non-default variable instances as Type 3 glyphs (Splash black blocks); locally the fonts silently fell back to Georgia/Helvetica (CDN race = nondeterministic PDFs). Fix: static latin WOFF2 instances (@fontsource) embedded as base64 data URIs via generated `fonts.generated.ts` (`npm run docs:fonts`), used by both renderers. `pdffonts` now shows CID TrueType subsets only; Splash renders all 3 templates cleanly.
+- [x] 6. **Release gate (local half)**: 150/150 tests, build clean, `docs:breaks` harness 0 violations, 3 authenticated repeatability runs through the real local worker queue → byte-identical HTML (same MD5), structure equal to production ground truth, embedded fonts confirmed in served HTML. Local PDF route can't run (wrangler 4.64 local Browser Rendering returns "405 Not implemented" — pre-existing); PDF verified via the local-Chrome print pipeline instead. **Remaining: deploy (needs Greg's go) + one production generation + PDF inspection in PDFium and Cairo.**
+
+## Review
+
+- **Determinism**: `callLLM` in simple mode builds the material entirely in code (`buildSimpleMaterial`); the local parser reproduces the verified production supplier-performance structure exactly. Three end-to-end runs through D1 + queue + renderer produced byte-identical documents.
+- **LLM scope**: only an explicitly recognized addition request triggers a single narrow call returning `{ additions: [...] }` (strict JSON schema `teachinspire_simple_additions`), filtered to the requested types. Everything else — structure, title, bold vocabulary, template — is code.
+- **Fonts**: no runtime network dependency in either renderer; 16 static faces, ~342 KB base64 (worker bundle ~1.9 MB raw). Regenerate with `npm run docs:fonts` after fontsource upgrades.
+- **Markdown contract** (user-visible behavior, deliberate): heading markers `#`–`######` are honored and stripped in both HTML and copied text; list markers and inline `**`/`*` emphasis honored; all other text verbatim.
+
+---
+
+# Archived — Documents: "Simple document" mode + clean copy (complete)
 
 Previous plan (Home hub UI fixes + Studio wordmark + auth rebrand) is complete — all steps checked off; see git history.
 

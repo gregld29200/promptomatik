@@ -1,9 +1,15 @@
 import { z } from 'zod';
 import { presetForIndex } from './material-renderer';
 import { buildGenerationContext, validateMaterials } from './input-context';
-import { SIMPLE_SYSTEM_PROMPT, SYSTEM_PROMPT, buildSimpleUserPrompt, buildUserPrompt } from './system-prompt';
+import { buildSimpleMaterial } from './simple-structure';
 import {
-  SimpleTransformDirectiveResponseSchema,
+  SIMPLE_ADDITIONS_SYSTEM_PROMPT,
+  SYSTEM_PROMPT,
+  buildSimpleAdditionsUserPrompt,
+  buildUserPrompt,
+} from './system-prompt';
+import {
+  SimpleAdditionsResponseSchema,
   TransformErrorSchema,
   TransformResponseSchema,
   type DocumentMode,
@@ -194,32 +200,31 @@ function objectProperty(value: unknown, key: string): Record<string, unknown> {
 }
 
 function buildResponseFormat(mode: DocumentMode): Record<string, unknown> {
-  const expectedCount = mode === 'simple' ? 1 : 3;
-  const responseSchema = mode === 'simple'
-    ? SimpleTransformDirectiveResponseSchema
-    : TransformResponseSchema;
-  const schema = z.toJSONSchema(responseSchema, { target: 'draft-7' }) as Record<string, unknown>;
+  if (mode === 'simple') {
+    const schema = z.toJSONSchema(SimpleAdditionsResponseSchema, { target: 'draft-7' }) as Record<string, unknown>;
+    delete schema.$schema;
+    return {
+      type: 'json_schema',
+      json_schema: {
+        name: 'teachinspire_simple_additions',
+        strict: true,
+        schema,
+      },
+    };
+  }
+
+  const schema = z.toJSONSchema(TransformResponseSchema, { target: 'draft-7' }) as Record<string, unknown>;
   delete schema.$schema;
 
   const properties = objectProperty(schema, 'properties');
   const materials = objectProperty(properties, 'materials');
-  materials.minItems = expectedCount;
-  materials.maxItems = expectedCount;
-
-  // Simple mode has one semantic material type. Enforcing it here prevents
-  // the model from drifting back toward a lesson activity before Zod parses it.
-  if (expectedCount === 1) {
-    const material = objectProperty(materials, 'items');
-    const materialProperties = objectProperty(material, 'properties');
-    const materialType = objectProperty(materialProperties, 'material_type');
-    delete materialType.enum;
-    materialType.const = 'clean_handout';
-  }
+  materials.minItems = 3;
+  materials.maxItems = 3;
 
   return {
     type: 'json_schema',
     json_schema: {
-      name: expectedCount === 1 ? 'teachinspire_simple_document' : 'teachinspire_lesson_bundle',
+      name: 'teachinspire_lesson_bundle',
       strict: true,
       schema,
     },
@@ -273,14 +278,7 @@ async function requestCompletion(
   }
 }
 
-function sourcePhrase(content: string, requestedPhrase: string): string | null {
-  const phrase = requestedPhrase.trim();
-  if (!phrase) return null;
-  const index = content.toLocaleLowerCase().indexOf(phrase.toLocaleLowerCase());
-  return index === -1 ? null : content.slice(index, index + phrase.length);
-}
-
-function allowedSimpleAdditionTypes(request?: string): Set<MaterialBlock['type']> {
+export function allowedSimpleAdditionTypes(request?: string): Set<MaterialBlock['type']> {
   const text = request?.toLocaleLowerCase() ?? '';
   const allowed = new Set<MaterialBlock['type']>();
   if (/word bank|glossary|vocabulary list|banque de mots|lexique/.test(text)) allowed.add('reference_list');
@@ -295,71 +293,13 @@ function allowedSimpleAdditionTypes(request?: string): Set<MaterialBlock['type']
   return allowed;
 }
 
-function isCompleteSourceStructure(
-  structure: Array<{ type: string; line_ids: number[] }>,
-  lineCount: number,
-): boolean {
-  const ids = structure.flatMap((block) => block.line_ids);
-  if (ids.length !== lineCount || !ids.every((id, index) => id === index + 1)) return false;
-  return structure.every((block) => block.type !== 'heading' || block.line_ids.length === 1);
-}
-
-function parseMaterials(
-  payload: unknown,
-  expectedCount: number,
-  mode: DocumentMode,
-  content: string,
-  requestedTitle?: string,
-  customRequest?: string,
-  emphasisTerms: string[] = [],
-  templateId: SimpleTemplateId = 'editorial_reader',
-): TransformMaterial[] {
+function parseMaterials(payload: unknown, expectedCount: number): TransformMaterial[] {
   const errorResult = TransformErrorSchema.safeParse(payload);
   if (errorResult.success) {
     throw new Error(errorResult.data.error);
   }
 
   const normalizedPayload = normalizePayloadShape(payload, expectedCount);
-  if (mode === 'simple') {
-    const simpleResult = SimpleTransformDirectiveResponseSchema.safeParse(normalizedPayload);
-    if (!simpleResult.success) {
-      console.error('[llm] Invalid simple response shape:', simpleResult.error.flatten());
-      throw new Error('AI returned an unexpected structure. Try again.');
-    }
-
-    const allowedAdditions = allowedSimpleAdditionTypes(customRequest);
-    return simpleResult.data.materials.map((material, index) => {
-      const boldPhrases = [...emphasisTerms, ...material.bold_phrases]
-        .map((phrase) => sourcePhrase(content, phrase))
-        .filter((phrase): phrase is string => Boolean(phrase))
-        .filter((phrase, phraseIndex, phrases) => (
-          phrases.findIndex((candidate) => candidate.toLocaleLowerCase() === phrase.toLocaleLowerCase()) === phraseIndex
-        ));
-      const sourceLines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      if (!isCompleteSourceStructure(material.structure, sourceLines.length)) {
-        throw new Error('Simple document structure must cover every source line exactly once and in order.');
-      }
-      const headingPhrases = material.heading_phrases
-        .map((phrase) => sourceLines.find((line) => line.localeCompare(phrase.trim(), undefined, { sensitivity: 'base' }) === 0))
-        .filter((phrase): phrase is string => Boolean(phrase))
-        .filter((phrase, phraseIndex, phrases) => (
-          phrases.findIndex((candidate) => candidate.toLocaleLowerCase() === phrase.toLocaleLowerCase()) === phraseIndex
-        ));
-      return {
-        material_type: 'clean_handout' as const,
-        title: requestedTitle?.trim() || material.title,
-        source_text: content,
-        bold_phrases: boldPhrases,
-        heading_phrases: headingPhrases,
-        structure: material.structure,
-        template_id: templateId,
-        blocks: material.additions.filter((block) => allowedAdditions.has(block.type)),
-        id: `material-${Date.now()}-${index}`,
-        preset_id: presetForIndex(index),
-      };
-    });
-  }
-
   const result = TransformResponseSchema.safeParse(normalizedPayload);
   if (!result.success) {
     console.error('[llm] Invalid response shape:', result.error.flatten());
@@ -383,6 +323,53 @@ function parseMaterials(
   }));
 }
 
+/**
+ * Additions-only LLM call for Simple Document mode. The document body is
+ * already built locally; the model only produces the explicitly requested
+ * extra blocks, which are then filtered to the recognized addition types.
+ */
+async function generateSimpleAdditions(
+  config: DocumentsLlmConfig,
+  content: string,
+  customRequest: string,
+  allowed: Set<MaterialBlock['type']>,
+  level?: string,
+  languageFocus?: string,
+): Promise<MaterialBlock[]> {
+  const baseMessages: ChatMessage[] = [
+    { role: 'system', content: SIMPLE_ADDITIONS_SYSTEM_PROMPT },
+    { role: 'user', content: buildSimpleAdditionsUserPrompt(content, customRequest, level, languageFocus) },
+  ];
+
+  const attempts: ChatMessage[][] = [baseMessages];
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const payload = await requestCompletion(config, attempts[attempt], 'simple');
+    const result = SimpleAdditionsResponseSchema.safeParse(payload);
+    if (result.success) {
+      return result.data.additions.filter((block) => allowed.has(block.type));
+    }
+
+    console.error('[llm] Invalid additions shape:', result.error.flatten());
+    if (attempt === 1) {
+      throw new Error('AI returned an unexpected structure. Try again.');
+    }
+    attempts.push([
+      ...baseMessages,
+      {
+        role: 'user',
+        content: [
+          'Your previous output did not match the required JSON structure.',
+          'Return only valid JSON: { "additions": [ ...blocks ] }.',
+          'Use only the allowed block types.',
+        ].join('\n'),
+      },
+    ]);
+  }
+
+  throw new Error('AI generation failed after validation retries.');
+}
+
 export async function callLLM(
   config: DocumentsLlmConfig,
   content: string,
@@ -396,20 +383,28 @@ export async function callLLM(
   emphasisTerms: string[] = [],
   templateId: SimpleTemplateId = 'editorial_reader',
 ): Promise<TransformResponse> {
-  const expectedCount = mode === 'simple' ? 1 : 3;
-  const rawContext = buildGenerationContext(content, title, inputKind, outputIntent, customRequest);
-  // Simple mode formats the teacher's content as-is: bundle-coverage rules don't apply.
-  const context = mode === 'simple' ? { ...rawContext, requiredCoverage: [] } : rawContext;
-  const baseMessages: ChatMessage[] =
-    mode === 'simple'
-      ? [
-          { role: 'system', content: SIMPLE_SYSTEM_PROMPT },
-          { role: 'user', content: buildSimpleUserPrompt(content, title, level, languageFocus, customRequest, emphasisTerms) },
-        ]
-      : [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: buildUserPrompt(content, context, title, level, languageFocus) },
-        ];
+  if (mode === 'simple') {
+    // Formatting is code, not AI judgement: same input, same document.
+    const material = buildSimpleMaterial(content.trim(), title, emphasisTerms, templateId);
+    const allowed = allowedSimpleAdditionTypes(customRequest);
+    if (customRequest?.trim() && allowed.size > 0) {
+      material.blocks = await generateSimpleAdditions(
+        config,
+        content,
+        customRequest.trim(),
+        allowed,
+        level,
+        languageFocus,
+      );
+    }
+    return { materials: [material] };
+  }
+
+  const context = buildGenerationContext(content, title, inputKind, outputIntent, customRequest);
+  const baseMessages: ChatMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: buildUserPrompt(content, context, title, level, languageFocus) },
+  ];
 
   const attempts: ChatMessage[][] = [baseMessages];
 
@@ -418,16 +413,7 @@ export async function callLLM(
 
     let materials: TransformMaterial[];
     try {
-      materials = parseMaterials(
-        payload,
-        expectedCount,
-        mode,
-        content,
-        title,
-        customRequest,
-        emphasisTerms,
-        templateId,
-      );
+      materials = parseMaterials(payload, 3);
     } catch (error) {
       if (attempt === 1) throw error;
       const message = error instanceof Error ? error.message : 'Invalid response structure.';
@@ -437,10 +423,8 @@ export async function callLLM(
           role: 'user',
           content: [
             'Your previous output did not match the required JSON structure.',
-            `Regenerate from scratch and return only valid JSON with exactly ${expectedCount} material(s).`,
-            mode === 'simple'
-              ? 'The handout must include: material_type, title, bold_phrases, heading_phrases, structure, additions.'
-              : 'Each material must include: material_type, title, skill_focus, interaction_pattern, estimated_minutes, blocks.',
+            'Regenerate from scratch and return only valid JSON with exactly 3 materials.',
+            'Each material must include: material_type, title, skill_focus, interaction_pattern, estimated_minutes, blocks.',
             'Use only the allowed block types.',
             `Previous error: ${message}`,
           ].join('\n'),
@@ -449,9 +433,7 @@ export async function callLLM(
       continue;
     }
 
-    const validationErrors = mode === 'simple'
-      ? []
-      : validateMaterials(context, materials as LessonTransformMaterial[]);
+    const validationErrors = validateMaterials(context, materials as LessonTransformMaterial[]);
     if (validationErrors.length === 0) {
       return { materials };
     }
@@ -467,7 +449,7 @@ export async function callLLM(
       {
         role: 'user',
         content: [
-          `Your previous output failed validation. Regenerate all ${expectedCount} material(s) from scratch.`,
+          'Your previous output failed validation. Regenerate all 3 materials from scratch.',
           'Fix these issues exactly:',
           ...validationErrors.map((error) => `- ${error}`),
           'Do not explain. Return valid JSON only.',

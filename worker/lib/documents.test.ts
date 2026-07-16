@@ -254,20 +254,6 @@ describe("material renderer (ported)", () => {
 function llmResponse(content: string): Response {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
 }
-function simpleHandoutJson(): string {
-  return JSON.stringify({
-    materials: [
-      {
-        material_type: "clean_handout",
-        title: "Remote work for trainers",
-        bold_phrases: [],
-        heading_phrases: [],
-        structure: [{ type: "paragraph", line_ids: [1] }],
-        additions: [],
-      },
-    ],
-  });
-}
 function validMaterialsJson(topic = "remote work for trainers"): string {
   const material = (type: string, skill: string, blocks: unknown[]) => ({
     material_type: type,
@@ -369,62 +355,30 @@ describe("documents LLM port", () => {
     await expect(callLLM({ apiKey: "k", fetcher }, REQUEST_CONTENT)).rejects.toThrow(/invalid JSON/i);
   });
 
-  it("simple mode uses the simple-document prompt and returns 1 clean handout", async () => {
-    const requests: string[] = [];
-    const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
-      requests.push(String(init?.body ?? ""));
-      return llmResponse(simpleHandoutJson());
+  it("simple mode without an addition request never calls the LLM", async () => {
+    const fetcher = (async () => {
+      throw new Error("The LLM must not be called for formatting-only requests.");
     }) as typeof fetch;
     const result = await callLLM(
       { apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work",
       undefined, undefined, "auto", "three_materials", undefined, "simple", [], "classroom_handout",
     );
     expect(result.materials).toHaveLength(1);
-    expect(result.materials[0].material_type).toBe("clean_handout");
-    expect(result.materials[0].preset_id).toBe("studio_academic");
-    expect(result.materials[0]).toMatchObject({ template_id: "classroom_handout" });
-    expect(requests[0]).toContain("Simple Document mode");
-    expect(requests[0]).toContain("MODE: SIMPLE_DOCUMENT");
-    expect(requests[0]).not.toContain("exactly 3 materials");
-  });
-
-  it("keeps the teacher source immutable and returns only validated presentation directives", async () => {
-    const sectionHeading = "What is supplier performance management?";
-    const content = `${sectionHeading}\n\n${REQUEST_CONTENT} Lead times and warranty claims matter.`;
-    const response = JSON.stringify({
-      materials: [{
-        material_type: "clean_handout",
-        title: "Supplier performance",
-        bold_phrases: ["Lead times", "invented phrase"],
-        heading_phrases: [sectionHeading, "Invented heading"],
-        structure: [
-          { type: "heading", line_ids: [1] },
-          { type: "paragraph", line_ids: [2] },
-        ],
-        additions: [],
-      }],
-    });
-    const fetcher = (async () => llmResponse(response)) as typeof fetch;
-
-    const result = await callLLM(
-      { apiKey: "k", fetcher }, content, undefined,
-      undefined, undefined, "auto", "three_materials", "Make useful vocabulary bold.", "simple",
-    );
-
     expect(result.materials[0]).toMatchObject({
       material_type: "clean_handout",
-      source_text: content,
-      bold_phrases: ["Lead times"],
-      heading_phrases: [sectionHeading],
+      source_text: REQUEST_CONTENT,
+      template_id: "classroom_handout",
+      title: "Remote work",
+      blocks: [],
     });
     expect(result.materials[0]).not.toHaveProperty("skill_focus");
-    expect(result.materials[0]).not.toHaveProperty("interaction_pattern");
-    expect(result.materials[0]).not.toHaveProperty("estimated_minutes");
   });
 
-  it("guarantees explicit teacher-selected vocabulary emphasis without relying on the model", async () => {
+  it("guarantees teacher-selected vocabulary emphasis without the model", async () => {
     const content = "Track warranty claims and SLA targets carefully throughout the supplier review.";
-    const fetcher = (async () => llmResponse(simpleHandoutJson())) as typeof fetch;
+    const fetcher = (async () => {
+      throw new Error("no LLM");
+    }) as typeof fetch;
 
     const result = await callLLM(
       { apiKey: "k", fetcher }, content, "Supplier review",
@@ -438,48 +392,55 @@ describe("documents LLM port", () => {
     });
   });
 
-  it("does not accept generated activities when the teacher requested formatting only", async () => {
-    const response = JSON.stringify({
-      materials: [{
-        material_type: "clean_handout",
-        title: "Supplier performance",
-        bold_phrases: ["trainers"],
-        heading_phrases: [],
-        structure: [{ type: "paragraph", line_ids: [1] }],
-        additions: [{
-          type: "questions",
-          heading: "Questions",
-          items: [{ prompt: "What changed?", answer: "Everything." }],
-        }],
-      }],
-    });
-    const fetcher = (async () => llmResponse(response)) as typeof fetch;
-
+  it("a presentational request that names no known addition stays fully local", async () => {
+    const fetcher = (async () => {
+      throw new Error("no LLM");
+    }) as typeof fetch;
     const result = await callLLM(
       { apiKey: "k", fetcher }, REQUEST_CONTENT, undefined,
-      undefined, undefined, "auto", "three_materials", "Make useful vocabulary bold.", "simple",
+      undefined, undefined, "auto", "three_materials", "Make it look modern and airy.", "simple",
     );
-
     expect(result.materials[0].blocks).toEqual([]);
   });
 
-  it("keeps the exact addition the teacher explicitly requested", async () => {
+  it("an explicit addition request triggers one additions-only call and keeps local structure", async () => {
     const wordBank = {
       type: "reference_list",
       heading: "Word bank",
       items: [{ term: "trainer", detail: "A person who teaches workplace skills." }],
     };
-    const response = JSON.stringify({
-      materials: [{
-        material_type: "clean_handout",
-        title: "Remote work",
-        bold_phrases: [],
-        heading_phrases: [],
-        structure: [{ type: "paragraph", line_ids: [1] }],
-        additions: [wordBank],
-      }],
+    const requests: string[] = [];
+    const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(String(init?.body ?? ""));
+      return llmResponse(JSON.stringify({ additions: [wordBank] }));
+    }) as typeof fetch;
+
+    const result = await callLLM(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work",
+      undefined, undefined, "auto", "three_materials", "Add a word bank at the end.", "simple",
+    );
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toContain("SIMPLE_DOCUMENT_ADDITIONS");
+    expect(result.materials[0].blocks).toEqual([wordBank]);
+    expect(result.materials[0]).toMatchObject({
+      source_text: REQUEST_CONTENT,
+      structure: [{ type: "paragraph", line_ids: [1] }],
     });
-    const fetcher = (async () => llmResponse(response)) as typeof fetch;
+  });
+
+  it("filters model additions the teacher did not ask for", async () => {
+    const wordBank = {
+      type: "reference_list",
+      heading: "Word bank",
+      items: [{ term: "trainer", detail: "A person who teaches workplace skills." }],
+    };
+    const unrequestedQuiz = {
+      type: "questions",
+      heading: "Questions",
+      items: [{ prompt: "What changed?", answer: "Everything." }],
+    };
+    const fetcher = (async () => llmResponse(JSON.stringify({ additions: [wordBank, unrequestedQuiz] }))) as typeof fetch;
 
     const result = await callLLM(
       { apiKey: "k", fetcher }, REQUEST_CONTENT, undefined,
@@ -487,17 +448,6 @@ describe("documents LLM port", () => {
     );
 
     expect(result.materials[0].blocks).toEqual([wordBank]);
-  });
-
-  it("simple mode keeps only the first material if the model over-produces", async () => {
-    const overProduced = JSON.parse(simpleHandoutJson()) as { materials: unknown[] };
-    overProduced.materials.push(overProduced.materials[0]);
-    const fetcher = (async () => llmResponse(JSON.stringify(overProduced))) as typeof fetch;
-    const result = await callLLM(
-      { apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work",
-      undefined, undefined, "auto", "three_materials", undefined, "simple",
-    );
-    expect(result.materials).toHaveLength(1);
   });
 
   it("lesson mode still requires 3 materials (a 1-material payload triggers retry then failure)", async () => {

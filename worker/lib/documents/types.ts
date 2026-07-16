@@ -164,23 +164,11 @@ export const MaterialSchema = z.object({
   blocks: z.array(MaterialBlockSchema).min(1),
 });
 
-// Simple mode never asks the model to reproduce the teacher's source. The
-// model may return presentation directives and explicitly requested additions;
-// the trusted source text is attached by the worker after validation.
-export const SimpleMaterialDirectiveSchema = z.object({
-  material_type: z.literal('clean_handout'),
-  title: z.string().min(1),
-  bold_phrases: z.array(z.string().min(1)),
-  heading_phrases: z.array(z.string().min(1)),
-  structure: z.array(z.object({
-    type: z.enum(['heading', 'paragraph', 'bullet_list', 'numbered_list']),
-    line_ids: z.array(z.number().int().positive()).min(1),
-  })).min(1),
-  additions: z.array(MaterialBlockSchema),
-});
-
-export const SimpleTransformDirectiveResponseSchema = z.object({
-  materials: z.array(SimpleMaterialDirectiveSchema).length(1),
+// Simple mode is deterministic: the worker parses structure, title, and bold
+// phrases locally (simple-structure.ts). The model is only consulted for
+// explicitly requested additions, and returns just those blocks.
+export const SimpleAdditionsResponseSchema = z.object({
+  additions: z.array(MaterialBlockSchema).min(1).max(4),
 });
 
 export const TransformResponseSchema = z.object({
