@@ -757,21 +757,7 @@ export function startCreditCheckout(packId: string) {
 // ---- Documents types ----
 
 export type DocumentJobStatus = "queued" | "processing" | "completed" | "failed";
-export type DocumentInputKind =
-  | "auto"
-  | "raw_content"
-  | "lesson_plan"
-  | "curriculum"
-  | "worksheet_spec"
-  | "assessment_spec"
-  | "other_structured_spec";
-export type DocumentOutputIntent =
-  | "three_materials"
-  | "lesson_pack"
-  | "assessment_pack"
-  | "unit_snapshot"
-  | "custom";
-export type DocumentMode = "lesson" | "simple";
+export type DocumentType = "reading" | "worksheet" | "teacher_guide" | "lesson_plan";
 export type DocumentPresetId = "studio_academic" | "modern_training" | "warm_coaching";
 export type SimpleDocumentTemplateId = "editorial_reader" | "classroom_handout" | "compact_professional";
 export type DocumentMaterialType =
@@ -828,12 +814,11 @@ export interface TransformDocumentPayload {
   title?: string;
   level?: string;
   languageFocus?: string;
-  inputKind?: DocumentInputKind;
-  outputIntent?: DocumentOutputIntent;
   customRequest?: string;
   emphasisTerms?: string[];
   templateId?: SimpleDocumentTemplateId;
-  mode?: DocumentMode;
+  documentType?: DocumentType;
+  locale?: string;
 }
 
 export interface DocumentBlockItem {
@@ -879,6 +864,9 @@ export interface SimpleDocumentMaterial extends DocumentMaterialBase {
   bold_phrases?: string[];
   heading_phrases?: string[];
   template_id?: SimpleDocumentTemplateId;
+  document_type?: DocumentType;
+  level?: string;
+  language_focus?: string;
 }
 
 export interface LessonDocumentMaterial extends DocumentMaterialBase {

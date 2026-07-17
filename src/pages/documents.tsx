@@ -7,12 +7,12 @@ import { DocumentPreview } from "@/components/documents/document-preview";
 import { SimpleDocumentOptions } from "@/components/documents/simple-document-options";
 import { SimpleTemplatePicker } from "@/components/documents/simple-template-picker";
 import { useAuth } from "@/lib/auth/auth-context";
-import { t } from "@/lib/i18n";
+import { getLanguage, t } from "@/lib/i18n";
 import * as api from "@/lib/api";
 import { materialToPlainText } from "@/lib/document-text";
 import { materialUrl, parseEmphasisTerms } from "@/lib/document-presentation";
 import {
-  DRAFT_KEY, EMPTY_DRAFT, INPUT_KINDS, LEVELS, MODES, OUTPUT_INTENTS,
+  DOCUMENT_TYPES, DRAFT_KEY, EMPTY_DRAFT, LEVELS,
   documentErrorMessage, formatElapsed, presetLabel, wordCount,
   type DraftState, type ViewState,
 } from "@/lib/documents-page";
@@ -21,11 +21,7 @@ export function DocumentsPage() {
   const { isParticipant } = useAuth();
   const [view, setView] = useState<ViewState>("input");
   const [draft, setDraft] = useState<DraftState>(EMPTY_DRAFT);
-  const [mode, setMode] = useState<api.DocumentMode>("lesson");
-  const [inputKind, setInputKind] = useState<api.DocumentInputKind>("auto");
-  const [outputIntent, setOutputIntent] = useState<api.DocumentOutputIntent>("three_materials");
   const [customRequest, setCustomRequest] = useState("");
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [openHelp, setOpenHelp] = useState<string | null>(null);
   const [recentJobs, setRecentJobs] = useState<api.DocumentJobSummary[]>([]);
@@ -150,18 +146,17 @@ export function DocumentsPage() {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
-    const wantsCustomRequest = mode === "simple" || outputIntent === "custom";
+    const isLessonPlan = draft.documentType === "lesson_plan";
     const payload: api.TransformDocumentPayload = {
       content: draft.content,
       title: draft.title.trim() || undefined,
-      level: mode === "lesson" ? draft.level || undefined : undefined,
-      languageFocus: mode === "lesson" ? draft.languageFocus.trim() || undefined : undefined,
-      mode,
-      inputKind: mode === "simple" ? undefined : inputKind,
-      outputIntent: mode === "simple" ? undefined : outputIntent,
-      customRequest: wantsCustomRequest && customRequest.trim() ? customRequest.trim() : undefined,
-      emphasisTerms: mode === "simple" ? parseEmphasisTerms(draft.emphasisInput) : undefined,
-      templateId: mode === "simple" ? draft.templateId : undefined,
+      level: isLessonPlan ? draft.level || undefined : undefined,
+      languageFocus: isLessonPlan ? draft.languageFocus.trim() || undefined : undefined,
+      customRequest: customRequest.trim() || undefined,
+      emphasisTerms: parseEmphasisTerms(draft.emphasisInput),
+      templateId: draft.templateId,
+      documentType: draft.documentType,
+      locale: getLanguage(),
     };
     const res = await api.transformDocument(payload);
     setSubmitting(false);
@@ -198,9 +193,6 @@ export function DocumentsPage() {
   }
   function resetForNewDocument() {
     setDraft(EMPTY_DRAFT);
-    setMode("lesson");
-    setInputKind("auto");
-    setOutputIntent("three_materials");
     setCustomRequest("");
     setJob(null);
     setSelectedIndex(0);
@@ -215,13 +207,13 @@ export function DocumentsPage() {
       setDraft({
         content: material.source_text,
         title: material.title,
-        level: "",
-        languageFocus: "",
+        level: LEVELS.includes(material.level as DraftState["level"]) ? material.level as DraftState["level"] : "",
+        languageFocus: material.language_focus ?? "",
         emphasisInput: material.bold_phrases?.join(", ") ?? "",
         templateId: material.template_id ?? "editorial_reader",
+        documentType: material.document_type ?? "reading",
       });
     }
-    setMode("simple");
     setError(null);
     setView("input");
     window.history.replaceState(null, "", window.location.pathname);
@@ -298,17 +290,14 @@ export function DocumentsPage() {
             </div>
           )}
           <ChoiceButtons
-            label={t("documents.mode_label")}
-            help={helpDot("mode")}
-            value={mode}
-            options={MODES}
-            keyPrefix="documents.modes"
-            onChange={(nextMode) => {
-              setMode(nextMode);
-              setCustomRequest("");
-            }}
+            label={t("documents.document_type_label")}
+            help={helpDot("documentType")}
+            value={draft.documentType}
+            options={DOCUMENT_TYPES}
+            keyPrefix="documents.document_types"
+            onChange={(documentType) => updateDraft("documentType", documentType)}
           />
-          {openHelp === "mode" && <p className={s.fieldHelp}>{t("documents.help_mode")}</p>}
+          {openHelp === "documentType" && <p className={s.fieldHelp}>{t("documents.help_document_type")}</p>}
           <label className={s.field}>
             <span>{t("documents.content_label")}</span>
             <textarea
@@ -323,19 +312,19 @@ export function DocumentsPage() {
             <span className={isTooLong ? s.counterWarn : ""}>{t("documents.char_count", { count: String(chars) })}</span>
           </div>
           {disabledReason && <p className={s.reason}>{disabledReason}</p>}
-          <div className={mode === "lesson" ? s.formGrid : ""}>
+          <div className={draft.documentType === "lesson_plan" ? s.formGrid : ""}>
             <label className={s.field}>
               <span>{t("documents.title_label")}</span>
               <input value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} placeholder={t("documents.title_placeholder")} />
             </label>
-            {mode === "lesson" && (
+            {draft.documentType === "lesson_plan" && (
               <label className={s.field}>
                 <span>{t("documents.language_label")}</span>
                 <input value={draft.languageFocus} onChange={(event) => updateDraft("languageFocus", event.target.value)} placeholder={t("documents.language_placeholder")} />
               </label>
             )}
           </div>
-          {mode === "lesson" && (
+          {draft.documentType === "lesson_plan" && (
             <fieldset className={s.choiceGroup}>
               <legend>{t("documents.level_label")} {helpDot("level")}</legend>
               <div className={s.chips}>
@@ -348,52 +337,17 @@ export function DocumentsPage() {
               {openHelp === "level" && <p className={s.fieldHelp}>{t("documents.help_level")}</p>}
             </fieldset>
           )}
-          {mode === "simple" && (
-            <SimpleDocumentOptions
-              emphasisInput={draft.emphasisInput}
-              customRequest={customRequest}
-              templateId={draft.templateId}
-              onEmphasisChange={(value) => updateDraft("emphasisInput", value)}
-              onCustomRequestChange={setCustomRequest}
-              onTemplateChange={(templateId) => updateDraft("templateId", templateId)}
-            />
-          )}
-          {mode === "lesson" && (
-            <button type="button" className={s.advancedToggle} onClick={() => setAdvancedOpen((prev) => !prev)}>
-              {advancedOpen ? t("documents.advanced_hide") : t("documents.advanced_show")}
-            </button>
-          )}
-          {mode === "lesson" && advancedOpen && (
-            <div className={s.advancedPanel}>
-              <ChoiceButtons
-                label={t("documents.input_kind")}
-                help={helpDot("inputKind")}
-                value={inputKind}
-                options={INPUT_KINDS}
-                keyPrefix="documents.input_kinds"
-                onChange={setInputKind}
-              />
-              {openHelp === "inputKind" && <p className={s.fieldHelp}>{t("documents.help_input_kind")}</p>}
-              <ChoiceButtons
-                label={t("documents.output_intent")}
-                help={helpDot("outputIntent")}
-                value={outputIntent}
-                options={OUTPUT_INTENTS}
-                keyPrefix="documents.output_intents"
-                onChange={setOutputIntent}
-              />
-              {openHelp === "outputIntent" && <p className={s.fieldHelp}>{t("documents.help_output_intent")}</p>}
-              {outputIntent === "custom" && (
-                <label className={s.field}>
-                  <span>{t("documents.custom_request")}</span>
-                  <textarea className={s.smallArea} value={customRequest} onChange={(event) => setCustomRequest(event.target.value)} placeholder={t("documents.custom_placeholder")} />
-                </label>
-              )}
-            </div>
-          )}
+          <SimpleDocumentOptions
+            emphasisInput={draft.emphasisInput}
+            customRequest={customRequest}
+            templateId={draft.templateId}
+            onEmphasisChange={(value) => updateDraft("emphasisInput", value)}
+            onCustomRequestChange={setCustomRequest}
+            onTemplateChange={(templateId) => updateDraft("templateId", templateId)}
+          />
           <button type="button" className={s.primaryAction} disabled={!canSubmit} onClick={() => void submitDocument()}>
             {submitting ? <Loader2 size={18} className={s.spin} aria-hidden /> : <FileText size={18} aria-hidden />}
-            {submitting ? t("documents.submitting") : t(mode === "simple" ? "documents.format_document" : "documents.generate")}
+            {submitting ? t("documents.submitting") : t("documents.format_document")}
           </button>
         </section>
         <RecentJobs jobs={recentJobs} loading={recentLoading} onOpen={(id) => {
@@ -404,8 +358,7 @@ export function DocumentsPage() {
     );
   }
   function renderWaiting() {
-    const buildingKey = mode === "simple" ? "waiting_building_simple" : "waiting_building";
-    const messageKey = elapsed < 30 ? "waiting_analysis" : elapsed < 90 ? buildingKey : "waiting_finalizing";
+    const messageKey = elapsed < 30 ? "waiting_analysis" : elapsed < 90 ? "waiting_building_simple" : "waiting_finalizing";
     return (
       <section className={s.waitingPanel}>
         <Loader2 size={38} className={s.spin} aria-hidden />

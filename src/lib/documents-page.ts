@@ -11,13 +11,12 @@ export interface DraftState {
   languageFocus: string;
   emphasisInput: string;
   templateId: api.SimpleDocumentTemplateId;
+  documentType: api.DocumentType;
 }
 
-export const DRAFT_KEY = "ti-docs-draft-v1";
+export const DRAFT_KEY = "ti-docs-draft-v2";
 export const LEVELS: LevelValue[] = ["", "A1", "A2", "B1", "B2", "C1", "C2"];
-export const INPUT_KINDS: api.DocumentInputKind[] = ["auto", "raw_content", "lesson_plan", "curriculum", "worksheet_spec", "assessment_spec", "other_structured_spec"];
-export const OUTPUT_INTENTS: api.DocumentOutputIntent[] = ["three_materials", "lesson_pack", "assessment_pack", "unit_snapshot", "custom"];
-export const MODES: api.DocumentMode[] = ["simple", "lesson"];
+export const DOCUMENT_TYPES: api.DocumentType[] = ["reading", "worksheet", "teacher_guide", "lesson_plan"];
 export const EMPTY_DRAFT: DraftState = {
   content: "",
   title: "",
@@ -25,6 +24,7 @@ export const EMPTY_DRAFT: DraftState = {
   languageFocus: "",
   emphasisInput: "",
   templateId: "editorial_reader",
+  documentType: "reading",
 };
 
 export function wordCount(value: string) {

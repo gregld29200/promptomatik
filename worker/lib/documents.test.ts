@@ -5,7 +5,7 @@ import worker from "../index";
 import type { Env } from "../env";
 import { createSession, type SessionData } from "./session";
 import { renderMaterialHtml, presetForIndex } from "./documents/material-renderer";
-import { callLLM } from "./documents/generate";
+import { buildDocument } from "./documents/generate";
 import {
   createDocumentJob,
   getDocumentJobForUser,
@@ -251,35 +251,82 @@ describe("material renderer (ported)", () => {
     ]);
   });
 });
+describe("document type chrome", () => {
+  const baseSimpleMaterial = {
+    material_type: "clean_handout",
+    title: "Supplier Performance",
+    source_text: [
+      "Supplier Performance",
+      "Warm-up",
+      "Discuss last week's deliveries.",
+      "Exercises",
+      "1. Name two supplier metrics.",
+      "2. Explain what an SLA covers.",
+    ].join("\n"),
+    bold_phrases: [],
+    heading_phrases: ["Warm-up", "Exercises"],
+    structure: [
+      { type: "heading", line_ids: [1] },
+      { type: "heading", line_ids: [2] },
+      { type: "paragraph", line_ids: [3] },
+      { type: "heading", line_ids: [4] },
+      { type: "numbered_list", line_ids: [5, 6] },
+    ],
+    blocks: [],
+    id: "doctype-chrome",
+    preset_id: "studio_academic",
+  } as unknown as TransformMaterial;
+
+  function materialOfType(documentType: string, extra: Record<string, unknown> = {}) {
+    return { ...baseSimpleMaterial, document_type: documentType, ...extra } as unknown as TransformMaterial;
+  }
+
+  it("renders a legacy material without document_type exactly as a reading material", () => {
+    const html = renderMaterialHtml(baseSimpleMaterial);
+    expect(html).toContain('data-doctype="reading"');
+    expect(html).not.toContain('class="doc-badge"');
+    expect(html).not.toContain('class="ws-fields"');
+    expect(html).not.toContain('class="answer-lines"');
+    expect(html).not.toContain('class="meta-strip"');
+  });
+
+  it("gives a worksheet a name/date line and writing space under numbered exercises", () => {
+    const html = renderMaterialHtml(materialOfType("worksheet", { locale: "fr" }));
+    expect(html).toContain('data-doctype="worksheet"');
+    expect(html).toContain('class="ws-fields"');
+    expect(html).toContain("Nom");
+    expect(html).toContain("Fiche d&#39;exercices");
+    expect(html.match(/class="answer-lines"/g)).toHaveLength(2);
+    // Bullet-free prose keeps its normal layout.
+    expect(html).toContain("<p>Discuss last week&#39;s deliveries.</p>");
+  });
+
+  it("labels a teacher guide with a localized badge", () => {
+    const html = renderMaterialHtml(materialOfType("teacher_guide", { locale: "en" }));
+    expect(html).toContain('data-doctype="teacher_guide"');
+    expect(html).toContain('<p class="doc-badge">Teacher guide</p>');
+    expect(html).not.toContain('class="answer-lines"');
+  });
+
+  it("shows the lesson-plan meta strip only when level or language focus is provided", () => {
+    const withMeta = renderMaterialHtml(materialOfType("lesson_plan", {
+      locale: "fr",
+      level: "B1",
+      language_focus: "Anglais",
+    }));
+    expect(withMeta).toContain('data-doctype="lesson_plan"');
+    expect(withMeta).toContain('class="meta-strip"');
+    expect(withMeta).toContain("<b>Niveau</b> B1");
+    expect(withMeta).toContain("<b>Langue cible</b> Anglais");
+    expect(withMeta).toContain("counter(stage)");
+
+    const withoutMeta = renderMaterialHtml(materialOfType("lesson_plan"));
+    expect(withoutMeta).not.toContain('class="meta-strip"');
+    expect(withoutMeta).toContain('<p class="doc-badge">Plan de cours</p>');
+  });
+});
 function llmResponse(content: string): Response {
   return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
-}
-function validMaterialsJson(topic = "remote work for trainers"): string {
-  const material = (type: string, skill: string, blocks: unknown[]) => ({
-    material_type: type,
-    title: `Working with ${topic}`,
-    skill_focus: skill,
-    interaction_pattern: "individual",
-    estimated_minutes: 15,
-    blocks,
-  });
-  return JSON.stringify({
-    materials: [
-      material("comprehension_quiz", "reading", [
-        { type: "article", paragraphs: [`A text about ${topic}.`] },
-        { type: "questions", items: [{ prompt: "Why?", answer: "Because." }] },
-      ]),
-      material("matching_exercise", "vocabulary", [
-        { type: "matching", pairs: [{ left: "a", right: "b" }, { left: "c", right: "d" }] },
-      ]),
-      material("role_play_cards", "speaking", [
-        { type: "role_cards", cards: [
-          { role: "A", situation: "s", goal: "g" },
-          { role: "B", situation: "s", goal: "g" },
-        ] },
-      ]),
-    ],
-  });
 }
 const REQUEST_CONTENT = [
   "Remote work has changed how language trainers organise their weeks and their energy.",
@@ -328,50 +375,41 @@ const SIMPLE_RESULT: TransformResponse = {
     preset_id: "studio_academic",
   }],
 };
-describe("documents LLM port", () => {
-  it("parses fenced JSON, normalizes aliases, and returns 3 materials with presets", async () => {
-    const fenced = "```json\n" + validMaterialsJson() + "\n```";
-    const fetcher = (async () => llmResponse(fenced)) as typeof fetch;
-    const result = await callLLM({ apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work");
-    expect(result.materials).toHaveLength(3);
-    expect(result.materials.map((m) => m.preset_id)).toEqual([
-      "studio_academic",
-      "modern_training",
-      "warm_coaching",
-    ]);
-  });
-  it("retries once on a wrong structure, then succeeds (source behavior)", async () => {
-    let calls = 0;
-    const fetcher = (async () => {
-      calls += 1;
-      return llmResponse(calls === 1 ? '{"foo": []}' : validMaterialsJson());
-    }) as typeof fetch;
-    const result = await callLLM({ apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work");
-    expect(calls).toBe(2);
-    expect(result.materials).toHaveLength(3);
-  });
-  it("fails immediately on unparseable raw output (source behavior: no retry on non-JSON)", async () => {
-    const fetcher = (async () => llmResponse("not json at all")) as typeof fetch;
-    await expect(callLLM({ apiKey: "k", fetcher }, REQUEST_CONTENT)).rejects.toThrow(/invalid JSON/i);
-  });
-
-  it("simple mode without an addition request never calls the LLM", async () => {
+describe("document formatting engine", () => {
+  it("a formatting-only request never calls the LLM", async () => {
     const fetcher = (async () => {
       throw new Error("The LLM must not be called for formatting-only requests.");
     }) as typeof fetch;
-    const result = await callLLM(
-      { apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work",
-      undefined, undefined, "auto", "three_materials", undefined, "simple", [], "classroom_handout",
+    const result = await buildDocument(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT,
+      { title: "Remote work", templateId: "classroom_handout" },
     );
     expect(result.materials).toHaveLength(1);
     expect(result.materials[0]).toMatchObject({
       material_type: "clean_handout",
       source_text: REQUEST_CONTENT,
       template_id: "classroom_handout",
+      document_type: "reading",
       title: "Remote work",
       blocks: [],
     });
     expect(result.materials[0]).not.toHaveProperty("skill_focus");
+  });
+
+  it("stamps the chosen document type and lesson-plan metadata on the material", async () => {
+    const fetcher = (async () => {
+      throw new Error("no LLM");
+    }) as typeof fetch;
+    const result = await buildDocument(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT,
+      { title: "Remote work", documentType: "lesson_plan", level: "B1", languageFocus: "English", locale: "fr" },
+    );
+    expect(result.materials[0]).toMatchObject({
+      document_type: "lesson_plan",
+      level: "B1",
+      language_focus: "English",
+      locale: "fr",
+    });
   });
 
   it("guarantees teacher-selected vocabulary emphasis without the model", async () => {
@@ -380,10 +418,9 @@ describe("documents LLM port", () => {
       throw new Error("no LLM");
     }) as typeof fetch;
 
-    const result = await callLLM(
-      { apiKey: "k", fetcher }, content, "Supplier review",
-      undefined, undefined, "auto", "three_materials", undefined, "simple",
-      ["warranty claims", "sla", "not in source"],
+    const result = await buildDocument(
+      { apiKey: "k", fetcher }, content,
+      { title: "Supplier review", emphasisTerms: ["warranty claims", "sla", "not in source"] },
     );
 
     expect(result.materials[0]).toMatchObject({
@@ -396,9 +433,9 @@ describe("documents LLM port", () => {
     const fetcher = (async () => {
       throw new Error("no LLM");
     }) as typeof fetch;
-    const result = await callLLM(
-      { apiKey: "k", fetcher }, REQUEST_CONTENT, undefined,
-      undefined, undefined, "auto", "three_materials", "Make it look modern and airy.", "simple",
+    const result = await buildDocument(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT,
+      { customRequest: "Make it look modern and airy." },
     );
     expect(result.materials[0].blocks).toEqual([]);
   });
@@ -415,13 +452,14 @@ describe("documents LLM port", () => {
       return llmResponse(JSON.stringify({ additions: [wordBank] }));
     }) as typeof fetch;
 
-    const result = await callLLM(
-      { apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work",
-      undefined, undefined, "auto", "three_materials", "Add a word bank at the end.", "simple",
+    const result = await buildDocument(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT,
+      { title: "Remote work", documentType: "worksheet", customRequest: "Add a word bank at the end." },
     );
 
     expect(requests).toHaveLength(1);
     expect(requests[0]).toContain("SIMPLE_DOCUMENT_ADDITIONS");
+    expect(requests[0]).toContain("student worksheet");
     expect(result.materials[0].blocks).toEqual([wordBank]);
     expect(result.materials[0]).toMatchObject({
       source_text: REQUEST_CONTENT,
@@ -442,19 +480,12 @@ describe("documents LLM port", () => {
     };
     const fetcher = (async () => llmResponse(JSON.stringify({ additions: [wordBank, unrequestedQuiz] }))) as typeof fetch;
 
-    const result = await callLLM(
-      { apiKey: "k", fetcher }, REQUEST_CONTENT, undefined,
-      undefined, undefined, "auto", "three_materials", "Add a word bank at the end.", "simple",
+    const result = await buildDocument(
+      { apiKey: "k", fetcher }, REQUEST_CONTENT,
+      { customRequest: "Add a word bank at the end." },
     );
 
     expect(result.materials[0].blocks).toEqual([wordBank]);
-  });
-
-  it("lesson mode still requires 3 materials (a 1-material payload triggers retry then failure)", async () => {
-    const oneLessonMaterial = JSON.parse(validMaterialsJson()) as { materials: unknown[] };
-    oneLessonMaterial.materials = oneLessonMaterial.materials.slice(0, 1);
-    const fetcher = (async () => llmResponse(JSON.stringify(oneLessonMaterial))) as typeof fetch;
-    await expect(callLLM({ apiKey: "k", fetcher }, REQUEST_CONTENT, "Remote work")).rejects.toThrow(/Expected exactly 3/i);
   });
 });
 describe("document request validation", () => {
@@ -464,24 +495,24 @@ describe("document request validation", () => {
     expect(validateDocumentRequest({ content: "word ".repeat(31).padEnd(15_001, "x") })).toBe("content_too_long");
   });
 
-  it("rejects an unknown document mode", () => {
-    expect(validateDocumentRequest({ content: REQUEST_CONTENT, mode: "surprise_me" })).toBe("invalid_request");
+  it("accepts the four document types and rejects unknown ones", () => {
+    for (const documentType of ["reading", "worksheet", "teacher_guide", "lesson_plan"]) {
+      expect(validateDocumentRequest({ content: REQUEST_CONTENT, documentType })).toBeNull();
+    }
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, documentType: "surprise_me" })).toBe("invalid_request");
   });
 
   it("accepts a bounded vocabulary list and rejects malformed emphasis terms", () => {
     expect(validateDocumentRequest({
       content: REQUEST_CONTENT,
-      mode: "simple",
       emphasisTerms: ["lead times", "SLA"],
     })).toBeNull();
     expect(validateDocumentRequest({
       content: REQUEST_CONTENT,
-      mode: "simple",
       emphasisTerms: Array.from({ length: 51 }, () => "term"),
     })).toBe("invalid_request");
     expect(validateDocumentRequest({
       content: REQUEST_CONTENT,
-      mode: "simple",
       emphasisTerms: ["x".repeat(101)],
     })).toBe("invalid_request");
   });
@@ -489,12 +520,10 @@ describe("document request validation", () => {
   it("accepts known simple templates and rejects unknown template ids", () => {
     expect(validateDocumentRequest({
       content: REQUEST_CONTENT,
-      mode: "simple",
       templateId: "editorial_reader",
     })).toBeNull();
     expect(validateDocumentRequest({
       content: REQUEST_CONTENT,
-      mode: "simple",
       templateId: "make_it_pop",
     })).toBe("invalid_request");
   });

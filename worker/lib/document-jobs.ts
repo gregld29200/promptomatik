@@ -4,11 +4,9 @@
 
 import { nanoid } from "nanoid";
 import type { Env } from "../env";
-import { callLLM, type DocumentsLlmConfig } from "./documents/generate";
+import { buildDocument, type DocumentsLlmConfig } from "./documents/generate";
 import {
-  DocumentModeSchema,
-  InputKindSchema,
-  OutputIntentSchema,
+  DocumentTypeSchema,
   SimpleTemplateSchema,
   type TransformResponse,
 } from "./documents/types";
@@ -18,11 +16,12 @@ export interface DocumentRequest {
   title?: string;
   level?: string;
   languageFocus?: string;
-  inputKind?: string;
-  outputIntent?: string;
   customRequest?: string;
   emphasisTerms?: string[];
   templateId?: string;
+  documentType?: string;
+  locale?: string;
+  /** Legacy field from the retired simple/lesson mode split; still present in old stored payloads. */
   mode?: string;
 }
 
@@ -57,19 +56,18 @@ export interface DocumentJobSummary {
 export type DocumentGenerator = (config: DocumentsLlmConfig, request: DocumentRequest) => Promise<TransformResponse>;
 
 const DEFAULT_GENERATOR: DocumentGenerator = (config, request) =>
-  callLLM(
-    config,
-    request.content,
-    request.title,
-    request.level,
-    request.languageFocus,
-    InputKindSchema.catch("auto").parse(request.inputKind),
-    OutputIntentSchema.catch("three_materials").parse(request.outputIntent),
-    request.customRequest,
-    DocumentModeSchema.catch("lesson").parse(request.mode),
-    request.emphasisTerms ?? [],
-    SimpleTemplateSchema.catch("editorial_reader").parse(request.templateId),
-  );
+  buildDocument(config, request.content, {
+    title: request.title,
+    level: request.level,
+    languageFocus: request.languageFocus,
+    customRequest: request.customRequest,
+    emphasisTerms: request.emphasisTerms ?? [],
+    templateId: SimpleTemplateSchema.catch("editorial_reader").parse(request.templateId),
+    // Legacy queued jobs (mode: "simple"/"lesson") fall back to "reading":
+    // formatting the content is always safe, unlike failing the job.
+    documentType: DocumentTypeSchema.catch("reading").parse(request.documentType),
+    locale: request.locale,
+  });
 
 function countWords(input: string): number {
   return input.trim().split(/\s+/).filter(Boolean).length;
@@ -77,7 +75,7 @@ function countWords(input: string): number {
 
 export function validateDocumentRequest(request: DocumentRequest): string | null {
   const content = request.content?.trim() ?? "";
-  if (request.mode !== undefined && !DocumentModeSchema.safeParse(request.mode).success) {
+  if (request.documentType !== undefined && !DocumentTypeSchema.safeParse(request.documentType).success) {
     return "invalid_request";
   }
   if (request.emphasisTerms !== undefined && (
@@ -191,10 +189,11 @@ export async function processDocumentJob(
   ).bind(jobId).run();
 
   try {
-    if (!env.OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is not configured.");
+    // Formatting is deterministic and needs no key; the LLM (and therefore the
+    // key) only comes into play for structure rescue and requested additions.
     const request = JSON.parse(row.request_payload) as DocumentRequest;
     const result = await generator(
-      { apiKey: env.OPENROUTER_API_KEY, model: env.DOCS_MODEL, structureModel: env.DOCS_STRUCTURE_MODEL },
+      { apiKey: env.OPENROUTER_API_KEY ?? "", model: env.DOCS_MODEL, structureModel: env.DOCS_STRUCTURE_MODEL },
       request
     );
     await env.DB.prepare(

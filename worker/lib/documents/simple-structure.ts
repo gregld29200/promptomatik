@@ -17,7 +17,7 @@
 // - Everything else is plain text, preserved verbatim.
 
 import { presetForIndex } from './material-renderer';
-import type { SimpleTemplateId, SimpleTransformMaterial } from './types';
+import type { DocumentType, SimpleTemplateId, SimpleTransformMaterial } from './types';
 
 export interface SimpleStructureBlock {
   type: 'heading' | 'paragraph' | 'bullet_list' | 'numbered_list';
@@ -212,23 +212,35 @@ function deriveTitle(
   return clipAtWordBoundary(stripHeadingMarker(lines[0] ?? 'Document'), MAX_FALLBACK_TITLE_LENGTH);
 }
 
+export interface SimpleMaterialOptions {
+  title?: string;
+  emphasisTerms?: string[];
+  templateId?: SimpleTemplateId;
+  documentType?: DocumentType;
+  level?: string;
+  languageFocus?: string;
+  locale?: string;
+}
+
 export function buildSimpleMaterial(
   content: string,
-  requestedTitle: string | undefined,
-  emphasisTerms: string[],
-  templateId: SimpleTemplateId,
+  options: SimpleMaterialOptions = {},
 ): SimpleTransformMaterial {
   const trimmedContent = content.trim();
   const { lines, structure, headings } = parseSimpleStructure(trimmedContent);
 
   return {
     material_type: 'clean_handout',
-    title: deriveTitle(requestedTitle, lines, structure),
+    title: deriveTitle(options.title, lines, structure),
     source_text: trimmedContent,
-    bold_phrases: resolveBoldPhrases(trimmedContent, emphasisTerms),
+    bold_phrases: resolveBoldPhrases(trimmedContent, options.emphasisTerms ?? []),
     heading_phrases: headings,
     structure,
-    template_id: templateId,
+    template_id: options.templateId ?? 'editorial_reader',
+    document_type: options.documentType ?? 'reading',
+    level: options.level?.trim() || undefined,
+    language_focus: options.languageFocus?.trim() || undefined,
+    locale: options.locale,
     blocks: [],
     id: `material-${Date.now()}-0`,
     preset_id: presetForIndex(0),

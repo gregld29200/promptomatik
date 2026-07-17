@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { callLLM } from "./documents/generate";
+import { buildDocument } from "./documents/generate";
 
 const CONTENT = Array.from({ length: 40 }, (_, index) => `word${index}`).join(" ");
 
 describe("documents structured output", () => {
-  it("enforces the additions-only schema when a simple generation asks for an addition", async () => {
+  it("enforces the additions-only schema when a generation asks for an addition", async () => {
     let requestBody: Record<string, unknown> | undefined;
     const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
       requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
@@ -18,16 +18,10 @@ describe("documents structured output", () => {
       return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
     }) as typeof fetch;
 
-    await callLLM(
+    await buildDocument(
       { apiKey: "test-key", fetcher },
       CONTENT,
-      undefined,
-      undefined,
-      undefined,
-      "auto",
-      "three_materials",
-      "Add a word bank at the end.",
-      "simple",
+      { customRequest: "Add a word bank at the end." },
     );
 
     const responseFormat = requestBody?.response_format as {
@@ -70,11 +64,10 @@ describe("documents structured output", () => {
       return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
     }) as typeof fetch;
 
-    const result = await callLLM(
+    const result = await buildDocument(
       { apiKey: "test-key", structureModel: "light-model", fetcher },
       mangled,
-      "Supplier review",
-      undefined, undefined, "auto", "three_materials", undefined, "simple",
+      { title: "Supplier review" },
     );
 
     expect(requests).toHaveLength(1);
@@ -105,35 +98,24 @@ describe("documents structured output", () => {
       return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
     }) as typeof fetch;
 
-    const result = await callLLM(
+    const result = await buildDocument(
       { apiKey: "test-key", fetcher },
       mangled,
-      "Supplier review",
-      undefined, undefined, "auto", "three_materials", undefined, "simple",
+      { title: "Supplier review" },
     );
 
     const material = result.materials[0] as { structure?: unknown };
     expect(material.structure).toEqual([{ type: "paragraph", line_ids: [1, 2, 3, 4, 5, 6] }]);
   });
 
-  it("sends no LLM request at all for a formatting-only simple generation", async () => {
+  it("sends no LLM request at all for a formatting-only generation", async () => {
     let calls = 0;
     const fetcher = (async () => {
       calls += 1;
       return new Response("{}", { status: 200 });
     }) as typeof fetch;
 
-    const result = await callLLM(
-      { apiKey: "test-key", fetcher },
-      CONTENT,
-      undefined,
-      undefined,
-      undefined,
-      "auto",
-      "three_materials",
-      undefined,
-      "simple",
-    );
+    const result = await buildDocument({ apiKey: "test-key", fetcher }, CONTENT);
 
     expect(calls).toBe(0);
     expect(result.materials).toHaveLength(1);
