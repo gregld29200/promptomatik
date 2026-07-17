@@ -207,6 +207,12 @@ export type SimpleTransformMaterial = {
   bold_phrases?: string[];
   heading_phrases?: string[];
   template_id?: SimpleTemplateId;
+  /** Optional so legacy jobs render as plain reading material. */
+  document_type?: DocumentType;
+  level?: string;
+  language_focus?: string;
+  /** UI language at generation time; drives print chrome labels. */
+  locale?: string;
   structure?: Array<{
     type: 'heading' | 'paragraph' | 'bullet_list' | 'numbered_list';
     line_ids: number[];
@@ -222,28 +228,9 @@ export type TransformResponse = {
 
 export type AppStep = 'input' | 'transforming' | 'picking' | 'preview';
 
-export const InputKindSchema = z.enum([
-  'auto',
-  'raw_content',
-  'lesson_plan',
-  'curriculum',
-  'worksheet_spec',
-  'assessment_spec',
-  'other_structured_spec',
-]);
+// Every document type formats the teacher's own content deterministically;
+// none of them generate teaching content. "reading" is the original simple
+// document; the other three add purpose-specific print chrome.
+export const DocumentTypeSchema = z.enum(['reading', 'worksheet', 'teacher_guide', 'lesson_plan']);
 
-export const OutputIntentSchema = z.enum([
-  'three_materials',
-  'lesson_pack',
-  'assessment_pack',
-  'unit_snapshot',
-  'custom',
-]);
-
-// "lesson" = the existing 3-material bundle generator.
-// "simple" = format the teacher's own content into 1 clean handout, no invented activities.
-export const DocumentModeSchema = z.enum(['lesson', 'simple']);
-
-export type InputKind = z.infer<typeof InputKindSchema>;
-export type OutputIntent = z.infer<typeof OutputIntentSchema>;
-export type DocumentMode = z.infer<typeof DocumentModeSchema>;
+export type DocumentType = z.infer<typeof DocumentTypeSchema>;

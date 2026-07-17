@@ -1,5 +1,56 @@
-import type { MaterialBlock, SimpleTemplateId, TransformMaterial } from './types';
+import type { DocumentType, MaterialBlock, SimpleTemplateId, TransformMaterial } from './types';
 import { documentFontFaceCss } from './fonts.generated';
+
+// Print chrome labels follow the UI language at generation time; the body of
+// the document is always the teacher's own text.
+type ChromeLabels = {
+  worksheet: string;
+  teacher_guide: string;
+  lesson_plan: string;
+  name: string;
+  date: string;
+  level: string;
+  language: string;
+};
+
+const CHROME_LABELS: Record<'fr' | 'en' | 'es', ChromeLabels> = {
+  fr: {
+    worksheet: "Fiche d'exercices",
+    teacher_guide: "Guide de l'enseignant",
+    lesson_plan: 'Plan de cours',
+    name: 'Nom',
+    date: 'Date',
+    level: 'Niveau',
+    language: 'Langue cible',
+  },
+  en: {
+    worksheet: 'Student worksheet',
+    teacher_guide: 'Teacher guide',
+    lesson_plan: 'Lesson plan',
+    name: 'Name',
+    date: 'Date',
+    level: 'Level',
+    language: 'Target language',
+  },
+  es: {
+    worksheet: 'Ficha de ejercicios',
+    teacher_guide: 'Guía del docente',
+    lesson_plan: 'Plan de clase',
+    name: 'Nombre',
+    date: 'Fecha',
+    level: 'Nivel',
+    language: 'Lengua meta',
+  },
+};
+
+function resolveLabels(locale?: string): { lang: string; labels: ChromeLabels } {
+  const lang = locale === 'en' || locale === 'es' ? locale : 'fr';
+  return { lang, labels: CHROME_LABELS[lang] };
+}
+
+function resolveDocumentType(material: TransformMaterial): DocumentType {
+  return 'document_type' in material && material.document_type ? material.document_type : 'reading';
+}
 
 type SimpleTemplate = {
   id: SimpleTemplateId;
@@ -167,8 +218,14 @@ function renderReferenceList(
   return `<section>${heading(block.heading)}<dl>${items}</dl></section>`;
 }
 
-function renderQuestions(block: Extract<MaterialBlock, { type: 'questions' }>): string {
-  const items = block.items.map((item) => `<li>${renderInlineText(item.prompt)}</li>`).join('');
+const ANSWER_LINES = '<span class="answer-lines" aria-hidden="true"></span>';
+
+function renderQuestions(
+  block: Extract<MaterialBlock, { type: 'questions' }>,
+  documentType: DocumentType,
+): string {
+  const answerSpace = documentType === 'worksheet' ? ANSWER_LINES : '';
+  const items = block.items.map((item) => `<li>${renderInlineText(item.prompt)}${answerSpace}</li>`).join('');
   return `<section>${heading(block.heading)}<ol>${items}</ol></section>`;
 }
 
@@ -194,13 +251,13 @@ function renderRoleCards(block: Extract<MaterialBlock, { type: 'role_cards' }>):
   return `<section>${heading(block.heading)}<div class="role-grid">${cards}</div></section>`;
 }
 
-function renderBlock(block: MaterialBlock, materialTitle: string): string {
+function renderBlock(block: MaterialBlock, materialTitle: string, documentType: DocumentType): string {
   switch (block.type) {
     case 'article': return renderArticle(block, materialTitle);
     case 'instructions':
     case 'notes': return renderTextBlock(block);
     case 'reference_list': return renderReferenceList(block);
-    case 'questions': return renderQuestions(block);
+    case 'questions': return renderQuestions(block, documentType);
     case 'fill_blanks': return renderFillBlanks(block);
     case 'matching': return renderMatching(block);
     case 'role_cards': return renderRoleCards(block);
@@ -228,7 +285,7 @@ function hasCompleteStructure(material: TransformMaterial, lineCount: number): b
   return ids.length === lineCount && ids.every((id, index) => id === index + 1);
 }
 
-function renderStructuredSource(material: TransformMaterial): string {
+function renderStructuredSource(material: TransformMaterial, documentType: DocumentType): string {
   if (!('source_text' in material) || !material.source_text?.trim()) return '';
   const lines = nonEmptySourceLines(material.source_text);
   if (!hasCompleteStructure(material, lines.length) || !('structure' in material) || !material.structure) return '';
@@ -246,8 +303,10 @@ function renderStructuredSource(material: TransformMaterial): string {
 
     if (block.type === 'bullet_list' || block.type === 'numbered_list') {
       const tag = block.type === 'bullet_list' ? 'ul' : 'ol';
+      // Worksheets give students ruled writing space under each exercise item.
+      const answerSpace = documentType === 'worksheet' && block.type === 'numbered_list' ? ANSWER_LINES : '';
       const items = blockLines
-        .map((line) => `<li>${renderInlineText(stripListMarker(line), boldPhrases)}</li>`)
+        .map((line) => `<li>${renderInlineText(stripListMarker(line), boldPhrases)}${answerSpace}</li>`)
         .join('');
       return `<section><${tag}>${items}</${tag}></section>`;
     }
@@ -262,6 +321,7 @@ function renderSourceChunk(
   boldPhrases: string[],
   headingPhrases: string[],
   index: number,
+  documentType: DocumentType,
 ): string {
   const lines = chunk.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (lines.length === 0) return '';
@@ -270,7 +330,8 @@ function renderSourceChunk(
     return `<ul>${lines.map((line) => `<li>${renderInlineText(stripListMarker(line), boldPhrases)}</li>`).join('')}</ul>`;
   }
   if (lines.every((line) => /^\d+[.)]\s+/.test(line))) {
-    return `<ol>${lines.map((line) => `<li>${renderInlineText(stripListMarker(line), boldPhrases)}</li>`).join('')}</ol>`;
+    const answerSpace = documentType === 'worksheet' ? ANSWER_LINES : '';
+    return `<ol>${lines.map((line) => `<li>${renderInlineText(stripListMarker(line), boldPhrases)}${answerSpace}</li>`).join('')}</ol>`;
   }
 
   const directedHeading = lines.length === 1
@@ -291,16 +352,16 @@ function renderSourceChunk(
   return `<p>${lines.map((line) => renderInlineText(line, boldPhrases)).join('<br />')}</p>`;
 }
 
-function renderSource(material: TransformMaterial): string {
+function renderSource(material: TransformMaterial, documentType: DocumentType): string {
   if (!('source_text' in material) || !material.source_text?.trim()) return '';
-  const structured = renderStructuredSource(material);
+  const structured = renderStructuredSource(material, documentType);
   if (structured) return structured;
   const boldPhrases = material.bold_phrases ?? [];
   const headingPhrases = material.heading_phrases ?? [];
   return material.source_text
     .trim()
     .split(/\r?\n\s*\r?\n/)
-    .map((chunk, index) => renderSourceChunk(chunk.trim(), material.title, boldPhrases, headingPhrases, index))
+    .map((chunk, index) => renderSourceChunk(chunk.trim(), material.title, boldPhrases, headingPhrases, index, documentType))
     .filter(Boolean)
     .map((content) => content.startsWith('<h2>') ? content : `<section>${content}</section>`)
     .join('');
@@ -422,27 +483,121 @@ function buildCss(template: SimpleTemplate): string {
   body[data-template='compact_professional'] ul,
   body[data-template='compact_professional'] ol { padding-top: 2.5mm; padding-bottom: 2.5mm; }
 
+  .doc-badge {
+    margin: 0 0 2mm;
+    color: ${template.accent};
+    font-size: 8.5pt;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .meta-strip {
+    display: flex;
+    gap: 8mm;
+    margin: 2.5mm 0 0;
+    color: ${template.muted};
+    font-size: 9.2pt;
+  }
+  .meta-strip b { color: ${template.accentStrong}; font-weight: 700; }
+  .ws-fields {
+    display: flex;
+    gap: 10mm;
+    margin: 3mm 0 0;
+    font-size: 9.2pt;
+    color: ${template.muted};
+  }
+  .ws-field {
+    display: flex;
+    flex: 1;
+    gap: 2mm;
+    align-items: baseline;
+  }
+  .ws-field::after {
+    content: '';
+    flex: 1;
+    border-bottom: 0.3mm solid ${template.rule};
+  }
+  .answer-lines {
+    display: block;
+    height: 14mm;
+    margin: 1.6mm 0 0.6mm;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 6.7mm,
+      ${template.rule} 6.7mm,
+      ${template.rule} 7mm
+    );
+  }
+  body[data-doctype='worksheet'] ol li { break-inside: avoid; }
+
+  body[data-doctype='teacher_guide'] main { font-size: 0.95em; }
+
+  body[data-doctype='lesson_plan'] main { counter-reset: stage; }
+  body[data-doctype='lesson_plan'] h2 { counter-increment: stage; }
+  body[data-doctype='lesson_plan'] h2::before {
+    margin-right: 2.2mm;
+    color: ${template.accent};
+    content: counter(stage) ' —';
+  }
+
   @media screen {
     body { min-height: 297mm; padding: ${template.pageMargin}; }
   }`;
 }
 
+function renderHeaderChrome(
+  documentType: DocumentType,
+  labels: ChromeLabels,
+  material: TransformMaterial,
+): { badge: string; belowTitle: string } {
+  if (documentType === 'reading') return { badge: '', belowTitle: '' };
+
+  const badge = `<p class="doc-badge">${escapeHtml(labels[documentType])}</p>`;
+
+  if (documentType === 'worksheet') {
+    return {
+      badge,
+      belowTitle: `<div class="ws-fields"><span class="ws-field">${escapeHtml(labels.name)}</span><span class="ws-field">${escapeHtml(labels.date)}</span></div>`,
+    };
+  }
+
+  if (documentType === 'lesson_plan') {
+    const level = 'level' in material ? material.level : undefined;
+    const languageFocus = 'language_focus' in material ? material.language_focus : undefined;
+    const entries = [
+      level ? `<span><b>${escapeHtml(labels.level)}</b> ${escapeHtml(level)}</span>` : '',
+      languageFocus ? `<span><b>${escapeHtml(labels.language)}</b> ${escapeHtml(languageFocus)}</span>` : '',
+    ].filter(Boolean);
+    return {
+      badge,
+      belowTitle: entries.length > 0 ? `<div class="meta-strip">${entries.join('')}</div>` : '',
+    };
+  }
+
+  return { badge, belowTitle: '' };
+}
+
 export function renderSimpleMaterialHtml(material: TransformMaterial, templateId?: SimpleTemplateId): string {
   const template = resolveSimpleTemplate(templateId ?? ('template_id' in material ? material.template_id : undefined));
-  const source = renderSource(material);
+  const documentType = resolveDocumentType(material);
+  const { lang, labels } = resolveLabels('locale' in material ? material.locale : undefined);
+  const { badge, belowTitle } = renderHeaderChrome(documentType, labels, material);
+  const source = renderSource(material, documentType);
+  const blocks = material.blocks.map((block) => renderBlock(block, material.title, documentType)).join('');
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${lang}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${escapeHtml(material.title)}</title>
     <style>${buildCss(template)}</style>
   </head>
-  <body data-template="${template.id}">
+  <body data-template="${template.id}" data-doctype="${documentType}">
     <main>
-      <header><h1>${renderInlineText(material.title)}</h1></header>
-      ${source || material.blocks.map((block) => renderBlock(block, material.title)).join('')}
-      ${source ? material.blocks.map((block) => renderBlock(block, material.title)).join('') : ''}
+      <header>${badge}<h1>${renderInlineText(material.title)}</h1>${belowTitle}</header>
+      ${source || blocks}
+      ${source ? blocks : ''}
     </main>
   </body>
 </html>`;

@@ -36,7 +36,7 @@ describe("supplier-performance fixture (production ground truth)", () => {
   });
 
   it("is repeatable: three runs produce identical materials and identical HTML", () => {
-    const runs = [1, 2, 3].map(() => buildSimpleMaterial(SOURCE, TITLE, VOCABULARY, "editorial_reader"));
+    const runs = [1, 2, 3].map(() => buildSimpleMaterial(SOURCE, { title: TITLE, emphasisTerms: VOCABULARY, templateId: "editorial_reader" }));
     const htmls = runs.map((material) => renderSimpleMaterialHtml(material));
     const [first, ...rest] = runs.map(({ id, ...material }) => material);
     for (const material of rest) expect(material).toEqual(first);
@@ -46,7 +46,7 @@ describe("supplier-performance fixture (production ground truth)", () => {
 
   it("preserves the source sequence in the rendered HTML", () => {
     // Render without vocabulary so line text is not split by <strong> tags.
-    const material = buildSimpleMaterial(SOURCE, TITLE, [], "editorial_reader");
+    const material = buildSimpleMaterial(SOURCE, { title: TITLE, templateId: "editorial_reader" });
     const html = renderSimpleMaterialHtml(material);
     const { lines } = parseSimpleStructure(SOURCE);
     let cursor = -1;
@@ -59,7 +59,7 @@ describe("supplier-performance fixture (production ground truth)", () => {
   });
 
   it("bolds every requested vocabulary phrase and nothing invented", () => {
-    const material = buildSimpleMaterial(SOURCE, TITLE, VOCABULARY, "editorial_reader");
+    const material = buildSimpleMaterial(SOURCE, { title: TITLE, emphasisTerms: VOCABULARY, templateId: "editorial_reader" });
     expect(material.bold_phrases).toEqual(VOCABULARY);
     const html = renderSimpleMaterialHtml(material);
     for (const phrase of VOCABULARY) {
@@ -68,7 +68,7 @@ describe("supplier-performance fixture (production ground truth)", () => {
   });
 
   it("renders one title, four section headings, no unrequested blocks, no page footer", () => {
-    const material = buildSimpleMaterial(SOURCE, TITLE, VOCABULARY, "editorial_reader");
+    const material = buildSimpleMaterial(SOURCE, { title: TITLE, emphasisTerms: VOCABULARY, templateId: "editorial_reader" });
     expect(material.blocks).toEqual([]);
     const html = renderSimpleMaterialHtml(material);
     expect(html.match(/<h1>/g)).toHaveLength(1);
@@ -97,7 +97,7 @@ describe("single-newline paste (production regression 2026-07-16, job XYC9KEGz6â
   });
 
   it("renders one title and the four section headings, title-line deduplicated", () => {
-    const material = buildSimpleMaterial(SOURCE_1LN, TITLE_1LN, [], "editorial_reader");
+    const material = buildSimpleMaterial(SOURCE_1LN, { title: TITLE_1LN, templateId: "editorial_reader" });
     const html = renderSimpleMaterialHtml(material);
     // Line 1 repeats the material title and is suppressed in the body.
     expect(html.match(/<h1>/g)).toHaveLength(1);
@@ -136,7 +136,7 @@ describe("deterministic parser behavior", () => {
 
   it("strips Markdown heading markers at render time and in the derived title", () => {
     const source = "# Supplier Review\n\n## Key Metrics\n\nTrack **lead times** and *quality* closely across every region you operate in.";
-    const material = buildSimpleMaterial(source, undefined, [], "editorial_reader");
+    const material = buildSimpleMaterial(source, { templateId: "editorial_reader" });
     expect(material.title).toBe("Supplier Review");
     const html = renderSimpleMaterialHtml(material);
     expect(html).toContain("<h2>Key Metrics</h2>");
@@ -164,7 +164,7 @@ describe("deterministic parser behavior", () => {
 
   it("derives a clipped title from the first line when nothing looks like a heading", () => {
     const longFirstLine = "Supplier performance directly affects the efficiency of your entire supply chain and the satisfaction of every customer downstream.";
-    const material = buildSimpleMaterial(longFirstLine, undefined, [], "editorial_reader");
+    const material = buildSimpleMaterial(longFirstLine, { templateId: "editorial_reader" });
     expect(material.title.length).toBeLessThanOrEqual(81);
     expect(material.title.endsWith("â€¦")).toBe(true);
     expect(longFirstLine.startsWith(material.title.slice(0, -1))).toBe(true);
