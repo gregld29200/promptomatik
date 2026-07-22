@@ -5,6 +5,7 @@ import { sendPasswordResetEmail, sendSignupConfirmationEmail } from "../lib/emai
 import {
   createSession,
   destroySession,
+  destroyUserSessions,
   sessionCookie,
   clearSessionCookie,
   updateSession,
@@ -419,6 +420,10 @@ auth.post("/reset-password", async (c) => {
   await c.env.DB.prepare(
     "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?"
   ).bind(passwordHash, now, reset.user_id).run();
+
+  // Revoke all existing sessions so a stolen pre-reset cookie can't outlive
+  // the password change.
+  await destroyUserSessions(c.env, reset.user_id);
 
   return c.json({ success: true });
 });
