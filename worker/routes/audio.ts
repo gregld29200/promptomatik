@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import type { Env } from "../env";
 import { requireAdmin, requireAuth, requireParticipant } from "../lib/auth-middleware";
 import type { SessionData } from "../lib/session";
@@ -15,7 +16,6 @@ import {
   listAudioJobsForUser,
   regenerateAudioSegment,
   renameAudioJobForUser,
-  type CreateAudioJobInput,
 } from "../lib/audio-jobs";
 import { AUDIO_VOICES, isAudioVoiceName } from "../lib/audio-voices";
 import { getAudioAdminMetrics, grantAudioCredits } from "../lib/audio-metrics";
@@ -30,6 +30,36 @@ audio.use("/*", requireAuth);
 function isAudioMode(value: unknown): value is AudioMode {
   return value === "monologue" || value === "dialogue";
 }
+
+// Structural contract for POST /jobs. Semantic rules (speaker counts, voice
+// coverage, script emptiness) still live in createAudioJob; this only rejects
+// malformed bodies at the boundary so a missing `direction` returns
+// `invalid_request` instead of leaking a raw destructuring error.
+const speakerDirectionSchema = z.object({
+  accent: z.string().optional(),
+  accentDetail: z.string().optional(),
+  style: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+const audioDirectionSchema = z.object({
+  level: z.enum(["A1", "A2", "B1", "B2", "C1"]),
+  accent: z.string(),
+  accentDetail: z.string().optional(),
+  pace: z.string(),
+  style: z.string(),
+  scene: z.string().optional(),
+  notes: z.string().optional(),
+  speakers: z.record(z.string(), speakerDirectionSchema).optional(),
+});
+
+const createAudioJobSchema = z.object({
+  mode: z.enum(["monologue", "dialogue"]),
+  quality: z.enum(["draft", "final"]),
+  script: z.string(),
+  direction: audioDirectionSchema,
+  voices: z.record(z.string(), z.string()),
+});
 
 async function jobAccessStatus(db: D1Database, jobId: string, userId: string): Promise<200 | 403 | 404> {
   const row = await db.prepare("SELECT user_id FROM audio_jobs WHERE id = ?")
@@ -101,11 +131,15 @@ audio.post("/prepare", requireParticipant, async (c) => {
 
 audio.post("/jobs", requireParticipant, async (c) => {
   const session = c.get("session");
-  const body = await c.req.json<Omit<CreateAudioJobInput, "userId">>();
+  const rawBody = await c.req.json().catch(() => null);
+  const parsed = createAudioJobSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_request" }, 400);
+  }
 
   try {
     const job = await createAudioJob(c.env, {
-      ...body,
+      ...parsed.data,
       userId: session.userId,
     });
     await enqueueAudioJob(c.env, job.id);
