@@ -159,6 +159,13 @@ export const ACCENT_EXPANSIONS: Record<string, string> = {
   "Slow classroom French": "Slow classroom French.",
 };
 
-export function expandPreset(expansions: Record<string, string>, key: string): string {
+export function expandPreset(
+  expansions: Record<string, string>,
+  key: string | undefined
+): string {
+  // Stored/legacy jobs can carry a partial direction; a missing key must
+  // yield an empty string, never undefined, so callers can safely chain
+  // string methods (e.g. `.replace`) on the result.
+  if (!key) return "";
   return expansions[key] ?? key;
 }

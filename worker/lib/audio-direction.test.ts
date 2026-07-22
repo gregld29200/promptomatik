@@ -222,3 +222,38 @@ describe("monologue manner-of-speaking note", () => {
     );
   });
 });
+
+// Defense in depth: the queue consumer feeds compileDirection whatever
+// direction_json is stored on the job. A malformed/partial direction
+// (missing preset fields) must degrade gracefully, not crash the worker
+// with "Cannot read properties of undefined (reading 'replace')".
+describe("compileDirection tolerates a malformed direction", () => {
+  it("does not throw when preset fields are missing", () => {
+    expect(() =>
+      compileDirection({
+        mode: "monologue",
+        speakers: ["solo"],
+        script: "Bonjour.",
+        // Cast: this shape can only reach us from stored/legacy job data,
+        // never from the (now Zod-validated) create endpoint.
+        direction: {} as never,
+      })
+    ).not.toThrow();
+  });
+
+  it("does not throw when the CEFR level is unknown", () => {
+    expect(() =>
+      compileDirection({
+        mode: "monologue",
+        speakers: ["solo"],
+        script: "Bonjour.",
+        direction: {
+          level: "Z9",
+          accent: "Neutral",
+          pace: "Natural",
+          style: "Warm",
+        } as never,
+      })
+    ).not.toThrow();
+  });
+})

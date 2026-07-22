@@ -83,7 +83,9 @@ export function validateTranscriptForTts(mode: AudioMode, script: string): void 
 export function compileDirection(input: CompileDirectionInput): string {
   const { direction, mode, speakers, script } = input;
   validateTranscriptForTts(mode, script);
-  const cefr = CEFR_DELIVERY[direction.level];
+  // Fall back to B1 delivery if a stored job carries an unknown level, so a
+  // bad `direction_json` degrades instead of crashing the generation worker.
+  const cefr = CEFR_DELIVERY[direction.level] ?? CEFR_DELIVERY.B1;
   const style = expandPreset(STYLE_EXPANSIONS, direction.style);
   const accentDetail = trimOptional(direction.accentDetail);
   const accent = accentPhrase(direction.accent, accentDetail);
