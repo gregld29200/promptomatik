@@ -29,6 +29,8 @@ export interface Env {
   /** Stripe credit purchases (Audio Studio). Absent = purchase UI hidden. */
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  // Shared secret for /api/internal/* machine calls (testimonial credit grant).
+  TESTIMONIAL_GRANT_SECRET?: string;
   STRIPE_PRICE_PACK_60?: string;
   STRIPE_PRICE_PACK_180?: string;
 }

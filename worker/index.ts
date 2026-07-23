@@ -11,6 +11,7 @@ import { jobs } from "./routes/jobs";
 import { audio } from "./routes/audio";
 import { stripe } from "./routes/stripe";
 import { documents } from "./routes/documents";
+import { internal } from "./routes/internal";
 import { handleDocumentJobBatch } from "./lib/document-jobs";
 import { handleInterviewJobBatch } from "./lib/interview-jobs";
 import { handleAudioJobBatch } from "./lib/audio-jobs";
@@ -41,6 +42,7 @@ app.route("/api/jobs", jobs);
 app.route("/api/audio", audio);
 app.route("/api/stripe", stripe);
 app.route("/api/documents", documents);
+app.route("/api/internal", internal);
 
 app.all("/api/*", (c) => c.json({ error: "Not found" }, 404));
 
