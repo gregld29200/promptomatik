@@ -111,10 +111,23 @@
   border-bottom: none;
 }
 
+/* A <td> has to stay a table-cell: display:flex takes it out of the table
+   layout, so this column stops being constrained by the table width and the
+   buttons spill outside the card. The buttons are inline-flex, so aligning
+   them inside a normal cell is enough. */
 .rowActions {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: flex-end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rowActions > * + * {
+  margin-left: var(--space-2);
+}
+
+/* A data table can be wider than a narrow viewport. Scroll it inside its card
+   rather than letting it overflow the rounded border. */
+.tableCard {
+  overflow-x: auto;
 }
 
 /* Status badges — brand palette */
@@ -190,6 +203,17 @@
   .table th,
   .table td {
     padding: var(--space-2) var(--space-3);
+  }
+
+  /* Side by side, the two action buttons alone are wider than a phone. */
+  .rowActions > * + * {
+    margin-left: 0;
+    margin-top: var(--space-2);
+  }
+
+  .rowActions > * {
+    display: flex;
+    width: 100%;
   }
 }
 

@@ -137,7 +137,7 @@ function InvitationsTab() {
   }
 
   return (
-    <Card>
+    <Card className={s.tableCard}>
       <form className={s.inviteForm} onSubmit={handleSend}>
         <div className={s.inviteInput}>
           <Input
@@ -262,7 +262,7 @@ function UsersTab() {
   }
 
   return (
-    <Card>
+    <Card className={s.tableCard}>
       {users.length === 0 ? (
         <p className={s.empty}>{t("admin.no_users")}</p>
       ) : (
@@ -418,7 +418,7 @@ function TemplatesTab() {
   }
 
   return (
-    <Card>
+    <Card className={s.tableCard}>
       <form className={s.inviteForm} onSubmit={handlePublish}>
         <div className={s.inviteInput}>
           <Input
@@ -625,7 +625,7 @@ function AudioTab() {
 
   return (
     <>
-      <Card>
+      <Card className={s.tableCard}>
         <h3 className={s.sectionTitle}>{t("admin.audio_go_no_go_title")}</h3>
         <table className={s.table}>
           <thead>
@@ -669,7 +669,7 @@ function AudioTab() {
         </table>
       </Card>
 
-      <Card>
+      <Card className={s.tableCard}>
         <h3 className={s.sectionTitle}>{t("admin.audio_reliability_title")}</h3>
         <table className={s.table}>
           <thead>
@@ -697,7 +697,7 @@ function AudioTab() {
         </table>
       </Card>
 
-      <Card>
+      <Card className={s.tableCard}>
         <h3 className={s.sectionTitle}>{t("admin.audio_speed_title")}</h3>
         <p className={s.subtitle}>{t("admin.audio_speed_desc")}</p>
         <table className={s.table}>
@@ -715,7 +715,7 @@ function AudioTab() {
         </table>
       </Card>
 
-      <Card>
+      <Card className={s.tableCard}>
         <h3 className={s.sectionTitle}>{t("admin.audio_cost_title")}</h3>
         <table className={s.table}>
           <tbody>
@@ -739,7 +739,7 @@ function AudioTab() {
         </table>
       </Card>
 
-      <Card>
+      <Card className={s.tableCard}>
         <h3 className={s.sectionTitle}>{t("admin.audio_pressure_title")}</h3>
         <p className={s.subtitle}>
           {t("admin.audio_pressure_desc", { hours: String(metrics.rateLimitPressure.windowHours) })}
@@ -762,7 +762,7 @@ function AudioTab() {
         </table>
       </Card>
 
-      <Card>
+      <Card className={s.tableCard}>
         <h3 className={s.sectionTitle}>{t("admin.audio_users_title")}</h3>
         {result && (
           <div className={`${s.inviteResult} ${result.type === "success" ? s.inviteSuccess : s.inviteError}`}>
