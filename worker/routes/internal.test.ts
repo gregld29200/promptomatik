@@ -17,6 +17,7 @@ const SCHEMA = [
     role TEXT NOT NULL DEFAULT 'teacher',
     language_preference TEXT NOT NULL DEFAULT 'fr',
     tier TEXT NOT NULL DEFAULT 'free',
+    is_active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
@@ -175,5 +176,45 @@ describe("POST /api/internal/notify", () => {
       { RESEND_API_KEY: undefined }
     );
     expect(res.status).toBe(503);
+  });
+});
+
+describe("GET /api/internal/participants", () => {
+  beforeEach(async () => {
+    await resetDb();
+    await testEnv.DB.batch([
+      testEnv.DB.prepare(
+        "INSERT INTO users (id, email, name, password_hash, tier, is_active) VALUES ('p1', 'part1@x.fr', 'Part One', 'x', 'participant', 1)"
+      ),
+      testEnv.DB.prepare(
+        "INSERT INTO users (id, email, name, password_hash, tier, is_active) VALUES ('p2', 'part2@x.fr', 'Part Two', 'x', 'participant', 1)"
+      ),
+      testEnv.DB.prepare(
+        "INSERT INTO users (id, email, name, password_hash, tier, is_active) VALUES ('f1', 'free1@x.fr', 'Free One', 'x', 'free', 1)"
+      ),
+      testEnv.DB.prepare(
+        "INSERT INTO users (id, email, name, password_hash, tier, is_active) VALUES ('d1', 'deact@x.fr', 'Deact', 'x', 'participant', 0)"
+      ),
+    ]);
+  });
+
+  function req(headers: Record<string, string>): Request {
+    return new Request("https://studio.teachinspire.me/api/internal/participants", {
+      method: "GET",
+      headers,
+    });
+  }
+
+  it("rejects a wrong secret", async () => {
+    const res = await run(req({ "X-Internal-Secret": "nope" }));
+    expect(res.status).toBe(403);
+  });
+
+  it("returns only active participants", async () => {
+    const res = await run(req({ "X-Internal-Secret": SECRET }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { participants: { id: string }[] };
+    const ids = body.participants.map((p) => p.id).sort();
+    expect(ids).toEqual(["p1", "p2"]);
   });
 });

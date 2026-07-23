@@ -106,4 +106,26 @@ internal.post("/notify", async (c) => {
   return c.json({ success: true });
 });
 
+// Liste des participants actifs, pour que temoignages.teachinspire.me puisse
+// préparer les invitations sans CSV : la source de vérité est le tier du
+// Studio, toujours à jour. Même garde par secret partagé que ci-dessus.
+internal.get("/participants", async (c) => {
+  const secret = c.env.TESTIMONIAL_GRANT_SECRET;
+  if (!secret) return c.json({ error: "Not found" }, 404);
+
+  const provided = c.req.header("X-Internal-Secret") ?? "";
+  if (!timingSafeEqual(provided, secret)) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT id, email, name FROM users
+     WHERE tier = 'participant' AND is_active = 1
+     ORDER BY created_at ASC
+     LIMIT 1000`
+  ).all<{ id: string; email: string; name: string }>();
+
+  return c.json({ participants: results ?? [] });
+});
+
 export { internal };
