@@ -44,4 +44,66 @@ internal.post("/testimonial-grant", async (c) => {
   return c.json({ success: true, credits: result.credits });
 });
 
+// Relais de notification : temoignages.teachinspire.me n'a pas de clé Resend
+// propre ; ce worker en a déjà une (domaine promptomatik.com vérifié). Le
+// contenu est fourni par l'appelant, mais le destinataire est verrouillé sur
+// les adresses TeachInspire : ce relais ne peut pas servir à spammer des tiers.
+const NOTIFY_ALLOWED_RECIPIENTS = new Set([
+  "greg@teachinspire.me",
+  "contact@teachinspire.me",
+]);
+
+internal.post("/notify", async (c) => {
+  const secret = c.env.TESTIMONIAL_GRANT_SECRET;
+  if (!secret) return c.json({ error: "Not found" }, 404);
+
+  const provided = c.req.header("X-Internal-Secret") ?? "";
+  if (!timingSafeEqual(provided, secret)) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+
+  const body = await c.req
+    .json<{ to?: unknown; subject?: unknown; text?: unknown; replyTo?: unknown }>()
+    .catch(() => null);
+  if (!body || typeof body.to !== "string" || !NOTIFY_ALLOWED_RECIPIENTS.has(body.to)) {
+    return c.json({ error: "Recipient not allowed." }, 400);
+  }
+  if (typeof body.subject !== "string" || !body.subject.trim() || body.subject.length > 200) {
+    return c.json({ error: "subject is required." }, 400);
+  }
+  if (typeof body.text !== "string" || !body.text.trim() || body.text.length > 20000) {
+    return c.json({ error: "text is required." }, 400);
+  }
+
+  if (!c.env.RESEND_API_KEY) {
+    return c.json({ error: "Email not configured." }, 503);
+  }
+
+  const payload: Record<string, unknown> = {
+    from: "TeachInspire Témoignages <noreply@promptomatik.com>",
+    to: [body.to],
+    subject: body.subject.trim(),
+    text: body.text,
+  };
+  if (typeof body.replyTo === "string" && /^[^@\s]+@[^@\s]+$/.test(body.replyTo)) {
+    payload.reply_to = body.replyTo;
+  }
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    console.error("internal notify failed", res.status, detail);
+    return c.json({ error: "Send failed." }, 502);
+  }
+  return c.json({ success: true });
+});
+
 export { internal };

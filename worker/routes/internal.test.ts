@@ -126,3 +126,54 @@ describe("POST /api/internal/testimonial-grant", () => {
     expect(ledger).toEqual({ delta_seconds: 1800, source: "credit", reason: "credit_grant" });
   });
 });
+
+describe("POST /api/internal/notify", () => {
+  beforeEach(resetDb);
+
+  function notifyRequest(headers: Record<string, string>, body: unknown): Request {
+    return new Request("https://studio.teachinspire.me/api/internal/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("rejects a missing or wrong secret", async () => {
+    const res = await run(
+      notifyRequest({ "X-Internal-Secret": "nope" }, { to: "greg@teachinspire.me", subject: "s", text: "t" })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it("locks recipients to TeachInspire addresses", async () => {
+    const res = await run(
+      notifyRequest(
+        { "X-Internal-Secret": SECRET },
+        { to: "victim@example.com", subject: "s", text: "t" }
+      )
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("requires subject and text", async () => {
+    const noSubject = await run(
+      notifyRequest({ "X-Internal-Secret": SECRET }, { to: "greg@teachinspire.me", text: "t" })
+    );
+    expect(noSubject.status).toBe(400);
+    const noText = await run(
+      notifyRequest({ "X-Internal-Secret": SECRET }, { to: "greg@teachinspire.me", subject: "s" })
+    );
+    expect(noText.status).toBe(400);
+  });
+
+  it("returns 503 when no Resend key is configured", async () => {
+    const res = await run(
+      notifyRequest(
+        { "X-Internal-Secret": SECRET },
+        { to: "greg@teachinspire.me", subject: "s", text: "t" }
+      ),
+      { RESEND_API_KEY: undefined }
+    );
+    expect(res.status).toBe(503);
+  });
+});
