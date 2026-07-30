@@ -6,9 +6,6 @@
 export const UPGRADE_CTA_URL =
   "https://www.teachinspire.me?utm_source=promptomatik&utm_medium=upgrade_gate&utm_campaign=free_tier";
 
-/** The public TeachInspire website linked from the Studio wordmark. */
-export const TEACHINSPIRE_URL = "https://teachinspire.me";
-
 /** Mirror of the backend free-tier library cap — display only. */
 export const FREE_LIBRARY_LIMIT = 3;
 

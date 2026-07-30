@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-context";
-import { COMMUNITY_URL, TEACHINSPIRE_URL, UPGRADE_CTA_URL } from "@/lib/config";
+import { COMMUNITY_URL, UPGRADE_CTA_URL } from "@/lib/config";
 import { SUPPORTED_LANGUAGES, t, useLanguage, type Language } from "@/lib/i18n";
 import s from "./shell.module.css";
 
@@ -222,10 +222,10 @@ export function Shell({ children }: ShellProps) {
       <a href="#main-content" className={s.skipLink}>{t("shell.skip_to_content")}</a>
       <nav className={s.nav} ref={navRef} aria-label={t("home.main_navigation")}>
         <div className={s.navTop}>
-          <a href={TEACHINSPIRE_URL} className={s.logo} aria-label="TeachInspire website" translate="no">
+          <Link to="/home" className={s.logo} aria-label="TeachInspire Studio" translate="no">
             <span className={s.logoName}>TeachInspire</span>
             <span className={s.logoStudio}>Studio</span>
-          </a>
+          </Link>
 
           <button
             type="button"

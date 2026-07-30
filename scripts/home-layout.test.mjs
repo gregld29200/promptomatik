@@ -50,7 +50,8 @@ test("community links open the courses space", () => {
   assert.match(shellPage, /href=\{isParticipant \? COMMUNITY_URL : UPGRADE_CTA_URL\}/);
 });
 
-test("TeachInspire wordmark returns to the public website", () => {
-  assert.match(config, /TEACHINSPIRE_URL\s*=\s*"https:\/\/teachinspire\.me"/);
-  assert.match(shellPage, /<a href=\{TEACHINSPIRE_URL\} className=\{s\.logo\}/);
+// Greg's call (2026-07-30): the wordmark stays in-app — clicking a logo
+// returns to the dashboard, it must not leave for the public website.
+test("TeachInspire wordmark returns to the app dashboard", () => {
+  assert.match(shellPage, /<Link to="\/home" className=\{s\.logo\}/);
 });
