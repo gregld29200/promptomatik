@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Copy, Download, FileText, HelpCircle, Info, Loader2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
-import { UpgradeGate } from "@/components/upgrade-gate";
+import { DocumentTeaser } from "@/components/documents/document-teaser";
 import { ChoiceButtons, GuideOverlay, RecentJobs } from "@/components/documents/documents-panels";
 import { DocumentPreview } from "@/components/documents/document-preview";
 import { SimpleDocumentOptions } from "@/components/documents/simple-document-options";
@@ -426,7 +426,7 @@ export function DocumentsPage() {
   if (!isParticipant) {
     return (
       <Shell>
-        <UpgradeGate variant="page" message={t("documents.locked")} />
+        <DocumentTeaser />
       </Shell>
     );
   }

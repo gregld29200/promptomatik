@@ -8,8 +8,8 @@ import s from "./upgrade-gate.module.css";
 interface UpgradeGateProps {
   /** Feature-specific line under the shared title, e.g. t("upgrade.feature_templates"). */
   message: string;
-  /** "page" centers the panel as full-page content; "panel" renders inline. */
-  variant?: "page" | "panel";
+  /** "page" centers full-page content; "conclusion" renders the wide teaser CTA. */
+  variant?: "page" | "panel" | "conclusion";
   /** When provided, renders a close action (for gates triggered by a click). */
   onDismiss?: () => void;
   /** Extra content (e.g. the "3/3 prompts saved" counter for the library cap). */
@@ -18,7 +18,7 @@ interface UpgradeGateProps {
 
 export function UpgradeGate({ message, variant = "panel", onDismiss, children }: UpgradeGateProps) {
   const panel = (
-    <div className={s.panel}>
+    <div className={`${s.panel} ${variant === "conclusion" ? s.conclusion : ""}`}>
       <div className={s.iconWrap}>
         <Lock size={20} aria-hidden />
       </div>

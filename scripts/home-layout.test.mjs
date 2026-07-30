@@ -7,6 +7,7 @@ const homePage = readFileSync(new URL("../src/pages/home.tsx", import.meta.url),
 const shellCss = readFileSync(new URL("../src/components/layout/shell.module.css", import.meta.url), "utf8");
 const shellPage = readFileSync(new URL("../src/components/layout/shell.tsx", import.meta.url), "utf8");
 const globalCss = readFileSync(new URL("../src/styles/global.css", import.meta.url), "utf8");
+const config = readFileSync(new URL("../src/lib/config.ts", import.meta.url), "utf8");
 
 function cssRule(source, selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -41,4 +42,15 @@ test("shared shell uses product navigation and collapses for mobile", () => {
   assert.match(globalCss, /touch-action:\s*manipulation/);
   assert.match(shellCss, /@media\s*\(max-width:\s*820px\)/);
   assert.match(shellCss, /flex-direction:\s*column/);
+});
+
+test("community links open the courses space", () => {
+  assert.match(config, /COMMUNITY_URL\s*=\s*"https:\/\/community\.teachinspire\.me\/courses"/);
+  assert.match(homePage, /href=\{isParticipant \? COMMUNITY_URL : UPGRADE_CTA_URL\}/);
+  assert.match(shellPage, /href=\{isParticipant \? COMMUNITY_URL : UPGRADE_CTA_URL\}/);
+});
+
+test("TeachInspire wordmark returns to the public website", () => {
+  assert.match(config, /TEACHINSPIRE_URL\s*=\s*"https:\/\/teachinspire\.me"/);
+  assert.match(shellPage, /<a href=\{TEACHINSPIRE_URL\} className=\{s\.logo\}/);
 });

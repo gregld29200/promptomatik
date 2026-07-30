@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Copy, FileAudio, HelpCircle, Info, Lock, Tags, Wand2, X } from "lucide-react";
 import { Link } from "react-router";
 import { Shell } from "@/components/layout/shell";
-import { UpgradeGate } from "@/components/upgrade-gate";
+import { AudioTeaser } from "@/components/audio/audio-teaser";
 import { GenerationConsole } from "@/components/audio/generation-console";
 import { VoiceCasting } from "@/components/audio/voice-casting";
 import { WaveformPlayer } from "@/components/audio/waveform-player";
@@ -599,7 +599,7 @@ export function AudioStudioPage() {
   if (!isParticipant) {
     return (
       <Shell>
-        <UpgradeGate variant="page" message={t("audio.locked")} />
+        <AudioTeaser />
       </Shell>
     );
   }
