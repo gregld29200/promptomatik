@@ -25,3 +25,7 @@ dist/
 .env
 .env.local
 .env.*.local
+.gstack/
+tmp/
+.DS_Store
+docs/reference/*.docx
