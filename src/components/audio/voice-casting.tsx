@@ -1,33 +1,60 @@
 import { useRef, useState } from "react";
 import { Play, Volume2 } from "lucide-react";
 import type { AudioMode, AudioVoice } from "@/lib/api";
-import { getLanguage, t } from "@/lib/i18n";
+import { getLanguage, t, type Language } from "@/lib/i18n";
 import s from "./voice-casting.module.css";
 
-// Display-only FR transforms; the backend descriptor values are the EN labels.
-const DESCRIPTORS_FR: Record<string, string> = {
-  Bright: "Claire",
-  Upbeat: "Enjouée",
-  Informative: "Informative",
-  Firm: "Ferme",
-  Excitable: "Énergique",
-  Youthful: "Jeune",
-  Breezy: "Légère",
-  "Easy-going": "Décontractée",
-  Breathy: "Soufflée",
-  Clear: "Nette",
-  Smooth: "Douce",
-  Gravelly: "Rauque",
-  Soft: "Tendre",
-  Even: "Régulière",
-  Mature: "Mature",
-  Forward: "Directe",
-  Friendly: "Amicale",
-  Casual: "Informelle",
-  Gentle: "Délicate",
-  Lively: "Vivante",
-  Knowledgeable: "Experte",
-  Warm: "Chaleureuse",
+// Display-only transforms; the backend descriptor values are the EN labels.
+const DESCRIPTORS: Record<Language, Record<string, string>> = {
+  en: {},
+  fr: {
+    Bright: "Claire",
+    Upbeat: "Enjouée",
+    Informative: "Informative",
+    Firm: "Ferme",
+    Excitable: "Énergique",
+    Youthful: "Jeune",
+    Breezy: "Légère",
+    "Easy-going": "Décontractée",
+    Breathy: "Soufflée",
+    Clear: "Nette",
+    Smooth: "Douce",
+    Gravelly: "Rauque",
+    Soft: "Tendre",
+    Even: "Régulière",
+    Mature: "Mature",
+    Forward: "Directe",
+    Friendly: "Amicale",
+    Casual: "Informelle",
+    Gentle: "Délicate",
+    Lively: "Vivante",
+    Knowledgeable: "Experte",
+    Warm: "Chaleureuse",
+  },
+  es: {
+    Bright: "Clara",
+    Upbeat: "Animada",
+    Informative: "Informativa",
+    Firm: "Firme",
+    Excitable: "Enérgica",
+    Youthful: "Joven",
+    Breezy: "Ligera",
+    "Easy-going": "Relajada",
+    Breathy: "Susurrada",
+    Clear: "Nítida",
+    Smooth: "Suave",
+    Gravelly: "Ronca",
+    Soft: "Tierna",
+    Even: "Regular",
+    Mature: "Madura",
+    Forward: "Directa",
+    Friendly: "Amable",
+    Casual: "Informal",
+    Gentle: "Delicada",
+    Lively: "Vivaz",
+    Knowledgeable: "Experta",
+    Warm: "Cálida",
+  },
 };
 
 interface VoiceCastingProps {
@@ -48,7 +75,7 @@ function slotLabel(slot: string) {
 }
 
 function descriptorLabel(descriptor: string) {
-  return getLanguage() === "fr" ? (DESCRIPTORS_FR[descriptor] ?? descriptor) : descriptor;
+  return DESCRIPTORS[getLanguage()][descriptor] ?? descriptor;
 }
 
 export function VoiceCasting({ voices, mode, selected, onChange }: VoiceCastingProps) {

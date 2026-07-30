@@ -7,9 +7,9 @@ import { GenerationConsole } from "@/components/audio/generation-console";
 import { VoiceCasting } from "@/components/audio/voice-casting";
 import { WaveformPlayer } from "@/components/audio/waveform-player";
 import { useAuth } from "@/lib/auth/auth-context";
-import { getLanguage, t } from "@/lib/i18n";
+import { SUPPORTED_LANGUAGES, getLanguage, t, type Language } from "@/lib/i18n";
 import * as api from "@/lib/api";
-import { SUPPORTED_AUDIO_TAGS, lintAudioScript } from "@/lib/audio-script-rules";
+import { SUPPORTED_AUDIO_TAGS, lintAudioScript, type ScriptLintFinding } from "@/lib/audio-script-rules";
 import type { AudioDirection, AudioJob, AudioMode, AudioQuality, AudioSpeakerDirection, AudioVoice, CefrLevel } from "@/lib/api";
 import { expiresLabel, formatShort, isExpired, modeLabel, qualityLabel, stripTags, takeTitle } from "@/lib/audio-display";
 import s from "./audio.module.css";
@@ -28,36 +28,73 @@ const STYLES = ["Neutral classroom", "Warm and encouraging", "Professional corpo
 const TAGS = SUPPORTED_AUDIO_TAGS;
 const PREPARE_GROUPS = ["speaker_rename", "tag_added", "direction_hint", "cleanup"] as const;
 
-const EXAMPLE_FR = `Locuteur 1: Bonjour, je cherche une salle pour une réunion jeudi matin.\nLocuteur 2: Bien sûr. Vous attendez combien de personnes ?\nLocuteur 1: Huit personnes, avec un projecteur si possible.\nLocuteur 2: La salle Camélia est libre à 10 heures. Je vous la réserve ?`;
-const EXAMPLE_EN = `Speaker 1: Good morning, I need to move my appointment to Friday.\nSpeaker 2: No problem. Would 2:30 work for you?\nSpeaker 1: Yes, that is perfect. Could you send me a confirmation?\nSpeaker 2: Of course. You will receive it in a few minutes.`;
-
-const DIRECTION_LABELS: Record<string, string> = {
-  "Neutral international": "International neutre",
-  British: "Britannique",
-  "North American": "Nord-américain",
-  Australian: "Australien",
-  Irish: "Irlandais",
-  "Indian English": "Anglais indien",
-  "French-accented English": "Anglais avec accent français",
-  Neutral: "Neutre",
-  Parisian: "Parisien",
-  Canadian: "Canadien",
-  "Slow classroom French": "Français de classe lent",
-  "Slow learner-friendly": "Lent et apprenant",
-  "Natural classroom speed": "Rythme naturel de classe",
-  "Business meeting speed": "Rythme réunion pro",
-  "Exam speed": "Rythme examen",
-  "Fast authentic speech": "Rapide authentique",
-  "Neutral classroom": "Classe neutre",
-  "Warm and encouraging": "Chaleureux et encourageant",
-  "Professional corporate": "Professionnel",
-  "Business meeting": "Réunion professionnelle",
-  "Podcast host": "Animateur podcast",
-  "Examiner voice": "Voix d'examinateur",
-  "Customer service": "Service client",
-  "Informal conversation": "Conversation informelle",
-  Storytelling: "Narration",
+// Sample scripts, one per interface language, offered when the editor is empty.
+const EXAMPLES: Record<Language, string> = {
+  fr: `Locuteur 1: Bonjour, je cherche une salle pour une réunion jeudi matin.\nLocuteur 2: Bien sûr. Vous attendez combien de personnes ?\nLocuteur 1: Huit personnes, avec un projecteur si possible.\nLocuteur 2: La salle Camélia est libre à 10 heures. Je vous la réserve ?`,
+  en: `Speaker 1: Good morning, I need to move my appointment to Friday.\nSpeaker 2: No problem. Would 2:30 work for you?\nSpeaker 1: Yes, that is perfect. Could you send me a confirmation?\nSpeaker 2: Of course. You will receive it in a few minutes.`,
+  es: `Hablante 1: Buenos días, quisiera cambiar mi cita al viernes.\nHablante 2: Sin problema. ¿Le viene bien a las dos y media?\nHablante 1: Sí, perfecto. ¿Podría enviarme una confirmación?\nHablante 2: Por supuesto. La recibirá en unos minutos.`,
 };
+
+// Display-only transforms; the backend direction values are the EN labels.
+const DIRECTION_LABELS: Record<Language, Record<string, string>> = {
+  en: {},
+  fr: {
+    "Neutral international": "International neutre",
+    British: "Britannique",
+    "North American": "Nord-américain",
+    Australian: "Australien",
+    Irish: "Irlandais",
+    "Indian English": "Anglais indien",
+    "French-accented English": "Anglais avec accent français",
+    Neutral: "Neutre",
+    Parisian: "Parisien",
+    Canadian: "Canadien",
+    "Slow classroom French": "Français de classe lent",
+    "Slow learner-friendly": "Lent et apprenant",
+    "Natural classroom speed": "Rythme naturel de classe",
+    "Business meeting speed": "Rythme réunion pro",
+    "Exam speed": "Rythme examen",
+    "Fast authentic speech": "Rapide authentique",
+    "Neutral classroom": "Classe neutre",
+    "Warm and encouraging": "Chaleureux et encourageant",
+    "Professional corporate": "Professionnel",
+    "Business meeting": "Réunion professionnelle",
+    "Podcast host": "Animateur podcast",
+    "Examiner voice": "Voix d'examinateur",
+    "Customer service": "Service client",
+    "Informal conversation": "Conversation informelle",
+    Storytelling: "Narration",
+  },
+  es: {
+    "Neutral international": "Internacional neutro",
+    British: "Británico",
+    "North American": "Norteamericano",
+    Australian: "Australiano",
+    Irish: "Irlandés",
+    "Indian English": "Inglés de India",
+    "French-accented English": "Inglés con acento francés",
+    Neutral: "Neutro",
+    Parisian: "Parisino",
+    Canadian: "Canadiense",
+    "Slow classroom French": "Francés de clase lento",
+    "Slow learner-friendly": "Lento para aprendientes",
+    "Natural classroom speed": "Ritmo natural de clase",
+    "Business meeting speed": "Ritmo de reunión profesional",
+    "Exam speed": "Ritmo de examen",
+    "Fast authentic speech": "Rápido y auténtico",
+    "Neutral classroom": "Clase neutra",
+    "Warm and encouraging": "Cálido y alentador",
+    "Professional corporate": "Profesional",
+    "Business meeting": "Reunión profesional",
+    "Podcast host": "Presentador de pódcast",
+    "Examiner voice": "Voz de examinador",
+    "Customer service": "Atención al cliente",
+    "Informal conversation": "Conversación informal",
+    Storytelling: "Narración",
+  },
+};
+
+const DATE_LOCALES: Record<Language, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
 
 const PREPARE_TYPE_TO_GROUP: Record<api.AudioPrepareChange["type"], (typeof PREPARE_GROUPS)[number]> = {
   speaker_rename: "speaker_rename",
@@ -183,27 +220,36 @@ function applyPreparedChanges(original: string, changes: api.AudioPrepareChange[
 }
 
 function directionLabel(value: string) {
-  if (getLanguage() !== "fr") return value;
-  return DIRECTION_LABELS[value] ?? value;
+  return DIRECTION_LABELS[getLanguage()][value] ?? value;
 }
 
 function speakerDisplay(slot: string) {
-  return getLanguage() === "fr"
-    ? slot.replace(/^Speaker\s+(\d+)$/i, "Locuteur $1")
-    : slot;
+  const n = slot.match(/^Speaker\s+(\d+)$/i)?.[1];
+  return n ? t("audio.speaker_n", { n }) : slot;
+}
+
+function lintMessage(finding: ScriptLintFinding) {
+  const message = t(`audio.lint_${finding.code}`, { tag: finding.tag ?? "" });
+  return finding.line ? `${message} ${t("audio.lint_line", { line: String(finding.line) })}` : message;
+}
+
+// The worker re-runs the linter as a backstop and answers with `audio_lint_<code>`
+// rather than prose, since only the client knows the teacher's language.
+function jobErrorMessage(error: string) {
+  return error.startsWith("audio_lint_") ? t(`audio.lint_${error.slice("audio_lint_".length)}`) : error;
 }
 
 const DIALOGUE_SLOTS = ["Speaker 1", "Speaker 2"] as const;
 
-function localeForDates() {
-  return getLanguage() === "fr" ? "fr-FR" : "en-US";
+function uiLocale() {
+  return DATE_LOCALES[getLanguage()];
 }
 
 function formatDate(value: string | null) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(localeForDates(), {
+  return new Intl.DateTimeFormat(uiLocale(), {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -448,7 +494,7 @@ export function AudioStudioPage() {
       voices: selectedVoices,
     });
     if (res.error) {
-      setError(res.error.code === "audio_quota_exceeded" ? t("audio.quota_blocked") : res.error.error);
+      setError(res.error.code === "audio_quota_exceeded" ? t("audio.quota_blocked") : jobErrorMessage(res.error.error));
       return;
     }
     const jobRes = await api.getAudioJob(res.data.jobId);
@@ -630,8 +676,11 @@ export function AudioStudioPage() {
             {!script.trim() && (
               <div className={s.emptyTools}>
                 <span>{t("audio.empty_script")}</span>
-                <button type="button" onClick={() => updateScript(EXAMPLE_FR)}>FR</button>
-                <button type="button" onClick={() => updateScript(EXAMPLE_EN)}>EN</button>
+                {SUPPORTED_LANGUAGES.map((lang) => (
+                  <button key={lang} type="button" onClick={() => updateScript(EXAMPLES[lang])}>
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
               </div>
             )}
 
@@ -666,7 +715,7 @@ export function AudioStudioPage() {
               <div className={s.lintPanel} role="alert">
                 <strong><Lock size={15} aria-hidden /> {t("audio.lint_blocking")}</strong>
                 {blockingFindings.map((finding) => (
-                  <p key={`${finding.code}-${finding.line ?? 0}`}>{finding.message} <button type="button" onClick={() => void prepareScript()}>{finding.remedy}</button></p>
+                  <p key={`${finding.code}-${finding.line ?? 0}`}>{lintMessage(finding)} <button type="button" onClick={() => void prepareScript()}>{t("audio.prepare")}</button></p>
                 ))}
               </div>
             )}
@@ -675,7 +724,7 @@ export function AudioStudioPage() {
               <div className={s.lintWarnings}>
                 <strong>{t("audio.lint_warnings")}</strong>
                 {warningFindings.slice(0, 3).map((finding) => (
-                  <p key={`${finding.code}-${finding.line ?? 0}`}>{finding.message} <button type="button" onClick={() => void prepareScript()}>{finding.remedy}</button></p>
+                  <p key={`${finding.code}-${finding.line ?? 0}`}>{lintMessage(finding)} <button type="button" onClick={() => void prepareScript()}>{t("audio.prepare")}</button></p>
                 ))}
               </div>
             )}
@@ -1009,7 +1058,7 @@ export function AudioStudioPage() {
                     <strong>{t("audio.buy_pack_minutes", { minutes: String(pack.minutes) })}</strong>
                     <span className={s.packPrice}>
                       {pack.amountCents !== null && pack.currency
-                        ? (pack.amountCents / 100).toLocaleString(getLanguage() === "fr" ? "fr-FR" : "en-US", {
+                        ? (pack.amountCents / 100).toLocaleString(uiLocale(), {
                             style: "currency",
                             currency: pack.currency.toUpperCase(),
                           })

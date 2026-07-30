@@ -48,6 +48,7 @@ export type ScriptLintSeverity = "blocking" | "warning";
 export type ScriptLintCode =
   | "empty_script"
   | "unknown_speaker"
+  | "speaker_label_in_monologue"
   | "too_many_speakers"
   | "unbalanced_brackets"
   | "residual_stage_direction"
@@ -55,15 +56,22 @@ export type ScriptLintCode =
   | "long_turn"
   | "narration_line";
 
+// Findings carry a code and its parameters, never prose: this module runs both
+// in the browser (where the studio renders it through i18n) and in the worker
+// (where no user language is in scope).
 export interface ScriptLintFinding {
   severity: ScriptLintSeverity;
   code: ScriptLintCode;
-  message: string;
-  remedy: string;
   line?: number;
+  tag?: string;
 }
 
-const SPEAKER_LABEL_RE = /^(Speaker|Locuteur)\s*([0-9]+)\s*:/i;
+// The speaker labels teachers actually type, one per interface language. The
+// pipeline normalizes them all to "Speaker N" before the model sees them, so a
+// Spanish teacher writing "Hablante 1:" is as valid as "Locuteur 1:".
+export const SPEAKER_LABEL_WORDS = "Speaker|Locuteur|Hablante";
+
+const SPEAKER_LABEL_RE = new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s*([0-9]+)\\s*:`, "i");
 const ANY_LABEL_RE = /^([^:\n]{1,40}?)\s*:/;
 const TAG_RE = /\[[^\]]+]/g;
 const WORDS_PER_SECOND = 2.5;
@@ -92,26 +100,15 @@ function normalizedKnownSpeaker(label: string): string | null {
 export function lintAudioScript(script: string, mode: AudioModeForRules): ScriptLintFinding[] {
   const findings: ScriptLintFinding[] = [];
   const trimmed = script.trim();
-  const remedy = "Préparer pour l'audio";
 
   if (!trimmed) {
-    return [{
-      severity: "blocking",
-      code: "empty_script",
-      message: "Le script est vide.",
-      remedy,
-    }];
+    return [{ severity: "blocking", code: "empty_script" }];
   }
 
   const openTags = (script.match(/\[/g) ?? []).length;
   const closeTags = (script.match(/]/g) ?? []).length;
   if (openTags !== closeTags) {
-    findings.push({
-      severity: "blocking",
-      code: "unbalanced_brackets",
-      message: "Un tag audio n'est pas fermé.",
-      remedy,
-    });
+    findings.push({ severity: "blocking", code: "unbalanced_brackets" });
   }
 
   const speakerSet = new Set<string>();
@@ -128,72 +125,31 @@ export function lintAudioScript(script: string, mode: AudioModeForRules): Script
       if (knownSpeaker) {
         speakerSet.add(knownSpeaker);
       } else if (label) {
-        findings.push({
-          severity: "blocking",
-          code: "unknown_speaker",
-          message: `Étiquette de locuteur inconnue ligne ${lineNumber}.`,
-          remedy,
-          line: lineNumber,
-        });
+        findings.push({ severity: "blocking", code: "unknown_speaker", line: lineNumber });
       } else {
-        findings.push({
-          severity: "warning",
-          code: "narration_line",
-          message: `Ligne de narration en mode dialogue ligne ${lineNumber}.`,
-          remedy,
-          line: lineNumber,
-        });
+        findings.push({ severity: "warning", code: "narration_line", line: lineNumber });
       }
     } else if (label) {
-      findings.push({
-        severity: "blocking",
-        code: "unknown_speaker",
-        message: "Le mode monologue ne doit pas contenir d'étiquettes de locuteur.",
-        remedy,
-        line: lineNumber,
-      });
+      findings.push({ severity: "blocking", code: "speaker_label_in_monologue", line: lineNumber });
     }
 
     if (/\([^)]*\)/.test(line)) {
-      findings.push({
-        severity: "warning",
-        code: "residual_stage_direction",
-        message: `Indication scénique résiduelle ligne ${lineNumber}.`,
-        remedy,
-        line: lineNumber,
-      });
+      findings.push({ severity: "warning", code: "residual_stage_direction", line: lineNumber });
     }
 
     for (const tag of line.match(TAG_RE) ?? []) {
       if (!(SUPPORTED_AUDIO_TAGS as readonly string[]).includes(tag)) {
-        findings.push({
-          severity: "warning",
-          code: "unknown_tag",
-          message: `Tag non référencé ${tag} ligne ${lineNumber}.`,
-          remedy,
-          line: lineNumber,
-        });
+        findings.push({ severity: "warning", code: "unknown_tag", line: lineNumber, tag });
       }
     }
 
     if (wordsIn(line) / WORDS_PER_SECOND > 60) {
-      findings.push({
-        severity: "warning",
-        code: "long_turn",
-        message: `Tour de parole long ligne ${lineNumber}.`,
-        remedy,
-        line: lineNumber,
-      });
+      findings.push({ severity: "warning", code: "long_turn", line: lineNumber });
     }
   });
 
   if (mode === "dialogue" && speakerSet.size > 2) {
-    findings.push({
-      severity: "blocking",
-      code: "too_many_speakers",
-      message: "Deux locuteurs maximum pour cette version.",
-      remedy,
-    });
+    findings.push({ severity: "blocking", code: "too_many_speakers" });
   }
 
   return findings;

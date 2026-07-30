@@ -10,7 +10,7 @@ import {
   type AudioQuality,
 } from "./audio-config";
 import { compileDirection } from "./audio-direction";
-import { lintAudioScript } from "../../src/lib/audio-script-rules";
+import { SPEAKER_LABEL_WORDS, lintAudioScript } from "../../src/lib/audio-script-rules";
 import { concatPcmWithSilence, durationFromPcmBytes, mp3FromPcm, peaksFromPcm, wavFromPcm } from "./audio-assembly";
 import {
   attachWaveform,
@@ -60,7 +60,7 @@ export function isAudioDownloadFile(value: string): value is AudioDownloadFile {
 
 function speakerLabels(script: string): string[] {
   const labels = new Set<string>();
-  for (const match of script.matchAll(/^(Speaker|Locuteur)\s+(\d+)\s*:/gim)) {
+  for (const match of script.matchAll(new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s+(\\d+)\\s*:`, "gim"))) {
     labels.add(`Speaker ${match[2]}`);
   }
   return [...labels];
@@ -132,7 +132,9 @@ export async function createAudioJob(env: Env, input: CreateAudioJobInput): Prom
   const blockingFindings = lintAudioScript(normalizedInput.script, normalizedInput.mode)
     .filter((finding) => finding.severity === "blocking");
   if (blockingFindings.length > 0) {
-    throw new Error(blockingFindings[0].message);
+    // The studio blocks generation on the same rules, so this is a backstop.
+    // Return the code, not a sentence: only the client knows the user's language.
+    throw new Error(`audio_lint_${blockingFindings[0].code}`);
   }
 
   const estimatedSeconds = estimateAudioSeconds(normalizedInput.script);

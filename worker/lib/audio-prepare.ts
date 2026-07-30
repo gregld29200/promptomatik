@@ -1,6 +1,8 @@
 import type { AudioMode } from "./audio-config";
 import { validateTranscriptForTts } from "./audio-direction";
-import { STAGE_DIRECTION_TAG_MAP, SUPPORTED_AUDIO_TAGS } from "../../src/lib/audio-script-rules";
+import { SPEAKER_LABEL_WORDS, STAGE_DIRECTION_TAG_MAP, SUPPORTED_AUDIO_TAGS } from "../../src/lib/audio-script-rules";
+
+const NORMALIZED_SPEAKER_RE = new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s*\\d+$`, "i");
 
 const CHANGE_TYPES = new Set([
   "speaker_rename",
@@ -26,11 +28,34 @@ export interface AudioPrepareResult {
   warnings: string[];
 }
 
+// The interface languages the studio ships in. Rationales and warnings are
+// rendered verbatim in the prepare panel, so the model must write them in the
+// teacher's language rather than a fixed one.
+export const PREPARE_LANGUAGES = ["fr", "en", "es"] as const;
+export type PrepareLanguage = (typeof PREPARE_LANGUAGES)[number];
+
+const LANGUAGE_NAMES: Record<PrepareLanguage, string> = {
+  fr: "French",
+  en: "English",
+  es: "Spanish",
+};
+
+const SAME_SPEAKER_RATIONALE: Record<PrepareLanguage, string> = {
+  fr: "Même locuteur détecté plus haut.",
+  en: "Same speaker detected earlier.",
+  es: "Mismo hablante detectado más arriba.",
+};
+
+export function isPrepareLanguage(value: unknown): value is PrepareLanguage {
+  return typeof value === "string" && (PREPARE_LANGUAGES as readonly string[]).includes(value);
+}
+
 export interface PrepareAudioScriptInput {
   apiKey: string;
   model: string;
   script: string;
   mode: AudioMode;
+  language: PrepareLanguage;
   fetcher?: typeof fetch;
 }
 
@@ -133,7 +158,11 @@ export function parsePrepareResponse(raw: string): AudioPrepareResult {
   };
 }
 
-function completeSpeakerRenameChanges(result: AudioPrepareResult, originalScript: string): AudioPrepareResult {
+function completeSpeakerRenameChanges(
+  result: AudioPrepareResult,
+  originalScript: string,
+  language: PrepareLanguage
+): AudioPrepareResult {
   const speakerMap = new Map<string, string>();
   for (const change of result.changes) {
     if (change.type !== "speaker_rename" || !change.before.endsWith(":") || !change.after.endsWith(":")) continue;
@@ -148,7 +177,7 @@ function completeSpeakerRenameChanges(result: AudioPrepareResult, originalScript
 
   originalScript.split(/\r?\n/).forEach((rawLine, index) => {
     const label = rawLine.trim().match(/^([^:\n]{1,80}):/)?.[1]?.trim();
-    if (!label || /^(Speaker|Locuteur)\s*\d+$/i.test(label)) return;
+    if (!label || NORMALIZED_SPEAKER_RE.test(label)) return;
     const mapped = [...speakerMap.entries()].find(([name]) => label.toLowerCase().startsWith(name));
     if (!mapped) return;
     const [, after] = mapped;
@@ -160,7 +189,7 @@ function completeSpeakerRenameChanges(result: AudioPrepareResult, originalScript
       before: `${mapped[0]}:`,
       after,
       line: index + 1,
-      rationale: "Même locuteur détecté plus haut.",
+      rationale: SAME_SPEAKER_RATIONALE[language],
     });
   });
 
@@ -169,7 +198,7 @@ function completeSpeakerRenameChanges(result: AudioPrepareResult, originalScript
     : result;
 }
 
-function systemPrompt(): string {
+function systemPrompt(language: PrepareLanguage): string {
   const tagMap = Object.entries(STAGE_DIRECTION_TAG_MAP)
     .map(([source, tag]) => `${source} -> ${tag}`)
     .join(", ");
@@ -184,7 +213,7 @@ function systemPrompt(): string {
     "3. remove: non-spoken content with no useful audio or direction value becomes type removed_stage_direction.",
     "Speaker formatting changes use type speaker_rename. General TTS cleanup uses type cleanup.",
     "formatted_script must contain only the proposed TTS-ready script, with Speaker 1/2 labels in dialogue and no display names.",
-    "Write rationale values in concise French.",
+    `Write rationale and warnings values in concise, natively idiomatic ${LANGUAGE_NAMES[language]}. Never mix languages. The script itself keeps its own language — only your commentary follows this instruction.`,
     "Return ONLY valid JSON matching this shape:",
     '{"speaker_count":2,"formatted_script":"Speaker 1: ...\\nSpeaker 2: ...","changes":[{"type":"speaker_rename|stage_direction_converted|direction_hint|removed_stage_direction|cleanup","before":"Sarah:","after":"Speaker 1:","line":3,"rationale":"short reason"}],"warnings":[]}',
   ].join("\n");
@@ -201,7 +230,7 @@ export async function prepareAudioScript(input: PrepareAudioScriptInput): Promis
         "x-goog-api-key": input.apiKey,
       },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt() }] },
+        systemInstruction: { parts: [{ text: systemPrompt(input.language) }] },
         contents: [{
           role: "user",
           parts: [{ text: `Mode: ${input.mode}\n\nScript:\n${input.script}` }],
@@ -221,7 +250,7 @@ export async function prepareAudioScript(input: PrepareAudioScriptInput): Promis
     throw new AudioPrepareError("Prepare response did not include text.");
   }
 
-  const result = completeSpeakerRenameChanges(parsePrepareResponse(text), input.script);
+  const result = completeSpeakerRenameChanges(parsePrepareResponse(text), input.script, input.language);
   validateTranscriptForTts(input.mode, result.formatted_script);
   return result;
 }

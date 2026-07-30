@@ -1,4 +1,9 @@
 import type { AudioDirection, AudioMode, AudioSpeakerDirection } from "./audio-config";
+import { SPEAKER_LABEL_WORDS } from "../../src/lib/audio-script-rules";
+
+const SPEAKER_LINE_RE = new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s+\\d+\\s*:`, "i");
+// Voice- and direction-map keys arrive named the way the client displays them.
+const SPEAKER_SLOT_KEY_RE = new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s*([12])$`, "i");
 
 export interface AudioBlock {
   idx: number;
@@ -20,7 +25,7 @@ export function estimateAudioSeconds(text: string): number {
 
 export function normalizeSpeakerLabels(script: string): string {
   return script.replace(
-    /^(speaker|locuteur)\s*(\d+)\s*:/gim,
+    new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s*(\\d+)\\s*:`, "gim"),
     (_match, _label: string, index: string) => `Speaker ${index}:`
   );
 }
@@ -29,7 +34,7 @@ export function normalizeVoiceMap(voices: Record<string, string>): Record<string
   const normalized: Record<string, string> = {};
 
   for (const [key, value] of Object.entries(voices)) {
-    const match = key.match(/^(speaker|locuteur)\s*([12])$/i);
+    const match = key.match(SPEAKER_SLOT_KEY_RE);
     normalized[match ? `Speaker ${match[2]}` : key] = value;
   }
 
@@ -58,7 +63,7 @@ export function normalizeSpeakerDirections(direction: AudioDirection, mode: Audi
 
   const normalized: Record<string, AudioSpeakerDirection> = {};
   for (const [key, value] of Object.entries(speakers)) {
-    const match = key.match(/^(speaker|locuteur)\s*([12])$/i);
+    const match = key.match(SPEAKER_SLOT_KEY_RE);
     if (!match || !value || typeof value !== "object") continue;
 
     const entry: AudioSpeakerDirection = {};
@@ -94,7 +99,7 @@ function dialogueUnits(script: string): string[] {
     const line = rawLine.trim();
     if (!line) continue;
 
-    if (/^(Speaker|Locuteur)\s+\d+\s*:/i.test(line)) {
+    if (SPEAKER_LINE_RE.test(line)) {
       if (current.length > 0) {
         units.push(current.join("\n"));
       }

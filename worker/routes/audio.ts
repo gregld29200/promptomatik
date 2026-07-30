@@ -5,7 +5,7 @@ import { requireAdmin, requireAuth, requireParticipant } from "../lib/auth-middl
 import type { SessionData } from "../lib/session";
 import { getAudioQuotaBalance } from "../lib/audio-quota";
 import { getTtsModelConfig, type AudioMode } from "../lib/audio-config";
-import { prepareAudioScript } from "../lib/audio-prepare";
+import { isPrepareLanguage, prepareAudioScript } from "../lib/audio-prepare";
 import {
   createAudioJob,
   deleteAudioJobForUser,
@@ -104,7 +104,7 @@ audio.get("/voices/:name/preview", requireParticipant, async (c) => {
 });
 
 audio.post("/prepare", requireParticipant, async (c) => {
-  const body = await c.req.json<{ script?: unknown; mode?: unknown }>();
+  const body = await c.req.json<{ script?: unknown; mode?: unknown; language?: unknown }>();
   if (typeof body.script !== "string" || !body.script.trim()) {
     return c.json({ error: "Script is required." }, 400);
   }
@@ -121,6 +121,7 @@ audio.post("/prepare", requireParticipant, async (c) => {
       model: getTtsModelConfig(c.env).prepModel,
       script: body.script,
       mode: body.mode,
+      language: isPrepareLanguage(body.language) ? body.language : "fr",
     });
     return c.json(result);
   } catch (error) {

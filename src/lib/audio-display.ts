@@ -1,7 +1,10 @@
 // Shared display helpers for audio takes (studio page + library page).
 
 import { t } from "@/lib/i18n";
+import { SPEAKER_LABEL_WORDS } from "@/lib/audio-script-rules";
 import type { AudioJob, AudioMode, AudioQuality } from "@/lib/api";
+
+const SPEAKER_LABEL_RE = new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s+\\d+\\s*:`, "gim");
 
 export function stripTags(text: string) {
   return text.replace(/\[[^\]]+\]/g, " ");
@@ -9,7 +12,7 @@ export function stripTags(text: string) {
 
 export function scriptTitle(script: string) {
   const clean = stripTags(script)
-    .replace(/^(Speaker|Locuteur)\s+\d+\s*:/gim, " ")
+    .replace(SPEAKER_LABEL_RE, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!clean) return t("audio.untitled");

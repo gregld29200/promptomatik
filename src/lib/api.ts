@@ -3,7 +3,7 @@
  * Returns { data, error } instead of throwing — keeps error handling explicit.
  */
 
-import type { Language } from "@/lib/i18n";
+import { getLanguage, type Language } from "@/lib/i18n";
 
 export interface ApiError {
   error: string;
@@ -708,10 +708,12 @@ export function deleteAudioJob(id: string) {
   });
 }
 
+// `language` drives the language of the rationales the model writes back — the
+// panel renders them verbatim, so it must match the interface language.
 export function prepareAudioScript(data: { script: string; mode: AudioMode }) {
   return request<AudioPrepareResult>("/api/audio/prepare", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, language: getLanguage() }),
   }, { timeoutMs: 60_000 });
 }
 
