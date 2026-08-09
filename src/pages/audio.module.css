@@ -873,25 +873,17 @@
   color: var(--color-error);
 }
 
+/* Colour and spacing only: the geometry, and the 44px touch target that used to
+   be an 18px one here, live in the shared `HelpDot`
+   (src/components/ui/help-disclosure.module.css). */
 .helpDot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  padding: 0;
+  --help-dot-color: var(--studio-teal);
   margin-left: 0.15rem;
-  border: none;
-  border-radius: 50%;
-  background: none;
-  color: var(--studio-teal);
-  cursor: pointer;
-  vertical-align: middle;
 }
 
 .helpDot:hover,
 .helpDot[aria-expanded="true"] {
-  color: var(--color-navy-800);
+  --help-dot-color: var(--color-navy-800);
 }
 
 .fieldHelp {

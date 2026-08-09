@@ -55,6 +55,20 @@
       "bucket_name": "teachinspire-media"
     }
   ],
+  // Daily retention sweep. Transcripts are kept 7 days and then purged — the
+  // text out of D1 and any uploaded media out of R2 (see
+  // worker/lib/transcription-retention.ts, called from `scheduled` in
+  // worker/index.ts). The Audio Studio needs no cron because an mp3 is bytes in
+  // R2 and a bucket lifecycle rule removes it; a transcript is a D1 column and
+  // no lifecycle rule can reach it.
+  //
+  // 03:40 UTC: outside every teaching timezone we serve, and offset off the hour
+  // so we are not queueing behind everyone else's midnight jobs. The exact
+  // minute does not matter — reads enforce expiry on their own, so a late sweep
+  // can never serve an expired transcript.
+  "triggers": {
+    "crons": ["40 3 * * *"]
+  },
   "queues": {
     "producers": [
       {
@@ -68,6 +82,10 @@
       {
         "binding": "DOCUMENT_JOBS_QUEUE",
         "queue": "document-jobs"
+      },
+      {
+        "binding": "TRANSCRIPTION_JOBS_QUEUE",
+        "queue": "transcription-jobs"
       }
     ],
     "consumers": [
@@ -87,6 +105,13 @@
       },
       {
         "queue": "document-jobs",
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "retry_delay": 5
+      },
+      {
+        "queue": "transcription-jobs",
         "max_batch_size": 1,
         "max_batch_timeout": 1,
         "max_retries": 3,

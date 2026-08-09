@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Copy, Download, FileText, HelpCircle, Info, Loader2, X } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Copy, Download, FileText, HelpCircle, Loader2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
+import { HelpDot, HelpPanel, helpPanelId } from "@/components/ui/help-disclosure";
 import { ChoiceButtons, GuideOverlay, RecentJobs } from "@/components/documents/documents-panels";
 import { DocumentPreview } from "@/components/documents/document-preview";
 import { SimpleDocumentOptions } from "@/components/documents/simple-document-options";
@@ -24,6 +25,8 @@ export function DocumentsPage() {
   const [customRequest, setCustomRequest] = useState("");
   const [guideOpen, setGuideOpen] = useState(false);
   const [openHelp, setOpenHelp] = useState<string | null>(null);
+  /** One base for every disclosure panel on this page — see `helpPanelId`. */
+  const helpBaseId = useId();
   const [recentJobs, setRecentJobs] = useState<api.DocumentJobSummary[]>([]);
   const [recentLoading, setRecentLoading] = useState(false);
   const [job, setJob] = useState<api.DocumentJob | null>(null);
@@ -252,17 +255,27 @@ export function DocumentsPage() {
       setToast(t("documents.copy_error"));
     }
   }
+  // The shared disclosure (src/components/ui/help-disclosure.tsx): one 44px touch
+  // target and one `aria-controls` relationship for all three studios.
   function helpDot(id: string) {
     return (
-      <button
-        type="button"
+      <HelpDot
         className={s.helpDot}
-        aria-label={t("documents.help_dot")}
-        aria-expanded={openHelp === id}
-        onClick={() => setOpenHelp((prev) => (prev === id ? null : id))}
-      >
-        <Info size={13} aria-hidden />
-      </button>
+        size={13}
+        label={t("documents.help_dot")}
+        expanded={openHelp === id}
+        controls={helpPanelId(helpBaseId, id)}
+        onToggle={() => setOpenHelp((prev) => (prev === id ? null : id))}
+      />
+    );
+  }
+
+  /** Always rendered, hidden when closed: `aria-controls` must have a target. */
+  function helpText(id: string, key: string) {
+    return (
+      <HelpPanel id={helpPanelId(helpBaseId, id)} open={openHelp === id} className={s.fieldHelp}>
+        {t(key)}
+      </HelpPanel>
     );
   }
   function renderInput() {
@@ -297,7 +310,7 @@ export function DocumentsPage() {
             keyPrefix="documents.document_types"
             onChange={(documentType) => updateDraft("documentType", documentType)}
           />
-          {openHelp === "documentType" && <p className={s.fieldHelp}>{t("documents.help_document_type")}</p>}
+          {helpText("documentType", "documents.help_document_type")}
           <label className={s.field}>
             <span>{t("documents.content_label")}</span>
             <textarea
@@ -334,7 +347,7 @@ export function DocumentsPage() {
                   </button>
                 ))}
               </div>
-              {openHelp === "level" && <p className={s.fieldHelp}>{t("documents.help_level")}</p>}
+              {helpText("level", "documents.help_level")}
             </fieldset>
           )}
           <SimpleDocumentOptions

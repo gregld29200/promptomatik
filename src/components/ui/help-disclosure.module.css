@@ -1,0 +1,50 @@
+/* Geometry lives here. Everything a page might want to change is a CUSTOM
+   PROPERTY, never a competing declaration: `.dot` and a page's own `.helpDot`
+   are both single classes, so equal specificity would leave the winner to
+   stylesheet order — which nothing guarantees across CSS modules, and which
+   would silently flip when the bundler reorders. A page sets the variables:
+
+     .helpDot {
+       --help-dot-size: 24px;
+       --help-dot-border: 1px solid var(--color-border);
+       --help-dot-background: var(--color-cream-100);
+       --help-dot-color: var(--color-accent);
+     }
+*/
+
+.dot {
+  --help-dot-size: 18px;
+  --help-dot-border: none;
+  --help-dot-background: none;
+  --help-dot-color: currentColor;
+
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--help-dot-size);
+  height: var(--help-dot-size);
+  padding: 0;
+  border: var(--help-dot-border);
+  border-radius: 50%;
+  background: var(--help-dot-background);
+  color: var(--help-dot-color);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+/* THE TOUCH TARGET. Centred on the glyph and 44px square, without the box itself
+   growing — a 44px inline box would push the label text beside it sideways on
+   every page that uses this. The inset is whatever it takes to reach 44px from
+   the visible size, so a bigger dot does not get a bigger target. */
+.dot::after {
+  content: "";
+  position: absolute;
+  inset: calc((var(--help-dot-size) - 44px) / 2);
+  border-radius: 50%;
+}
+
+.dot:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

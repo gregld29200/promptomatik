@@ -8,6 +8,7 @@ export interface Env {
   INTERVIEW_JOBS_QUEUE: Queue<{ jobId: string }>;
   AUDIO_GENERATION_QUEUE: Queue<{ jobId: string; segmentIdx?: number; action?: "generate" | "assemble" }>;
   DOCUMENT_JOBS_QUEUE: Queue<{ jobId: string }>;
+  TRANSCRIPTION_JOBS_QUEUE: Queue<{ jobId: string }>;
   OPENROUTER_API_KEY: string;
   OPENROUTER_MODEL?: string;
   OPENROUTER_FALLBACK_MODEL?: string;
@@ -21,6 +22,20 @@ export interface Env {
   DOCS_MODEL?: string;
   DOCS_STRUCTURE_MODEL?: string;
   GEMINI_API_KEY?: string;
+  /**
+   * Transcription Studio speech-to-text. All three optional so the app still
+   * boots without them: `planTranscriptionRoute` drops an unconfigured tier from
+   * the cascade, and `runTranscription` throws `provider_unavailable` only once
+   * EVERY tier of the lane is gone — which the queue consumer treats as
+   * retryable and never as the teacher's fault.
+   * GROQ = whisper-large-v3-turbo (default path, no diarization).
+   * DEEPGRAM = nova-3 multilingual (the "identify speakers" path).
+   * ASSEMBLYAI = universal-3.5-pro (tier 3, the universal backstop — it can
+   * serve both lanes, so it substitutes for either provider above).
+   */
+  GROQ_API_KEY?: string;
+  DEEPGRAM_API_KEY?: string;
+  ASSEMBLYAI_API_KEY?: string;
   RESEND_API_KEY: string;
   APP_SECRET: string;
   APP_URL?: string;

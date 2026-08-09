@@ -19,6 +19,8 @@ import { TemplatesPage } from "@/pages/templates";
 import { TemplateDetailPage } from "@/pages/template-detail";
 import { AudioStudioPage } from "@/pages/audio";
 import { AudioLibraryPage } from "@/pages/audio-library";
+import { TranscribePage } from "@/pages/transcribe";
+import { TranscribeLibraryPage } from "@/pages/transcribe-library";
 import { DocumentsPage } from "@/pages/documents";
 import { HomePage } from "@/pages/home";
 
@@ -98,6 +100,22 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <AudioLibraryPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transcribe"
+              element={
+                <ProtectedRoute>
+                  <TranscribePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/transcribe/library"
+              element={
+                <ProtectedRoute>
+                  <TranscribeLibraryPage />
                 </ProtectedRoute>
               }
             />

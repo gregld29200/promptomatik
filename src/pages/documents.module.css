@@ -176,17 +176,13 @@
   background: var(--color-navy-800) !important;
   color: var(--color-text-inverse) !important;
 }
+/* Skin only, through the shared component's variables — the layout and the 44px
+   touch target this 24px circle did not have before come from `HelpDot`. */
 .helpDot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  background: var(--color-cream-100);
-  color: var(--color-accent);
-  cursor: pointer;
+  --help-dot-size: 24px;
+  --help-dot-border: 1px solid var(--color-border);
+  --help-dot-background: var(--color-cream-100);
+  --help-dot-color: var(--color-accent);
 }
 .fieldHelp {
   margin: var(--space-2) 0 0;

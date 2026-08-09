@@ -1,0 +1,64 @@
+/* One allowance, two shapes. Tokens only.
+   The pill's values are the ones the topbar chip already used, so adopting this
+   primitive changed no pixel on the dashboard. */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: var(--weight-medium);
+  color: var(--color-navy-700);
+  background: var(--color-cream-200);
+  border: 1px solid var(--color-cream-500);
+  white-space: nowrap;
+}
+
+.pill[data-exhausted] {
+  color: var(--color-terracotta-700);
+  border-color: var(--color-terracotta-500);
+  background: var(--color-cream-100);
+}
+
+.block {
+  display: grid;
+  gap: 0.1rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  background: var(--color-cream-100);
+}
+
+.block[data-align="end"] {
+  text-align: right;
+}
+
+.block[data-exhausted] {
+  border-color: var(--color-terracotta-300);
+  background: var(--color-terracotta-50);
+}
+
+.blockLabel {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-navy-400);
+}
+
+.blockValue {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-navy-800);
+}
+
+.blockReset {
+  font-size: var(--text-xs);
+  color: var(--color-navy-400);
+}
+
+@media (max-width: 720px) {
+  .block[data-align="end"] {
+    text-align: left;
+  }
+}

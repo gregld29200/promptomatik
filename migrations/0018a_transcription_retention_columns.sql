@@ -1,0 +1,48 @@
+-- Transcription Studio — the two new columns, ALONE, ahead of 0018's rebuild.
+--
+-- ---------------------------------------------------------------------------
+-- RUN ORDER: THIS FILE RUNS **BEFORE** 0018_transcription_retention.sql
+-- ---------------------------------------------------------------------------
+-- The suffix letter sorts AFTER `0018_` lexically, which is the opposite of the
+-- order it must run in. The chain is spelled out in `package.json` → `db:migrate`,
+-- not derived from a directory listing, so the ordering lives there. If you ever
+-- switch to a glob-based runner, rename this file first.
+--
+-- ---------------------------------------------------------------------------
+-- THE INVARIANT: `npm run db:migrate` MUST EXIT 0 ON A REPLAY
+-- ---------------------------------------------------------------------------
+-- There is no applied-migrations table. `db:migrate` is a flat chain of
+-- `wrangler d1 execute --file` calls joined with `&&`, so every file is
+-- re-executed on every run, and the FIRST non-zero exit silently skips every
+-- migration after it. A migration that cannot survive a replay does not just
+-- error — it takes the whole tail of the chain with it, and the message printed
+-- names its own column, so the failure reads as a fault in the old migration
+-- rather than as "everything after this was skipped".
+--
+-- This invariant was NOT already held. `ALTER TABLE ... ADD COLUMN` has no
+-- `IF NOT EXISTS` in SQLite, and seven earlier migrations use it (0002, 0003,
+-- 0004, 0009, 0014, 0015, 0016). On any database that had already been migrated,
+-- `npm run db:migrate` aborted at 0002 with `duplicate column name: is_active`
+-- and NOTHING after 0001 ran — including 0017 and 0018.
+--
+-- The fix is uniform: every link whose only expected replay failure is
+-- `duplicate column name` is joined with `{ ... || true; }` instead of a bare
+-- `&&`. This file is one of them. Every other link, 0018's rebuild included,
+-- keeps its `&&` and still stops the chain on a genuine failure.
+--
+-- Absorbing the error is safe here because this file cannot fail any other way
+-- without 0018 failing loudly straight after: if `transcription_jobs` is missing
+-- or malformed, 0018's `INSERT ... SELECT` names both columns and errors there,
+-- under a `&&`.
+--
+-- ---------------------------------------------------------------------------
+-- WHY THE COLUMNS ARE ADDED BEFORE THE REBUILD RATHER THAN JUST DECLARED IN IT
+-- ---------------------------------------------------------------------------
+-- 0018 rebuilds `transcription_jobs` to widen a CHECK constraint, and its
+-- `INSERT ... SELECT` carries `expires_at` and `provider_choice_reason` across.
+-- On the FIRST run those columns do not exist yet, so they have to be added
+-- here. On a SECOND run they already hold data, and the copy round-trips it
+-- instead of silently nulling a week of retention deadlines.
+
+ALTER TABLE transcription_jobs ADD COLUMN provider_choice_reason TEXT;
+ALTER TABLE transcription_jobs ADD COLUMN expires_at TEXT;

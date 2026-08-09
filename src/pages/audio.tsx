@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Copy, FileAudio, HelpCircle, Info, Lock, Tags, Wand2, X } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { Copy, FileAudio, HelpCircle, Lock, Tags, Wand2, X } from "lucide-react";
 import { Link } from "react-router";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
+import { HelpDot, HelpPanel, helpPanelId } from "@/components/ui/help-disclosure";
 import { GenerationConsole } from "@/components/audio/generation-console";
 import { VoiceCasting } from "@/components/audio/voice-casting";
 import { WaveformPlayer } from "@/components/audio/waveform-player";
@@ -293,6 +294,8 @@ export function AudioStudioPage() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [editorCollapsed, setEditorCollapsed] = useState(false);
   const [openHelp, setOpenHelp] = useState<string | null>(null);
+  /** One base for every disclosure panel on this page — see `helpPanelId`. */
+  const helpBaseId = useId();
   const [creditPacks, setCreditPacks] = useState<api.CreditPack[]>([]);
   const [buyOpen, setBuyOpen] = useState(false);
   const [buyingPack, setBuyingPack] = useState<string | null>(null);
@@ -398,26 +401,29 @@ export function AudioStudioPage() {
     setDirection((prev) => ({ ...prev, [key]: value }));
   }
 
+  // The shared disclosure (src/components/ui/help-disclosure.tsx): one 44px touch
+  // target and one `aria-controls` relationship for all three studios. The panel
+  // is always rendered and hidden when closed, because `aria-controls` has to
+  // point at an element that exists.
   function helpDot(id: string) {
     return (
-      <button
-        type="button"
+      <HelpDot
         className={s.helpDot}
-        aria-label={t("audio.param_help_aria")}
-        aria-expanded={openHelp === id}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          setOpenHelp((prev) => (prev === id ? null : id));
-        }}
-      >
-        <Info size={13} aria-hidden />
-      </button>
+        size={13}
+        label={t("audio.param_help_aria")}
+        expanded={openHelp === id}
+        controls={helpPanelId(helpBaseId, id)}
+        onToggle={() => setOpenHelp((prev) => (prev === id ? null : id))}
+      />
     );
   }
 
   function helpText(id: string, key: string) {
-    return openHelp === id ? <p className={s.fieldHelp}>{t(key)}</p> : null;
+    return (
+      <HelpPanel id={helpPanelId(helpBaseId, id)} open={openHelp === id} className={s.fieldHelp}>
+        {t(key)}
+      </HelpPanel>
+    );
   }
 
   function updateSpeakerField(slot: string, field: keyof AudioSpeakerDirection, value: string) {

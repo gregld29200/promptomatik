@@ -1,0 +1,879 @@
+/* Transcription Studio — the transcript reader.
+   Swiss-editorial: one measured column, a ruled timestamp gutter, fine rules
+   instead of boxes, colour used only to tell one voice from another.
+   Every value comes from src/styles/tokens.css. No hardcoded colours. */
+
+.view {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+}
+
+/* ---- Header ---- */
+
+.head {
+  display: grid;
+  gap: var(--space-2);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: var(--space-1) 0 0;
+}
+
+.metaItem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.metaItem dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.metaItem dd {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Honest notice: diarization asked for, diarization impossible ---- */
+
+.note {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-gold-600);
+  border-radius: var(--radius-sm);
+  background: var(--color-gold-50);
+}
+
+.note strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.note span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* ---- Body: everything under the header ----
+   A plain block container, not a grid. `position: sticky` needs a containing
+   block taller than the sticky element, and a grid item's containing block is
+   its own row — so the controls bar would never move. In normal flow the bar's
+   containing block is this whole column, which is as tall as the transcript. */
+
+.body {
+  display: block;
+}
+
+.body > * + * {
+  margin-top: var(--space-5);
+}
+
+/* ---- Controls: pinned, because a transcript is longer than a screen ----
+   Search, the display toggles, copy, the downloads and the player are the tools
+   a teacher works WITH while reading. At 90 minutes a file, scrolling back to
+   the top to search is not a minor inconvenience, it is the whole workflow. On a
+   short transcript this costs nothing: there is no scroll to stick against. */
+
+.controls {
+  position: sticky;
+  /* Published by the shell so the bar lands under the breadcrumb, not beneath
+     it, at every breakpoint. */
+  top: var(--shell-sticky-top, 0px);
+  z-index: 2;
+  display: grid;
+  gap: var(--space-3);
+  /* Bleeds to the card's edges: text must not scroll through the gap beside a
+     bar that is meant to cover it. */
+  margin-inline: calc(var(--space-6) * -1);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+}
+
+/* ---- Player ---- */
+
+.player {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+/* Native controls: known to every teacher, keyboard-accessible for free, and
+   this is a reading aid rather than a production tool. */
+.playerElement {
+  flex: 1 1 18rem;
+  min-width: 0;
+  max-width: 32rem;
+  height: 40px;
+}
+
+.playerHint {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.playerGone {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-gold-600);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ---- Toolbar ---- */
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+
+.searchField {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1 1 15rem;
+  min-width: 12rem;
+}
+
+.searchIcon {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-10) 0 var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-cream-100);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--color-navy-600);
+  box-shadow: 0 0 0 2px var(--color-navy-100);
+  background: var(--color-bg-card);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.searchClear {
+  position: absolute;
+  right: var(--space-1);
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.searchClear:hover {
+  background: var(--color-cream-200);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.optionsLabel {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.chip:hover {
+  border-color: var(--color-navy-300);
+  background: var(--color-cream-100);
+}
+
+/* Pressed state carries a filled background AND a tick-like weight change,
+   so it never depends on colour alone. */
+.chip[aria-pressed="true"] {
+  border-color: var(--color-navy-800);
+  background: var(--color-navy-800);
+  color: var(--color-text-inverse);
+}
+
+.chip[aria-pressed="true"]::before {
+  content: "✓";
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+
+.chipCount {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-cream-300);
+  color: var(--color-navy-800);
+  font-variant-numeric: tabular-nums;
+}
+
+.toolbarActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.copyAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1.5px solid var(--color-navy-300);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-card);
+  color: var(--color-navy-700);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    opacity var(--transition-fast);
+}
+
+.copyAction:hover {
+  border-color: var(--color-navy-600);
+  background: var(--color-navy-50);
+}
+
+.copyAction[data-state="copied"] {
+  border-color: var(--color-gold-600);
+  color: var(--color-gold-800);
+  background: var(--color-gold-50);
+}
+
+.copyAction[data-state="failed"] {
+  border-color: var(--color-terracotta-600);
+  color: var(--color-terracotta-700);
+  background: var(--color-terracotta-50);
+}
+
+.copyActionIcon {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.downloads {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--color-border);
+}
+
+.downloadIcon {
+  color: var(--color-text-muted);
+}
+
+.downloadLink {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-navy-700);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wide);
+  text-decoration: none;
+}
+
+.downloadLink:hover {
+  background: var(--color-cream-200);
+  text-decoration: underline;
+}
+
+.searchStatus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  /* Inside the pinned bar, so the grid gap already spaces it. */
+  margin: 0;
+}
+
+.searchStatus p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.searchNav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.searchPosition {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-wide);
+}
+
+.searchStep {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-navy-700);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.searchStep:hover {
+  border-color: var(--color-navy-300);
+  background: var(--color-cream-100);
+}
+
+/* A note about the dotted words, ruled in the same terracotta as the marks. */
+.uncertainSummary {
+  margin: calc(var(--space-2) * -1) 0 0;
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-terracotta-300);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* ---- Speaker legend ---- */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.legendLabel {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.legendList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legendName {
+  color: var(--speaker-accent);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+}
+
+.legendInput {
+  width: 9.5rem;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 1px solid transparent;
+  border-bottom-color: var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--speaker-accent);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+/* The placeholder is the localised "Speaker N" — the label actually in use
+   everywhere else on the page, not a hint — so it reads at the same strength as
+   a typed name instead of the browser's grey. */
+.legendInput::placeholder {
+  color: var(--speaker-accent);
+  opacity: 1;
+}
+
+.legendInput:hover {
+  background: var(--color-cream-100);
+}
+
+.legendInput:focus {
+  outline: none;
+  border-color: var(--color-navy-600);
+  background: var(--color-bg-card);
+  box-shadow: 0 0 0 2px var(--color-navy-100);
+}
+
+.legendTime {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Turns ---- */
+
+.turns {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.turnItem {
+  display: block;
+}
+
+.turn {
+  display: grid;
+  grid-template-columns: 4.25rem minmax(0, 1fr) 44px;
+  gap: 0 var(--space-3);
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-3);
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.turn:hover {
+  background: var(--color-cream-100);
+}
+
+.turnActive {
+  border-left-color: var(--speaker-accent);
+  background: var(--color-cream-200);
+}
+
+.turnGutter {
+  padding-top: 0.2rem;
+  text-align: right;
+}
+
+.timecode,
+.timecodeButton {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-wide);
+}
+
+.timecodeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.timecodeButton:hover {
+  color: var(--color-navy-700);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.turnBody {
+  min-width: 0;
+}
+
+.turnSpeaker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1);
+  color: var(--speaker-accent);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-wider);
+  text-transform: uppercase;
+}
+
+.speakerDot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: var(--radius-none);
+  background: var(--speaker-accent);
+}
+
+/* The reading line: measured, generous, and the only place with body type. */
+.turnText {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--text-lg);
+  line-height: var(--leading-relaxed);
+  /* No hyphenation: the document language follows the teacher's interface, not
+     the recording, and French words hyphenated by English rules read as errors. */
+  hyphens: none;
+}
+
+.turnActions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+/* Quiet until wanted — but always there for touch, and always there on focus. */
+.turnActions .copyActionIcon {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.turn:hover .copyActionIcon,
+.turn:focus-within .copyActionIcon,
+.copyActionIcon:focus-visible,
+.copyActionIcon[data-state="copied"],
+.copyActionIcon[data-state="failed"] {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .turnActions .copyActionIcon {
+    opacity: 1;
+  }
+}
+
+/* ---- Word-level marks ---- */
+
+/* Dotted underline, not a highlight: a page of flagged words should still read
+   as a page of prose. Screen readers get an explicit spoken marker instead. */
+.uncertain {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--color-terracotta-500);
+  text-underline-offset: 4px;
+  cursor: help;
+}
+
+/* The playback cursor is cool navy; a search hit is warm gold. Two different
+   questions, two different temperatures, never mistaken for each other. */
+.wordNow {
+  border-radius: var(--radius-sm);
+  background: var(--color-navy-100);
+  box-shadow: 0 0 0 2px var(--color-navy-100);
+}
+
+.hit {
+  border-radius: var(--radius-none);
+  background: var(--color-gold-200);
+  box-shadow: inset 0 -2px 0 var(--color-gold-600);
+  color: var(--color-navy-900);
+}
+
+/* The one hit the stepper is parked on.
+   Turns hold several hits, so "next" often moves within a single turn: without
+   a mark on the current one, the teacher sees the same screen and reads the
+   press as a dead button. Deeper gold AND a ring — a shape change, not a hue
+   change — so the difference survives a projector, a bright classroom and
+   colour-blind eyes. `aria-current` carries the same fact to assistive tech. */
+.hitCurrent {
+  background: var(--color-gold-400);
+  box-shadow:
+    inset 0 -2px 0 var(--color-gold-800),
+    0 0 0 2px var(--color-gold-700);
+}
+
+/* A search hit now wraps the word overlays, so the cursor's fill would paint
+   over the gold the teacher was looking for. Inside a hit the cursor keeps its
+   outline and gives up its fill. */
+.hit .wordNow {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--color-navy-400);
+}
+
+.empty {
+  margin: 0;
+  padding: var(--space-6) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-base);
+  text-align: center;
+}
+
+/* ---- Speaker accents. Four, cycled. Text-level, never the only signal. ---- */
+
+.accent0 {
+  --speaker-accent: var(--color-navy-700);
+}
+
+.accent1 {
+  --speaker-accent: var(--color-terracotta-700);
+}
+
+.accent2 {
+  --speaker-accent: var(--color-gold-800);
+}
+
+.accent3 {
+  --speaker-accent: var(--color-cream-900);
+}
+
+/* ---- Focus, motion, small screens ---- */
+
+/* One visible focus treatment for every control, each keeping its own shape. */
+.view :is(button, a, input):focus-visible {
+  outline: 2px solid var(--color-navy-600);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view :is(button, a, input, .turn, .copyAction, .chip) {
+    transition: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .view {
+    padding: var(--space-4) var(--space-4) var(--space-6);
+    gap: var(--space-4);
+  }
+
+  .body > * + * {
+    margin-top: var(--space-4);
+  }
+
+  /* Follows the card's smaller padding, or the bar stops covering the text. */
+  .controls {
+    gap: var(--space-2);
+    margin-inline: calc(var(--space-4) * -1);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  /* Pinned on a phone, so every row this bar takes is a row of transcript the
+     teacher cannot see. Three rows, not five: search shares a line with copy,
+     the chips share one with the downloads, the chips scroll sideways rather
+     than wrapping, and the group label goes to screen readers only — the chips
+     say what they do. */
+  .searchField {
+    flex: 1 1 8rem;
+  }
+
+  .toolbarActions {
+    flex: 0 1 auto;
+    margin-left: 0;
+  }
+
+  /* Icon-only, but still named: the label moves out of sight, not out of the
+     accessibility tree. */
+  .copyAction {
+    min-width: 44px;
+    padding: 0;
+  }
+
+  .copyAction > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .options {
+    flex: 1 1 8rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .optionsLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .chip {
+    flex: none;
+  }
+
+  .playerHint {
+    display: none;
+  }
+
+  .turn {
+    grid-template-columns: minmax(0, 1fr) 44px;
+    padding-left: var(--space-2);
+  }
+
+  /* No room for a gutter: the timestamp becomes a quiet header line, on the
+     same baseline as the copy button, with the turn's text below it. */
+  .turn {
+    row-gap: 0;
+  }
+
+  .turnGutter {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding-top: 0;
+    text-align: left;
+  }
+
+  .timecode,
+  .timecodeButton {
+    justify-content: flex-start;
+    min-width: 0;
+    min-height: 40px;
+  }
+
+  .turnBody {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .turnActions {
+    grid-column: 2;
+    grid-row: 1;
+    align-items: center;
+  }
+
+  .turnText {
+    font-size: var(--text-base);
+    max-width: none;
+  }
+
+  .downloads {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

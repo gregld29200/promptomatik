@@ -4,11 +4,21 @@
  */
 
 import { getLanguage, type Language } from "@/lib/i18n";
+// Structural mirror of the Worker's `NormalisedTranscript`, declared once in
+// the component layer so the reading UI and this client cannot drift apart.
+import type { TranscriptData } from "@/components/transcription/types";
 
 export interface ApiError {
   error: string;
   status: number;
   code?: string;
+  /**
+   * Machine-readable failure detail, when the endpoint sends one. Only the
+   * Transcription Studio does today: its errors are objects, not sentences, so
+   * the page can say "this episode is 2 h 14, the limit is 90 minutes" instead
+   * of a generic message. See `TranscriptionFailure`.
+   */
+  failure?: TranscriptionFailure;
 }
 
 type ApiResult<T> = { data: T; error: null } | { data: null; error: ApiError };
@@ -22,7 +32,9 @@ function sleep(ms: number) {
 async function request<T>(
   path: string,
   options: RequestInit = {},
-  config: { timeoutMs?: number } = {}
+  // `json: false` lets a caller send FormData — the browser must set its own
+  // multipart boundary, and a hardcoded application/json header would break it.
+  config: { timeoutMs?: number; json?: boolean } = {}
 ): Promise<ApiResult<T>> {
   const controller = new AbortController();
   const timeoutMs = config.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
@@ -32,7 +44,9 @@ async function request<T>(
   try {
     res = await fetch(path, {
       credentials: "same-origin",
-      headers: { "Content-Type": "application/json", ...options.headers },
+      headers: config.json === false
+        ? { ...options.headers }
+        : { "Content-Type": "application/json", ...options.headers },
       ...options,
       signal: controller.signal,
     });
@@ -63,10 +77,15 @@ async function request<T>(
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: "Request failed" }));
-    const errorBody = body as { error?: string; code?: string };
+    const errorBody = body as { error?: string; code?: string; failure?: TranscriptionFailure };
     return {
       data: null,
-      error: { error: errorBody.error ?? "Request failed", status: res.status, code: errorBody.code },
+      error: {
+        error: errorBody.error ?? "Request failed",
+        status: res.status,
+        code: errorBody.code,
+        failure: errorBody.failure,
+      },
     };
   }
 
@@ -970,4 +989,258 @@ export function grantAudioCredits(userId: string, seconds: number) {
     method: "POST",
     body: JSON.stringify({ userId, seconds }),
   });
+}
+
+// ---- Transcription Studio ----
+//
+// Every path is under /api/transcriptions. The `downloads` map on a completed
+// job is built server-side (`rowToTranscriptionJob`), so those hrefs are used
+// verbatim rather than rebuilt here.
+
+/** Three tiers: Groq (free), Deepgram, AssemblyAI. The cascade picks; the row records. */
+export type TranscriptionProviderId = "groq" | "deepgram" | "assemblyai";
+export type TranscriptionSourceKind = "upload" | "direct_url" | "podcast" | "youtube";
+
+/**
+ * Five statuses, not four: resolving a podcast feed and running the
+ * transcription are visibly different waits, so each gets its own sentence.
+ */
+export type TranscriptionJobStatus =
+  | "queued"
+  | "resolving"
+  | "transcribing"
+  | "completed"
+  | "failed";
+
+export type TranscriptionFailureCode =
+  | "unsupported_source"
+  | "youtube_not_yet_supported"
+  | "spotify_not_supported"
+  | "source_unreachable"
+  | "no_audio_found"
+  | "source_too_long"
+  | "source_too_large"
+  | "unsupported_media_type"
+  | "provider_unavailable"
+  | "provider_failed"
+  | "quota_exceeded"
+  | "internal";
+
+/**
+ * Errors are objects, never strings. `code` is the i18n key suffix
+ * (`transcription.error_<code>`) and the rest are the numbers a specific
+ * message needs. Flat optional fields rather than a discriminated union,
+ * because the UI reads them opportunistically and the wire shape is whatever
+ * the Worker's `TranscriptionFailure` serialised to.
+ */
+export interface TranscriptionFailure {
+  code: TranscriptionFailureCode;
+  detail?: string;
+  url?: string;
+  status?: number;
+  provider?: TranscriptionProviderId;
+  contentType?: string;
+  durationSeconds?: number;
+  maxSeconds?: number;
+  bytes?: number;
+  maxBytes?: number;
+  requestedSeconds?: number;
+  remainingSeconds?: number;
+}
+
+export interface TranscriptionJob {
+  id: string;
+  status: TranscriptionJobStatus;
+  title: string | null;
+  sourceKind: TranscriptionSourceKind;
+  sourceUrl: string | null;
+  /** What the teacher asked for — not what ran. Groq can never diarize. */
+  diarizeRequested: boolean;
+  provider: TranscriptionProviderId | null;
+  providerModel: string | null;
+  /**
+   * Machine value naming why the cascade chose `provider` ("groq_free_tier",
+   * "groq_rate_limited", …). Diagnostics and the admin split — never rendered to
+   * a teacher, and deliberately not translated.
+   */
+  providerChoiceReason: string | null;
+  /** True only when the stored words really carry speakers. */
+  diarization: boolean;
+  detectedLanguage: string | null;
+  detectedLanguages: string[];
+  durationSeconds: number | null;
+  billedSeconds: number | null;
+  transcript: TranscriptData | null;
+  error: TranscriptionFailure | null;
+  createdAt: string;
+  completedAt: string | null;
+  /**
+   * Completion + 7 days. Transcripts are kept a week and then deleted — see
+   * `expiresLabel` / `isTranscriptExpired` in `@/lib/transcription-display`.
+   */
+  expiresAt: string | null;
+  /** Server-side verdict on that date. Trust it over local arithmetic. */
+  expired: boolean;
+  /** Only present once the job is completed AND still inside its seven days. */
+  downloads?: Record<"txt" | "srt" | "vtt" | "json", string>;
+}
+
+export interface TranscriptionJobSummary {
+  id: string;
+  status: TranscriptionJobStatus;
+  /**
+   * Server-derived label: the teacher's title, else the URL leaf or the uploaded
+   * filename. "" when nothing could be derived — the Worker has no i18n, so the
+   * caller renders `transcription.untitled_transcript` for an empty string.
+   */
+  title: string;
+  sourceKind: TranscriptionSourceKind;
+  provider: TranscriptionProviderId | null;
+  durationSeconds: number | null;
+  createdAt: string;
+  /** Completion + 7 days, so the row can count down. Null when nothing was stored. */
+  expiresAt: string | null;
+  /** Server-side verdict: the row reads as expired and offers no download. */
+  expired: boolean;
+}
+
+export interface TranscriptionQuota {
+  includedLimit: number;
+  includedUsed: number;
+  includedRemaining: number;
+  month: string;
+  monthResetsOn: string;
+}
+
+export type PodcastSourceHint = "apple" | "rss" | "episode_page" | "generic";
+
+export interface ClassifiedTranscriptionSource {
+  kind: TranscriptionSourceKind;
+  url: string | null;
+  supported: boolean;
+  failure: TranscriptionFailure | null;
+  podcastHint: PodcastSourceHint | null;
+}
+
+export interface PodcastEpisode {
+  title: string | null;
+  audioUrl: string;
+  contentType: string | null;
+  bytes: number | null;
+  durationSeconds: number | null;
+  publishedAt: string | null;
+  guid: string | null;
+}
+
+export interface PodcastFeed {
+  feedUrl: string;
+  title: string | null;
+  episodes: PodcastEpisode[];
+}
+
+export interface CreateTranscriptionInput {
+  url: string;
+  diarize: boolean;
+  languageHint?: string | null;
+  title?: string | null;
+}
+
+export function getTranscriptionQuota() {
+  return request<TranscriptionQuota>("/api/transcriptions/quota");
+}
+
+/** Pure classification, no network on the provider side — safe to call on paste. */
+export function inspectTranscriptionSource(input: string) {
+  return request<{ source: ClassifiedTranscriptionSource }>("/api/transcriptions/inspect", {
+    method: "POST",
+    body: JSON.stringify({ input }),
+  });
+}
+
+/** Reads a feed so the teacher picks an episode instead of us guessing one. */
+export function getPodcastEpisodes(url: string) {
+  return request<{ feed: PodcastFeed }>(
+    "/api/transcriptions/episodes",
+    { method: "POST", body: JSON.stringify({ url }) },
+    { timeoutMs: 30_000 }
+  );
+}
+
+export function createTranscriptionJob(data: CreateTranscriptionInput) {
+  return request<{ jobId: string }>("/api/transcriptions/jobs", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Uploads the media itself. Generous timeout: a 64 MB file over a home
+ * connection is minutes, not seconds, and aborting it at 15 s would look like
+ * a bug rather than a slow upload.
+ */
+export function uploadTranscriptionFile(
+  file: File,
+  options: { diarize: boolean; languageHint?: string | null; title?: string | null }
+) {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("diarize", options.diarize ? "true" : "false");
+  if (options.languageHint) form.append("languageHint", options.languageHint);
+  if (options.title) form.append("title", options.title);
+
+  return request<{ jobId: string }>(
+    "/api/transcriptions/jobs/upload",
+    { method: "POST", body: form },
+    { timeoutMs: 600_000, json: false }
+  );
+}
+
+export function getTranscriptionJobs(limit = 20, offset = 0) {
+  return request<{ jobs: TranscriptionJobSummary[] }>(
+    `/api/transcriptions/jobs?limit=${limit}&offset=${offset}`
+  );
+}
+
+export function getTranscriptionJob(id: string) {
+  return request<{ job: TranscriptionJob }>(`/api/transcriptions/jobs/${id}`);
+}
+
+/**
+ * The audio behind a transcript, for the reader's player. Whether there is any
+ * left is a server-side question — an uploaded file is in R2, a pasted link may
+ * have died since — so this always returns the URL for a finished job and the
+ * player reports honestly when the media does not load.
+ */
+export function transcriptionMediaUrl(job: TranscriptionJob): string | null {
+  if (job.status !== "completed" || job.expired) return null;
+  return `/api/transcriptions/jobs/${job.id}/media`;
+}
+
+export function renameTranscriptionJob(id: string, title: string) {
+  return request<{ title: string | null }>(`/api/transcriptions/jobs/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+  });
+}
+
+export function deleteTranscriptionJob(id: string) {
+  return request<{ deleted: boolean }>(`/api/transcriptions/jobs/${id}`, { method: "DELETE" });
+}
+
+/**
+ * A download is a plain <a download>, so the interface language travels as a
+ * query parameter — it is the only way the Worker can localise the one string
+ * it renders (the "Speaker N" fallback).
+ */
+export function transcriptionDownloads(
+  job: TranscriptionJob
+): Record<"txt" | "srt" | "vtt" | "json", string> | null {
+  if (!job.downloads) return null;
+  const lang = getLanguage();
+  return {
+    txt: `${job.downloads.txt}?lang=${lang}`,
+    srt: `${job.downloads.srt}?lang=${lang}`,
+    vtt: `${job.downloads.vtt}?lang=${lang}`,
+    json: `${job.downloads.json}?lang=${lang}`,
+  };
 }

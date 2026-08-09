@@ -117,8 +117,27 @@ export function HomePage() {
                 secondary={isParticipant ? <Link to="/audio/library">{t("home.audio_library")}</Link> : undefined}
               />
 
+              {/* Sits next to Audio on purpose: 02 turns a script into audio, 03
+                  turns audio back into text. PLACEHOLDER ARTWORK — swap
+                  public/images/workshops/workshop-transcription{,@2x}.webp for the
+                  real collage; nothing else needs to change. */}
               <Workshop
                 number="03"
+                title={t("home.transcription_title")}
+                description={isParticipant ? t("home.transcription_desc_short") : t("home.transcription_locked")}
+                image="workshop-transcription"
+                imageAlt={t("home.transcription_image_alt")}
+                locked={!isParticipant}
+                primary={
+                  isParticipant
+                    ? <Link to="/transcribe">{t("home.transcription_cta_short")}<ArrowRight size={17} aria-hidden /></Link>
+                    : <a href={UPGRADE_CTA_URL} target="_blank" rel="noreferrer">{t("home.locked_cta")}<ArrowUpRight size={17} aria-hidden /></a>
+                }
+                secondary={isParticipant ? <Link to="/transcribe/library">{t("home.transcription_library")}</Link> : undefined}
+              />
+
+              <Workshop
+                number="04"
                 title={t("home.documents_title")}
                 description={isParticipant ? t("home.documents_desc_short") : t("home.documents_locked")}
                 image="workshop-documents"

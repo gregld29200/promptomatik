@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
   ArrowUpRight,
+  AudioLines,
   BookOpen,
   FileText,
   Home,
@@ -24,6 +25,13 @@ import s from "./shell.module.css";
 
 interface ShellProps {
   children: ReactNode;
+  /**
+   * Replaces the last breadcrumb for a page that stands for one named thing —
+   * an open transcript, say. The route only knows it is "the workspace"; the
+   * page knows what the teacher actually opened, and the breadcrumb should say
+   * so rather than repeating the section.
+   */
+  pageLabel?: string | null;
 }
 
 interface NavItemProps {
@@ -35,7 +43,7 @@ interface NavItemProps {
   nested?: boolean;
 }
 
-export function Shell({ children }: ShellProps) {
+export function Shell({ children, pageLabel }: ShellProps) {
   const { user, isParticipant, logout, updateLanguagePreference } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -148,6 +156,15 @@ export function Shell({ children }: ShellProps) {
             label={t("audio.nav_label")}
             icon={<Mic2 size={20} />}
             active={isActive("/audio")}
+            locked={!isParticipant}
+          />
+        </li>
+        <li>
+          <NavItem
+            to="/transcribe"
+            label={t("transcription.nav_label")}
+            icon={<AudioLines size={20} />}
+            active={isActive("/transcribe")}
             locked={!isParticipant}
           />
         </li>
@@ -268,7 +285,7 @@ export function Shell({ children }: ShellProps) {
           <p className={s.breadcrumb}>
             <span>{context.section}</span>
             <span aria-hidden>/</span>
-            <strong>{context.page}</strong>
+            <strong>{pageLabel?.trim() || context.page}</strong>
           </p>
           <div className={s.topbarRight}>
             {context.action && (
@@ -285,7 +302,12 @@ export function Shell({ children }: ShellProps) {
           </div>
         </header>
 
-        <main className={`${s.main} ${isActive("/audio") ? s.mainWide : ""}`} id="main-content">
+        {/* Transcripts are long documents, like an audio take's editor — both
+            get the wide workspace rather than the reading-width column. */}
+        <main
+          className={`${s.main} ${isActive("/audio") || isActive("/transcribe") ? s.mainWide : ""}`}
+          id="main-content"
+        >
           {children}
         </main>
       </div>
@@ -338,6 +360,18 @@ function getPageContext(pathname: string) {
 
   if (pathname.startsWith("/audio")) {
     return { section: t("audio.nav_label"), page: t("shell.workspace"), action: null };
+  }
+
+  if (pathname.startsWith("/transcribe/library")) {
+    return {
+      section: t("transcription.nav_label"),
+      page: t("transcription.library_title"),
+      action: { to: "/transcribe", label: t("transcription.new_transcript") },
+    };
+  }
+
+  if (pathname.startsWith("/transcribe")) {
+    return { section: t("transcription.nav_label"), page: t("shell.workspace"), action: null };
   }
 
   if (pathname.startsWith("/documents")) {

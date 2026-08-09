@@ -244,6 +244,11 @@
 
 .workspace {
   min-width: 0;
+  /* Where the sticky topbar ends, for a page that pins a toolbar of its own (the
+     transcript reader). Deliberately a few pixels SHORT of the real height: the
+     topbar has the higher z-index, so a small underlap is invisible, while
+     overshooting would leave a gap for content to scroll through. */
+  --shell-sticky-top: 60px;
 }
 
 .topbar {
@@ -436,6 +441,12 @@
     top: calc(59px + max(0.8rem, env(safe-area-inset-top)));
     min-height: 54px;
     padding: 0.65rem 1rem;
+  }
+
+  /* Stacked mode: the collapsed nav sits above the topbar, so anything pinned
+     inside the page has both of them to clear — same deliberate underlap. */
+  .workspace {
+    --shell-sticky-top: calc(59px + max(0.8rem, env(safe-area-inset-top)) + 48px);
   }
 
   /* Stacked (hamburger) mode: the role badge is redundant with the mobile

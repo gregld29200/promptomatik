@@ -1,0 +1,303 @@
+/* Transcription library — the Audio Studio library's grid, in tokens.
+   Kept structurally identical to audio-library.module.css on purpose: same
+   job, same shape, one thing for a teacher to learn instead of two. */
+
+.page {
+  --studio-muted: var(--color-navy-400);
+  display: grid;
+  gap: var(--space-5);
+  width: min(1100px, 100%);
+  margin: 0 auto;
+  color: var(--color-navy-800);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--studio-muted);
+  margin: 0 0 var(--space-1);
+}
+
+.header h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  color: var(--color-navy-800);
+  margin: 0;
+}
+
+.subtitle {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  max-width: 60ch;
+}
+
+.rows {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* Four columns now: title, status, the retention countdown, actions. The
+   countdown is its own column rather than a line inside the title block because
+   it is the one thing on this page with a deadline attached, and a teacher
+   scanning the list should be able to read the whole column at once. */
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+}
+
+.rowMain {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+/* Title and pencil side by side. The title is the only thing that shrinks and
+   clips; the button is a fixed-width sibling outside the clipping box, so a long
+   title can never push it out of reach (it used to, on every narrow screen). */
+.titleLine {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.rowTitle {
+  min-width: 0;
+  font-weight: 700;
+  color: var(--color-navy-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowMeta {
+  font-size: var(--text-xs);
+  color: var(--studio-muted);
+}
+
+.rowStatus {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--studio-muted);
+  white-space: nowrap;
+}
+
+.statusActive {
+  color: var(--color-navy-500);
+}
+
+.statusFailed {
+  color: var(--color-error);
+}
+
+/* Expired reads as "past", not as "broken": nothing went wrong, the week ran
+   out. But it is still the most consequential thing a row can say — the
+   transcript is gone — so it must not be the same muted grey as the duration and
+   the source kind beside it. Navy, the page's own text colour, on the same
+   footing as "Terminée" rather than quieter than it. */
+.statusExpired {
+  color: var(--color-navy-800);
+}
+
+.rowExpiry {
+  font-size: var(--text-xs);
+  color: var(--studio-muted);
+  white-space: nowrap;
+}
+
+/* An expired row states the date it went, as text. It used to render an EMPTY
+   `<small>` that still carried the date in a `title` — nothing to hover, nothing
+   for a screen reader to reach, so the one place saying when the transcript was
+   deleted was unreachable markup. */
+.rowExpiry[data-urgency="expired"] {
+  color: var(--color-navy-600);
+  white-space: normal;
+}
+
+/* Only the last two days raise their voice. The wording already says "Expire
+   demain" on its own, so this confirms rather than carries the meaning. */
+.rowExpiry[data-urgency="urgent"] {
+  color: var(--color-terracotta-800);
+  font-weight: 700;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* 44px, matching every control on the transcribe page (.uploadButton, .select,
+   .textInput, .submit). This is the primary touch surface of the library and a
+   teacher is as likely to be on a phone as at a desk. */
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  background: none;
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-navy-800);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.action:hover {
+  background: var(--color-cream-100);
+}
+
+.actionDanger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-error);
+  background: var(--color-terracotta-50);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-error);
+  cursor: pointer;
+}
+
+.confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-navy-800);
+  flex-wrap: wrap;
+}
+
+/* 44x44 hit area, per the accessibility principle. The negative block margin
+   keeps the row the same height as before: the button paints and is tappable at
+   44px while contributing only its icon's height to the line. */
+.renameTrigger {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-block: -0.65rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--studio-muted);
+  cursor: pointer;
+}
+
+.renameTrigger:hover {
+  color: var(--color-navy-800);
+}
+
+.renameForm {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-navy-600);
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-navy-800);
+  background: var(--color-bg-card);
+}
+
+.renameInput:focus {
+  outline: none;
+  border-color: var(--color-navy-600);
+  box-shadow: 0 0 0 2px rgba(19, 32, 56, 0.1);
+}
+
+.loadMore {
+  justify-self: center;
+  min-height: 40px;
+  padding: 0 var(--space-6);
+  border: 1px solid var(--color-border);
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: var(--color-navy-800);
+  cursor: pointer;
+}
+
+.empty,
+.skeletons {
+  padding: var(--space-10) var(--space-4);
+  text-align: center;
+  color: var(--studio-muted);
+  font-size: var(--text-sm);
+}
+
+.skeletons {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.skeletons span {
+  height: 52px;
+  background: linear-gradient(
+    90deg,
+    var(--color-cream-200),
+    var(--color-cream-400),
+    var(--color-cream-200)
+  );
+  background-size: 200% 100%;
+  animation: transcriptLibraryShimmer 1.4s infinite;
+}
+
+@keyframes transcriptLibraryShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeletons span { animation: none; }
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  background: var(--color-terracotta-50);
+  border-left: 3px solid var(--color-error);
+  color: var(--color-navy-800);
+}
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .rowActions {
+    justify-content: flex-start;
+  }
+}
