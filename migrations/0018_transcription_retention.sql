@@ -124,18 +124,38 @@ INSERT INTO transcription_jobs_new (
   request_payload, result_payload, error_code, error_payload, error_message,
   started_at, completed_at, expires_at, created_at, updated_at
 )
+-- The two NULLs are `provider_choice_reason` and `expires_at` — the columns THIS
+-- migration introduces. They must NOT be named in the SELECT: the source table is
+-- 0017's 29-column shape, which does not have them, and referencing them fails with
+-- "no such column" before a single row is copied. (Found the hard way applying this
+-- to production: it had only ever been run on a dev database that already carried
+-- both columns from an earlier iteration, so the fresh-install path was untested.)
 SELECT
   id, user_id, status, source_kind, source_url, resolved_url, source_r2_key,
   source_content_type, source_bytes, title, requested_provider,
   diarize_requested, provider, provider_model, provider_job_id,
-  provider_choice_reason, diarization,
+  NULL, diarization,
   detected_language, detected_languages, duration_seconds, billed_seconds,
   request_payload, result_payload, error_code, error_payload, error_message,
-  started_at, completed_at, expires_at, created_at, updated_at
+  started_at, completed_at, NULL, created_at, updated_at
 FROM transcription_jobs;
 
 DROP TABLE transcription_jobs;
 ALTER TABLE transcription_jobs_new RENAME TO transcription_jobs;
+
+-- REPLAY SAFETY. `npm run db:migrate` is a flat && chain with no applied-migrations
+-- table, so this file can run against a database that ALREADY has the 31-column
+-- shape. In that case the copy above nulls the two new columns. `expires_at` is the
+-- one that carries meaning, and it is recoverable by definition — retention is
+-- completion + 7 days, the same rule `expiresAtIso()` applies — so re-derive it
+-- rather than leaving a completed transcript immortal:
+UPDATE transcription_jobs
+   SET expires_at = datetime(completed_at, '+7 days')
+ WHERE expires_at IS NULL
+   AND completed_at IS NOT NULL
+   AND status = 'completed';
+-- `provider_choice_reason` is a diagnostic breadcrumb with no derivation and no
+-- behaviour attached; a replay loses it for historical rows and that is acceptable.
 
 -- ---------------------------------------------------------------------------
 -- transcription_quota_ledger — same widened provider list.
