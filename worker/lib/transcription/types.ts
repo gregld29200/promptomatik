@@ -428,7 +428,17 @@ export type TranscriptionQuotaPrecheck =
 export type TranscriptionFailure =
   /** Not a URL we can do anything with (a webpage, a paywalled player, a bad link). */
   | { code: "unsupported_source"; detail?: string }
-  /** Recognised YouTube. Slice 2. A distinct friendly state, not an error. */
+  /**
+   * Recognised YouTube. This is the PERMANENT answer, not a pending feature
+   * (decision 2026-08-10, docs/plans/transcription-slice-2-youtube.md §Closure):
+   * even the captions-only path needs yt-dlp's PO-token machinery — cue URLs
+   * are IP-bound and return 200 with an empty body over plain HTTP — so any
+   * YouTube support means a container in a monthly arms race against YouTube,
+   * for content whose download is against their ToS. The copy tells teachers
+   * the workaround instead: paste the podcast version, or drop in the audio
+   * file. The code keeps its historical name because six modules and the
+   * client already share it; renaming buys nothing a comment cannot.
+   */
   | { code: "youtube_not_yet_supported"; url?: string }
   /** Spotify is a closed platform with no public audio URL. Politely out of scope. */
   | { code: "spotify_not_supported"; url?: string }

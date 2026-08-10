@@ -1,7 +1,41 @@
 # Transcription Slice 2 — YouTube ingest via a yt-dlp container
 
-**Status:** reviewed plan. **Nothing is wired.** No container config in
-`wrangler.jsonc`, no Dockerfile in the repo (it lives in this document), no code.
+**Status: CLOSED — decided against, 2026-08-10.** Kept as the record of why.
+
+## Closure
+
+Two findings killed this plan when it came up for scheduling, one of them fatal
+to its own recommended option:
+
+1. **The captions-only milestone (§4, steps 1–6) does not exist as a cheap
+   path.** Tested live on 2026-08-09/10: the watch page and metadata (title,
+   duration, full caption-track list with `kind: "asr"` flags) are fetchable
+   with plain HTTP — but every caption cue URL returns **HTTP 200 with zero
+   bytes**, in every format (`json3`, `vtt`, `srv3`, `ttml`, default). The
+   `baseUrl` carries `ip`/`ipbits`/`signature`/`expire` — IP-bound and signed —
+   and YouTube now requires a PO token to get cue text at all. So captions need
+   the same yt-dlp machinery and the same monthly arms race as `/extract`; the
+   plan's "valuable, low-risk half" was neither. (The official Data API is no
+   escape: it only serves captions for videos you own.)
+2. **Demand was zero.** The §1 query returned no `source_kind = 'youtube'`
+   rows — not one teacher had tried. (Docker was also not installed on the
+   build machine, but that is incidental; finding 1 is the reason.)
+
+**Decision (Greg, 2026-08-10): teach the workaround instead of building the
+container.** The refusal copy (`error_youtube_not_yet_supported`) now tells
+teachers what to do — paste the podcast version if one exists, otherwise save
+the audio track and upload it — and `source_hint` says up front that YouTube is
+not supported. No container, no cron-fed dependency, no ToS exposure, and
+uploads already handle the resulting file.
+
+**Reopen only if** the demand query starts returning real numbers from several
+teachers AND someone accepts the §5 operational burden as a standing monthly
+cost. Everything below survives as the blueprint for that day.
+
+---
+
+**Original plan follows** (historical — nothing below is wired: no container
+config in `wrangler.jsonc`, no Dockerfile in the repo, no code).
 
 **Prerequisite:** Slice 1 shipped and running — see
 `docs/transcription-workbench.md`.

@@ -172,7 +172,7 @@ is blocked.
 
 | Input | Code | HTTP | What the teacher reads |
 | --- | --- | --- | --- |
-| YouTube | `youtube_not_yet_supported` | **501** | "not available yet" — recognised, not an error |
+| YouTube | `youtube_not_yet_supported` | **501** | permanent — copy teaches the workaround (podcast link or upload) |
 | Spotify | `spotify_not_supported` | **501** | closed platform, politely out of scope |
 | Over 90 min | `source_too_long` | 413 | names the real length and the real cap |
 | Over 64 MB | `source_too_large` | 413 | names the real size and the real ceiling |
@@ -183,7 +183,7 @@ a YouTube link never sees a generic "unsupported link" message.
 
 ### What did NOT ship
 
-- **YouTube ingest.** Slice 2. See `docs/plans/transcription-slice-2-youtube.md`.
+- **YouTube ingest.** CLOSED 2026-08-10 — decided against; the refusal copy now teaches the workaround (paste the podcast version, or save the audio and upload it). Why: even captions-only needs yt-dlp's PO-token machinery (cue URLs are IP-bound and return empty over plain HTTP), and demand was zero. Full record and reopen conditions: `docs/plans/transcription-slice-2-youtube.md` §Closure. For the Module 2 tutorial, teach the workaround as the normal flow — never frame YouTube as coming soon.
 - **A purchase path for extra hours.** There is no transcription credit-balance
   table. A positive `admin_adjust` ledger row is the only way to hand time back.
 - **`api_cost_usd` on the job row.** Deliberately absent, unlike `audio_jobs`:
@@ -1072,7 +1072,7 @@ Dev fixtures, both gated from production without a runtime flag:
   `GROUP BY error_code` and see what teachers actually hit, without parsing JSON.
   It will tell you which supported-source claim is a lie.
 - **YouTube demand is countable.** `source_kind = 'youtube'` rows are recognised
-  and refused, never processed. Count them before building Slice 2.
+  and refused, never processed. Slice 2 was closed on 2026-08-10 (zero demand at the time); this counter is what would justify reopening it.
 - **A failed nightly cron is a real alert.** The sweep rethrows and `scheduled`
   awaits it, so Cloudflare marks the invocation failed. That is the only alarm this
   feature has; if it goes off, transcripts are not being deleted.
