@@ -21,35 +21,70 @@
   background: var(--color-cream-100);
 }
 
+/* The block is a folio stat, not a card: a page header already has a border —
+   its own edge — and boxing a two-line figure inside it made the meter shout
+   louder than the H1. So: small-caps label, the figure set in the display face,
+   a 2px hairline showing how much of the month is left, reset line under.
+   Data as typography. */
 .block {
   display: grid;
-  gap: 0.1rem;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
-  background: var(--color-cream-100);
+  gap: 0.2rem;
+  min-width: 13rem;
+  justify-items: start;
 }
 
 .block[data-align="end"] {
   text-align: right;
-}
-
-.block[data-exhausted] {
-  border-color: var(--color-terracotta-300);
-  background: var(--color-terracotta-50);
+  justify-items: end;
 }
 
 .blockLabel {
   font-size: var(--text-xs);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--color-navy-400);
 }
 
 .blockValue {
-  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
   font-weight: var(--weight-semibold);
+  line-height: 1.2;
   color: var(--color-navy-800);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.block[data-exhausted] .blockValue {
+  color: var(--color-terracotta-700);
+}
+
+/* Remaining share of the month. Hairline, not a progress bar: the exact figure
+   is the text above it, so this only has to be honest at a glance. */
+.blockMeter {
+  width: 100%;
+  height: 2px;
+  margin: 0.15rem 0;
+  background: var(--color-navy-100);
+}
+
+.blockMeterFill {
+  display: block;
+  height: 100%;
+  background: var(--color-navy-600);
+}
+
+.block[data-align="end"] .blockMeterFill {
+  /* Right-aligned folio: the month drains toward the page edge. */
+  margin-left: auto;
+}
+
+.block[data-exhausted] .blockMeter {
+  background: var(--color-terracotta-100);
+}
+
+.block[data-exhausted] .blockMeterFill {
+  background: var(--color-terracotta-600);
 }
 
 .blockReset {
@@ -60,5 +95,10 @@
 @media (max-width: 720px) {
   .block[data-align="end"] {
     text-align: left;
+    justify-items: start;
+  }
+
+  .block[data-align="end"] .blockMeterFill {
+    margin-left: 0;
   }
 }

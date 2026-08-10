@@ -423,7 +423,7 @@ export function TranscribePage() {
             are noise around a document: the H1 becomes the transcript's own name
             so the page says what the teacher opened. */}
         <header className={s.header}>
-          <div>
+          <div className={s.headerLede}>
             <p className={s.eyebrow}>{t("transcription.eyebrow")}</p>
             <h1>{reading ? readingTitle : t("transcription.title")}</h1>
             {!reading && <p className={s.subtitle}>{t("transcription.intro")}</p>}
@@ -444,6 +444,9 @@ export function TranscribePage() {
                 reset={t("transcription.quota_reset", {
                   date: formatDate(quota.monthResetsOn, language),
                 })}
+                fraction={
+                  quota.includedLimit > 0 ? quota.includedRemaining / quota.includedLimit : null
+                }
                 exhausted={quota.includedRemaining <= 0}
               />
             )}

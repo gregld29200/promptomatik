@@ -34,6 +34,13 @@ export interface AllowanceProps {
   value: string;
   /** When it comes back, when that is knowable. `block` only. */
   reset?: string | null;
+  /**
+   * Share REMAINING, 0..1, for the hairline meter under the figure. `block`
+   * only, and optional: a daily counter of 5 generations reads better as text
+   * alone, while a monthly ledger benefits from the at-a-glance line. The meter
+   * is aria-hidden — `value` already carries the same fact in words.
+   */
+  fraction?: number | null;
   /** Nothing left. Carries a colour change AND its own wording from the caller. */
   exhausted?: boolean;
   variant?: "block" | "pill";
@@ -48,6 +55,7 @@ export function Allowance({
   label,
   value,
   reset,
+  fraction = null,
   exhausted = false,
   variant = "block",
   icon,
@@ -75,6 +83,14 @@ export function Allowance({
     >
       <span className={s.blockLabel}>{label}</span>
       <strong className={s.blockValue}>{value}</strong>
+      {fraction !== null && Number.isFinite(fraction) && (
+        <span className={s.blockMeter} aria-hidden="true">
+          <span
+            className={s.blockMeterFill}
+            style={{ width: `${Math.min(100, Math.max(0, fraction * 100))}%` }}
+          />
+        </span>
+      )}
       {reset && <span className={s.blockReset}>{reset}</span>}
     </div>
   );

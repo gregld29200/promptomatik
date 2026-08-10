@@ -12,12 +12,22 @@
   color: var(--studio-slate);
 }
 
+/* Baseline-aligned folio band, matching audio.tsx's header. The lede takes the
+   flexible share and may shrink (flex-basis 0 + min-width 0), the aside keeps
+   its natural width: without this split, flex-wrap dumped the hours under the
+   intro on a 1100px page with half the row still empty. Wrap still exists, but
+   only for viewports genuinely too narrow for two columns. */
 .header {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-6);
   flex-wrap: wrap;
+}
+
+.headerLede {
+  flex: 1 1 22rem;
+  min-width: 0;
 }
 
 .eyebrow {
@@ -44,8 +54,9 @@
 }
 
 .headerAside {
+  flex: 0 0 auto;
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-3);
   justify-items: end;
 }
 
