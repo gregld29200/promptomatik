@@ -59,12 +59,14 @@
   color: var(--color-terracotta-700);
 }
 
-/* Remaining share of the month. Hairline, not a progress bar: the exact figure
-   is the text above it, so this only has to be honest at a glance. */
+/* Remaining share of the month, as a bar. A 2px hairline was tried first and
+   failed exactly when most seen: at a fresh month's 100% it read as a plain
+   underline rule, not a meter. A visible track fixes that — whole and remainder
+   are both legible at any fill. Sharp corners, tokens, no chrome. */
 .blockMeter {
   width: 100%;
-  height: 2px;
-  margin: 0.15rem 0;
+  height: 6px;
+  margin: 0.25rem 0 0.1rem;
   background: var(--color-navy-100);
 }
 
@@ -72,11 +74,6 @@
   display: block;
   height: 100%;
   background: var(--color-navy-600);
-}
-
-.block[data-align="end"] .blockMeterFill {
-  /* Right-aligned folio: the month drains toward the page edge. */
-  margin-left: auto;
 }
 
 .block[data-exhausted] .blockMeter {
@@ -96,9 +93,5 @@
   .block[data-align="end"] {
     text-align: left;
     justify-items: start;
-  }
-
-  .block[data-align="end"] .blockMeterFill {
-    margin-left: 0;
   }
 }
