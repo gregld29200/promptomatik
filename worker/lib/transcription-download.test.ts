@@ -7,7 +7,6 @@ import {
   isTranscriptDownloadLanguage,
   readableTimecode,
   renderTranscriptDownload,
-  renderTranscriptSrt,
   renderTranscriptTxt,
   renderTranscriptVtt,
   transcriptFilenameStem,
@@ -126,14 +125,16 @@ describe("txt", () => {
   });
 });
 
-describe("srt", () => {
-  it("numbers cues from 1 and uses comma milliseconds", () => {
-    const out = renderTranscriptSrt(DIARIZED, "fr");
-    expect(out.startsWith("1\n00:00:00,000 --> 00:00:01,400\n")).toBe(true);
-    expect(out).toContain("2\n00:00:02,000 --> 00:00:03,300\n");
-    expect(out).toContain("Intervenant 2: Merci beaucoup.");
+describe("vtt", () => {
+  it("starts with the WEBVTT header and uses dot milliseconds and voice spans", () => {
+    const out = renderTranscriptVtt(DIARIZED, "fr");
+    expect(out.startsWith("WEBVTT\n")).toBe(true);
+    expect(out).toContain("00:00:00.000 --> 00:00:01.400");
+    expect(out).toContain("<v Intervenant 1>Bonjour Claire.");
   });
 
+  // Moved here when srt was removed (2026-08-10): the behaviour under test is
+  // allCues()'s cue splitting, which vtt shares — it was never srt-specific.
   it("splits a long turn into several readable cues instead of one unusable block", () => {
     // 40 words over 20 seconds in ONE segment: a diarized turn of that length
     // is ordinary, and as a single cue it is an unusable subtitle.
@@ -141,28 +142,19 @@ describe("srt", () => {
       word(`mot${i}`, i * 0.5, i * 0.5 + 0.4, "0")
     );
     const long: NormalisedTranscript = { ...DIARIZED, segments: [segment(0, "0", words)] };
-    const blocks = renderTranscriptSrt(long, "fr")
+    const blocks = renderTranscriptVtt(long, "fr")
       .split("\n\n")
-      .filter((block) => block.trim().length > 0);
+      .filter((block) => block.trim().length > 0 && block.trim() !== "WEBVTT");
 
     expect(blocks.length).toBeGreaterThanOrEqual(3);
     for (const block of blocks) {
-      const [, , ...text] = block.split("\n");
+      const [, ...text] = block.split("\n");
       // Each cue must stay inside the two-line reading budget: at most 16 words
-      // and at most ~84 characters after the speaker prefix.
-      const spoken = text.join(" ").replace(/^Intervenant \d+: /, "").trim();
+      // and at most ~84 characters after the voice span.
+      const spoken = text.join(" ").replace(/^<v Intervenant \d+>/, "").trim();
       expect(spoken.split(/\s+/).length).toBeLessThanOrEqual(16);
       expect(spoken.length).toBeLessThanOrEqual(84);
     }
-  });
-});
-
-describe("vtt", () => {
-  it("starts with the WEBVTT header and uses dot milliseconds and voice spans", () => {
-    const out = renderTranscriptVtt(DIARIZED, "fr");
-    expect(out.startsWith("WEBVTT\n")).toBe(true);
-    expect(out).toContain("00:00:00.000 --> 00:00:01.400");
-    expect(out).toContain("<v Intervenant 1>Bonjour Claire.");
   });
 
   it("writes a bare cue when there are no speakers to attribute", () => {
@@ -181,15 +173,8 @@ describe("renderTranscriptDownload", () => {
     expect(transcriptFilenameStem("Épisode n°4 : l'oral")).toBe("episode-n-4-l-oral");
   });
 
-  it("returns the whole normalised transcript for json, word timings included", () => {
-    const rendered = renderTranscriptDownload("json", DIARIZED, "x", "fr");
-    const parsed = JSON.parse(rendered.body) as NormalisedTranscript;
-    expect(parsed.segments[0].words[0].start).toBe(0);
-    expect(rendered.contentType).toContain("application/json");
-  });
-
   it("gives every format its own content type and extension", () => {
-    for (const format of ["txt", "srt", "vtt", "json"] as const) {
+    for (const format of ["txt", "vtt"] as const) {
       const rendered = renderTranscriptDownload(format, DIARIZED, "x", "fr");
       expect(rendered.filename.endsWith(`.${format}`)).toBe(true);
       expect(rendered.body.length).toBeGreaterThan(0);

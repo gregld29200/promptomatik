@@ -50,7 +50,7 @@ describe("the controls stay within reach", () => {
 
   it("keeps search, copy and the downloads inside the pinned bar", () => {
     const markup = render({
-      downloads: { txt: "/t.txt", srt: "/t.srt", vtt: "/t.vtt", json: "/t.json" },
+      downloads: { txt: "/t.txt", vtt: "/t.vtt" },
     });
     const bar = markup.slice(
       markup.indexOf(`class="${s.controls}"`),
@@ -59,7 +59,7 @@ describe("the controls stay within reach", () => {
 
     expect(bar).toContain("transcription.search_label");
     expect(bar).toContain("transcription.copy_all");
-    for (const format of ["txt", "srt", "vtt", "json"]) {
+    for (const format of ["txt", "vtt"]) {
       expect(bar, format).toContain(`transcription.download_${format}`);
     }
     expect(bar).toContain("transcription.reading_options");

@@ -309,7 +309,7 @@ describe("processTranscriptionJob — the happy path", () => {
 
     const job = rowToTranscriptionJob(row);
     expect(job.transcript?.text).toBe(TRANSCRIPT.text);
-    expect(job.downloads?.srt).toBe("/api/transcriptions/jobs/job-ok/download/srt");
+    expect(job.downloads?.vtt).toBe("/api/transcriptions/jobs/job-ok/download/vtt");
   });
 
   it("stamps the seven-day deadline once, on completion", async () => {

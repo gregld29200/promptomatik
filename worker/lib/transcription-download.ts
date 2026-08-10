@@ -1,12 +1,12 @@
 // Transcription Studio — what a teacher walks away with.
 //
 // ---------------------------------------------------------------------------
-// WHY THESE FOUR FORMATS (txt / srt / vtt / json) AND NOT MARKDOWN
+// WHY THESE TWO FORMATS (txt / vtt) AND NOT MARKDOWN, SRT OR JSON
 // ---------------------------------------------------------------------------
 // The set is not a free choice: `TRANSCRIPTION_DOWNLOAD_FORMATS` in
 // transcription-jobs.ts is the single source of truth, `rowToTranscriptionJob`
-// emits exactly those four links, and `TranscriptView` renders exactly those
-// four buttons. A fifth format here would be a route nobody can reach.
+// emits exactly those links, and `TranscriptView` renders exactly those buttons.
+// A third format here would be a route nobody can reach.
 //
 // It is also the right set for this audience:
 //   * txt  — the one a language teacher actually uses. It already carries the
@@ -14,10 +14,16 @@
 //            a worksheet without turning into syntax. Markdown would put literal
 //            `**` and `##` in front of a teacher pasting into the exact editors
 //            they prepare lessons in, which is worse than plain text, not better.
-//   * srt  — subtitling a video for a listening activity. Universal.
-//   * vtt  — the same job on the web (an <track> element, an LMS player).
-//   * json — the lossless escape hatch: word-level timings, confidences and
-//            languages, for anyone building on top of a transcript.
+//   * vtt  — subtitling a video for a listening activity (an <track> element,
+//            an LMS player).
+//
+// srt and json were dropped deliberately (Greg, 2026-08-10): srt duplicated
+// vtt's job, and json exposed the internal transcript shape as if it were a
+// public contract. Note that srt is the more widely supported subtitle format
+// of the two — VLC, YouTube and most video editors prefer it — so if teachers
+// ask why their subtitles will not load, restoring srt is the first thing to
+// try: add it back to TRANSCRIPTION_DOWNLOAD_FORMATS, re-add the case below and
+// the `download_srt` i18n key, and `renderTranscriptSrt` is in git history.
 //
 // ---------------------------------------------------------------------------
 // THE ONE STRING THIS MODULE RENDERS
@@ -173,20 +179,6 @@ export function renderTranscriptTxt(
   return `${[title.trim() || "—", facts].join("\n")}\n\n${body.join("\n\n")}`.trimEnd() + "\n";
 }
 
-export function renderTranscriptSrt(
-  transcript: NormalisedTranscript,
-  lang: TranscriptDownloadLanguage
-): string {
-  return (
-    allCues(transcript)
-      .map((cue, index) => {
-        const label = speakerLabel(transcript, cue.speaker, lang);
-        const text = label ? `${label}: ${cue.text}` : cue.text;
-        return `${index + 1}\n${timestamp(cue.start, ",")} --> ${timestamp(cue.end, ",")}\n${text}\n`;
-      })
-      .join("\n") || "1\n00:00:00,000 --> 00:00:00,000\n\n"
-  );
-}
 
 export function renderTranscriptVtt(
   transcript: NormalisedTranscript,
@@ -234,25 +226,11 @@ export function renderTranscriptDownload(
         contentType: "text/plain; charset=utf-8",
         filename: `${stem}.txt`,
       };
-    case "srt":
-      return {
-        body: renderTranscriptSrt(transcript, lang),
-        // `application/x-subrip` is the registered type; browsers download it
-        // rather than trying to render it, which is what we want.
-        contentType: "application/x-subrip; charset=utf-8",
-        filename: `${stem}.srt`,
-      };
     case "vtt":
       return {
         body: renderTranscriptVtt(transcript, lang),
         contentType: "text/vtt; charset=utf-8",
         filename: `${stem}.vtt`,
-      };
-    case "json":
-      return {
-        body: `${JSON.stringify(transcript, null, 2)}\n`,
-        contentType: "application/json; charset=utf-8",
-        filename: `${stem}.json`,
       };
   }
 }

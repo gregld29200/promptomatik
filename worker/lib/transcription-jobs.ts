@@ -98,7 +98,7 @@ export interface TranscriptionRequestPayload {
   title: string | null;
 }
 
-export const TRANSCRIPTION_DOWNLOAD_FORMATS = ["txt", "srt", "vtt", "json"] as const;
+export const TRANSCRIPTION_DOWNLOAD_FORMATS = ["txt", "vtt"] as const;
 export type TranscriptionDownloadFormat = (typeof TRANSCRIPTION_DOWNLOAD_FORMATS)[number];
 
 export function isTranscriptionDownloadFormat(value: string): value is TranscriptionDownloadFormat {
@@ -220,9 +220,7 @@ export function transcriptionUploadKey(userId: string, filename: string): string
 function downloadPaths(jobId: string): Record<TranscriptionDownloadFormat, string> {
   return {
     txt: `/api/transcriptions/jobs/${jobId}/download/txt`,
-    srt: `/api/transcriptions/jobs/${jobId}/download/srt`,
     vtt: `/api/transcriptions/jobs/${jobId}/download/vtt`,
-    json: `/api/transcriptions/jobs/${jobId}/download/json`,
   };
 }
 

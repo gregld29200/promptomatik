@@ -546,9 +546,7 @@ describe("Transcription routes", () => {
     it("renders each format with its own type and filename", async () => {
       const expected = {
         txt: "text/plain",
-        srt: "application/x-subrip",
         vtt: "text/vtt",
-        json: "application/json",
       } as const;
 
       for (const [format, type] of Object.entries(expected)) {
@@ -577,6 +575,16 @@ describe("Transcription routes", () => {
       expect(
         (await call("/api/transcriptions/jobs/job-owned/download/docx", { sessionId: ownerSession })).status
       ).toBe(404);
+
+      // srt and json were removed on 2026-08-10. They are the formats most likely
+      // to be requested by a stale bookmark or a cached job payload, so they must
+      // refuse cleanly rather than reach the renderer and throw.
+      for (const gone of ["srt", "json"]) {
+        expect(
+          (await call(`/api/transcriptions/jobs/job-owned/download/${gone}`, { sessionId: ownerSession }))
+            .status
+        ).toBe(404);
+      }
 
       await testEnv.DB.prepare("UPDATE transcription_jobs SET status = 'transcribing' WHERE id = ?")
         .bind("job-owned")

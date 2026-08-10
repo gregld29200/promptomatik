@@ -67,7 +67,7 @@ export interface TranscriptData {
   text: string;
 }
 
-export const TRANSCRIPT_DOWNLOAD_FORMATS = ["txt", "srt", "vtt", "json"] as const;
+export const TRANSCRIPT_DOWNLOAD_FORMATS = ["txt", "vtt"] as const;
 export type TranscriptDownloadFormat = (typeof TRANSCRIPT_DOWNLOAD_FORMATS)[number];
 
 /** `{ txt: "/api/transcriptions/jobs/:id/download/txt", … }` as the API returns it. */
