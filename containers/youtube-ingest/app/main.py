@@ -108,7 +108,66 @@ def classify_download_error(message: str) -> int:
 @app.get("/health")
 def health(request: Request):
     require_auth(request)
-    return {"ok": True, "ytdlp": pkg_version("yt-dlp")}
+    return {
+        "ok": True,
+        "ytdlp": pkg_version("yt-dlp"),
+        # Boolean only — never the proxy URL, which carries credentials.
+        "proxy": bool(os.environ.get("YTDLP_PROXY", "").strip()),
+    }
+
+
+@app.get("/proxy-check")
+def proxy_check(request: Request):
+    """Diagnose the proxy IN ISOLATION from YouTube.
+
+    Added because a `407` from the proxy and a `403` from YouTube both surface
+    as one opaque `download_error`, and guessing between them wasted a round
+    trip. This reports the PARSED SHAPE of YTDLP_PROXY (so a mangled URL, a
+    stray character or a wrong port is visible) and then makes one trivial
+    request through it to an IP echo, returning the proxy's own verdict.
+
+    The password is never returned — only its length and whether it contains
+    characters a shell may have eaten.
+    """
+    require_auth(request)
+
+    raw = os.environ.get("YTDLP_PROXY", "").strip()
+    if not raw:
+        return {"configured": False}
+
+    from urllib.parse import urlsplit
+
+    parts = urlsplit(raw)
+    password = parts.password or ""
+    shape = {
+        "configured": True,
+        "scheme": parts.scheme,
+        "host": parts.hostname,
+        "port": parts.port,
+        # The username is not a secret and its exact form is the usual culprit
+        # (DataImpulse appends targeting like `__cr.fr` to it).
+        "username": parts.username,
+        "password_length": len(password),
+        "password_has_shell_risky_chars": any(c in password for c in "$'\"`\\ "),
+        "raw_length": len(raw),
+        "raw_has_whitespace": any(c.isspace() for c in raw),
+    }
+
+    # One request through the proxy, to something that just echoes the IP.
+    import urllib.error
+    import urllib.request
+
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({"http": raw, "https": raw})
+    )
+    try:
+        with opener.open("https://api.ipify.org?format=json", timeout=25) as response:
+            body = response.read(200).decode("utf-8", "replace")
+        return {**shape, "proxy_ok": True, "exit_ip": body}
+    except urllib.error.HTTPError as error:
+        return {**shape, "proxy_ok": False, "http_status": error.code, "detail": str(error)[:300]}
+    except Exception as error:  # URLError wraps the 407 tunnel refusal
+        return {**shape, "proxy_ok": False, "detail": str(error)[:300]}
 
 
 @app.post("/extract")
@@ -144,7 +203,23 @@ def run_extract(url: str, max_duration_seconds: int):
         "socket_timeout": 30,
         "retries": 2,
         "paths": {"home": workdir, "temp": workdir},
+        # From a datacenter IP, YouTube bot-checks the default `web` client
+        # ("Sign in to confirm you're not a bot"). The mobile/TV clients use a
+        # different, less-guarded API surface and often extract where `web`
+        # will not. The list is tried in order; each is a separate attempt.
+        "extractor_args": {
+            "youtube": {"player_client": ["tv", "ios", "android", "web"]}
+        },
     }
+
+    # The real fix for the datacenter bot-check: route through a RESIDENTIAL
+    # proxy YouTube does not flag. Set YTDLP_PROXY as a Fly secret to a
+    # `http://user:pass@host:port` (or socks5://) URL from a residential proxy
+    # provider. Absent, we still try direct — which works for some videos and
+    # fails with the honest youtube_blocked for the rest.
+    proxy = os.environ.get("YTDLP_PROXY", "").strip()
+    if proxy:
+        common["proxy"] = proxy
 
     # ---- Step 1: metadata only. Duration is checked BEFORE a single audio
     # byte is fetched, so a 4-hour stream costs one metadata call.

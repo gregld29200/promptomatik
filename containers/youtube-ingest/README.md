@@ -67,6 +67,26 @@ curl -s -H "Authorization: Bearer <secret>" https://teachinspire-yt-ingest.fly.d
 Expect `{"ok":true,"ytdlp":"<version>"}`. Then paste a YouTube link into the
 Studio.
 
+## The residential proxy is REQUIRED, not optional
+
+Measured 2026-08-10: from Fly's datacenter IP, YouTube bot-checks ~100% of
+extractions ("Sign in to confirm you're not a bot"), and the `tv`/`ios`/
+`android` player clients do not get around it. With a residential proxy the
+same video extracts in ~46 s. So `YTDLP_PROXY` is a hard requirement for this
+feature to work at all — not a hardening measure.
+
+Currently: DataImpulse residential, `gw.dataimpulse.com:823`, pay-as-you-go with
+no expiry. Consumption is ~15 MB per hour of video (the audio is downmixed
+before transfer), so 5 GB is roughly 330 hours — a few euros a year at this
+volume. Top up in the DataImpulse dashboard; `407 TRAFFIC_EXHAUSTED` in the logs
+is what an empty balance looks like.
+
+`GET /proxy-check` (auth required) diagnoses the proxy in isolation from
+YouTube: it reports the parsed shape of `YTDLP_PROXY` (never the password) and
+makes one request through it, returning the exit IP or the proxy's own error.
+Use it FIRST whenever extraction fails — a `407` from the proxy and a `403`
+from YouTube both surface as one opaque `download_error` otherwise.
+
 ## Maintenance — the part that is genuinely recurring
 
 - **Bump `YTDLP_VERSION` in the Dockerfile about once a month** and

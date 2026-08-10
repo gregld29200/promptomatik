@@ -26,7 +26,7 @@ RUN apt-get update \
 # rebuild changes behaviour with no commit. Bump this line deliberately, about
 # once a month, as its own reviewed change; /health reports the running version
 # so a stale image is visible from outside.
-ARG YTDLP_VERSION=2026.8.8
+ARG YTDLP_VERSION=2026.7.4
 RUN pip install --no-cache-dir \
       "yt-dlp==${YTDLP_VERSION}" \
       "fastapi==0.120.4" \
