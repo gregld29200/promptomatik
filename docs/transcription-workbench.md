@@ -183,7 +183,7 @@ a YouTube link never sees a generic "unsupported link" message.
 
 ### What did NOT ship
 
-- **YouTube ingest.** CLOSED 2026-08-10 — decided against; the refusal copy now teaches the workaround (paste the podcast version, or save the audio and upload it). Why: even captions-only needs yt-dlp's PO-token machinery (cue URLs are IP-bound and return empty over plain HTTP), and demand was zero. Full record and reopen conditions: `docs/plans/transcription-slice-2-youtube.md` §Closure. For the Module 2 tutorial, teach the workaround as the normal flow — never frame YouTube as coming soon.
+- **YouTube ingest.** BUILT 2026-08-10 (closed that morning, reopened on Greg's decision the same day). A host-agnostic yt-dlp sidecar (`containers/youtube-ingest/`, deploy via Fly remote build — no local Docker) extracts 16 kHz mono Opus; the Worker (`transcription-youtube.ts`) streams it into R2 and the normal cascade takes over, diarization included. NOT ACTIVE until `YOUTUBE_INGEST_URL`/`YOUTUBE_INGEST_SECRET` are set — until then a YouTube POST gets an instant honest 501. Activation + monthly yt-dlp bump: `containers/youtube-ingest/README.md`. ToS: stays best-effort and out of the Module 2 tutorial.
 - **A purchase path for extra hours.** There is no transcription credit-balance
   table. A positive `admin_adjust` ledger row is the only way to hand time back.
 - **`api_cost_usd` on the job row.** Deliberately absent, unlike `audio_jobs`:

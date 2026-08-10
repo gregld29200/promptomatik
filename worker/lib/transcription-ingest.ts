@@ -67,6 +67,7 @@ import {
   type TranscriptionSourceRef,
 } from "./transcription/types";
 import { minimumDurationSeconds, sniffContainerDuration } from "./transcription-duration";
+import { resolveYouTube } from "./transcription-youtube";
 
 // ---------------------------------------------------------------------------
 // Budgets
@@ -429,11 +430,17 @@ export function classifySource(input: string): ClassifiedSource {
     hostname = null;
   }
   if (hostname && hostMatchesAny(hostname, YOUTUBE_HOSTS)) {
+    // Supported since 2026-08-10 (Greg reversed the Slice-2 closure): the
+    // yt-dlp sidecar does the extraction and the audio rejoins the normal
+    // cascade. `classifySource` stays pure, so it cannot know whether THIS
+    // deployment has the sidecar configured — the route refuses early via
+    // `youtubeIngestConfigured` and `resolveYouTube` refuses late, both with
+    // the same honest code.
     return {
       kind: "youtube",
       url: candidate,
-      supported: false,
-      failure: { code: "youtube_not_yet_supported", url: candidate },
+      supported: true,
+      failure: null,
       podcastHint: null,
     };
   }
@@ -1609,6 +1616,13 @@ export async function resolveSource(
   const classified = classifySource(ref.url);
   if (!classified.supported || classified.url === null) {
     throw new TranscriptionError(classified.failure ?? { code: "unsupported_source", detail: "unrecognised_url" });
+  }
+
+  if (classified.kind === "youtube") {
+    // No assertSafeUrl: the hostname already matched the fixed YOUTUBE_HOSTS
+    // list, and the sidecar only ever contacts YouTube — there is no
+    // user-controlled destination for SSRF to reach.
+    return resolveYouTube(env, classified.url, fetcher);
   }
 
   if (classified.kind === "direct_url") {

@@ -1,6 +1,28 @@
 # Transcription Slice 2 — YouTube ingest via a yt-dlp container
 
-**Status: CLOSED — decided against, 2026-08-10.** Kept as the record of why.
+**Status: BUILT — 2026-08-10.** Closed in the morning, REOPENED and shipped the
+same day on Greg's decision: « ne pas accepter YouTube est un vrai moins ».
+
+What shipped (differs from the original plan below in three ways):
+
+1. **The sidecar is host-agnostic, not a Cloudflare Container.** It is joined by
+   `YOUTUBE_INGEST_URL` + `YOUTUBE_INGEST_SECRET` rather than a container
+   binding, because the build machine has no Docker — Fly.io builds remotely
+   (`fly deploy --remote-only`). Code: `containers/youtube-ingest/`
+   (FastAPI + yt-dlp + ffmpeg), Worker side: `worker/lib/transcription-youtube.ts`.
+2. **No captions path.** The §4 shortcut died on measurement: cue URLs are
+   IP-bound and PO-token-gated (200 with an empty body over plain HTTP), so
+   captions cost the same arms race as audio. `/extract` only.
+3. **No `youtube_too_long` code.** The sidecar's metadata-first 413 maps onto
+   the existing `source_too_long` (the row's `source_kind='youtube'` keeps it
+   countable); `youtube_unavailable` (502) and `youtube_blocked` (503,
+   retryable like `provider_unavailable`) were added as planned.
+
+The extracted audio rejoins the NORMAL cascade — so YouTube gets diarization
+via Deepgram, quota, the 90-minute cap, retention and deletion unchanged.
+Until the sidecar is deployed and both secrets set, YouTube links get an
+instant, honest 501 at POST time. Activation steps: `containers/youtube-ingest/README.md`.
+The §5.3 ToS consequence stands: best-effort, and OUT of the Module 2 tutorial.
 
 ## Closure
 

@@ -1015,6 +1015,8 @@ export type TranscriptionJobStatus =
 export type TranscriptionFailureCode =
   | "unsupported_source"
   | "youtube_not_yet_supported"
+  | "youtube_unavailable"
+  | "youtube_blocked"
   | "spotify_not_supported"
   | "source_unreachable"
   | "no_audio_found"

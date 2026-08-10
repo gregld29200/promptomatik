@@ -48,6 +48,7 @@ import {
   type TranscriptionSourceRef,
 } from "../lib/transcription/types";
 import { classifySource, listPodcastEpisodes } from "../lib/transcription-ingest";
+import { youtubeIngestConfigured } from "../lib/transcription-youtube";
 import {
   createTranscriptionJob,
   deleteTranscriptionJobForUser,
@@ -256,6 +257,14 @@ transcriptions.post("/jobs", requireParticipant, async (c) => {
   const classified = classifySource(parsed.data.url);
   if (!classified.supported || classified.url === null) {
     const failure = classified.failure ?? { code: "unsupported_source" as const };
+    return c.json(failureBody(failure), httpStatusForFailure(failure));
+  }
+  if (classified.kind === "youtube" && !youtubeIngestConfigured(c.env)) {
+    // `classifySource` is pure and cannot see the env, so the capability check
+    // happens here: with no sidecar configured, refuse at POST time with the
+    // same code `resolveYouTube` would throw minutes later — an instant honest
+    // answer instead of a job that exists only to fail.
+    const failure: TranscriptionFailure = { code: "youtube_not_yet_supported", url: classified.url };
     return c.json(failureBody(failure), httpStatusForFailure(failure));
   }
   if (classified.kind === "upload") {

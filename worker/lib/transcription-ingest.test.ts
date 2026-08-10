@@ -482,7 +482,7 @@ describe("classifySource — podcast feeds and pages", () => {
 // classifySource — the two recognised-but-unsupported platforms
 // ---------------------------------------------------------------------------
 
-describe("classifySource — YouTube is recognised, not promised", () => {
+describe("classifySource — YouTube is recognised and supported", () => {
   const youtubeUrls = [
     "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     "https://youtu.be/dQw4w9WgXcQ",
@@ -492,20 +492,20 @@ describe("classifySource — YouTube is recognised, not promised", () => {
     "youtube.com/watch?v=dQw4w9WgXcQ",
   ];
 
-  it.each(youtubeUrls)("types %s as youtube_not_yet_supported", (url) => {
+  // Reversed 2026-08-10: YouTube is accepted and routed through the yt-dlp
+  // sidecar. classifySource stays pure, so whether THIS deployment can actually
+  // extract is decided later (route gate + resolveYouTube) — classification
+  // itself must say yes or the paste warning would contradict the capability.
+  it.each(youtubeUrls)("types %s as a supported youtube source", (url) => {
     const result = classifySource(url);
     expect(result.kind).toBe("youtube");
-    expect(result.supported).toBe(false);
-    expect(result.failure?.code).toBe("youtube_not_yet_supported");
+    expect(result.supported).toBe(true);
+    expect(result.failure).toBeNull();
   });
 
-  it("never reports YouTube as a generic unsupported source", () => {
-    const failure = classifySource("https://www.youtube.com/watch?v=abc").failure;
-    expect(failure?.code).not.toBe("unsupported_source");
-    expect(failure).toEqual({
-      code: "youtube_not_yet_supported",
-      url: "https://www.youtube.com/watch?v=abc",
-    });
+  it("keeps the pasted URL for the resolver", () => {
+    const result = classifySource("https://www.youtube.com/watch?v=abc");
+    expect(result.url).toBe("https://www.youtube.com/watch?v=abc");
   });
 });
 
@@ -1738,13 +1738,15 @@ describe("listPodcastEpisodes", () => {
     expect(feed.episodes).toHaveLength(2);
   });
 
-  it("refuses a YouTube link with its own code", async () => {
+  it("refuses a YouTube link — the episode picker is for podcasts", async () => {
+    // YouTube is transcribable since 2026-08-10, but it has no episode list:
+    // the picker refusing is correct, and the page submits the URL directly.
     const failure = await failureOf(
       listPodcastEpisodes(NO_ENV, "https://youtu.be/abc", (() => {
         throw new Error("must not fetch");
       }) as unknown as typeof fetch)
     );
-    expect(failure.code).toBe("youtube_not_yet_supported");
+    expect(failure.code).toBe("unsupported_source");
   });
 
   it("refuses a direct audio URL — there is no episode list to show", async () => {

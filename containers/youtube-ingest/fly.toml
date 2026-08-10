@@ -1,0 +1,33 @@
+# Fly.io config for the YouTube ingest sidecar.
+#
+# Chosen because `fly deploy` builds the image REMOTELY — no local Docker
+# needed — and machines scale to zero between requests, so an idle sidecar
+# costs nothing but its storage.
+#
+# Deploy (see README.md for the full sequence):
+#   fly launch --no-deploy --copy-config
+#   fly secrets set INGEST_SHARED_SECRET=<openssl rand -hex 32>
+#   fly deploy --remote-only
+
+app = "teachinspire-yt-ingest"
+primary_region = "cdg"  # Paris — closest to the Worker's likely edge for FR users
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  # One extraction can legitimately run for minutes; do not kill it early.
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 4
+    soft_limit = 2
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"  # ffmpeg + yt-dlp headroom; 512 MB OOMs on long videos

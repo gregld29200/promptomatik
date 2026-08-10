@@ -429,17 +429,28 @@ export type TranscriptionFailure =
   /** Not a URL we can do anything with (a webpage, a paywalled player, a bad link). */
   | { code: "unsupported_source"; detail?: string }
   /**
-   * Recognised YouTube. This is the PERMANENT answer, not a pending feature
-   * (decision 2026-08-10, docs/plans/transcription-slice-2-youtube.md §Closure):
-   * even the captions-only path needs yt-dlp's PO-token machinery — cue URLs
-   * are IP-bound and return 200 with an empty body over plain HTTP — so any
-   * YouTube support means a container in a monthly arms race against YouTube,
-   * for content whose download is against their ToS. The copy tells teachers
-   * the workaround instead: paste the podcast version, or drop in the audio
-   * file. The code keeps its historical name because six modules and the
-   * client already share it; renaming buys nothing a comment cannot.
+   * Recognised YouTube, but THIS deployment has no ingest sidecar configured
+   * (YOUTUBE_INGEST_URL/_SECRET absent), or the feature is switched off.
+   * History: closed on 2026-08-10 as permanent, REOPENED the same day on
+   * Greg's decision — "ne pas accepter YouTube est un vrai moins". Support
+   * runs through the yt-dlp sidecar (containers/youtube-ingest/ +
+   * transcription-youtube.ts); the ToS consequence stands unchanged — this
+   * stays best-effort and out of the Module 2 tutorial.
    */
   | { code: "youtube_not_yet_supported"; url?: string }
+  /**
+   * YouTube said the VIDEO cannot be served: private, deleted, geo-blocked,
+   * age-gated, members-only. Only a different link will ever work — never
+   * "try again later", which would send the teacher in circles.
+   */
+  | { code: "youtube_unavailable"; status?: number }
+  /**
+   * YouTube refused US (bot check on a datacenter IP) or the ingest sidecar
+   * was unreachable. Not the teacher's fault and genuinely transient, so the
+   * job runner treats it like `provider_unavailable`: release and let the
+   * queue ladder retry.
+   */
+  | { code: "youtube_blocked"; status?: number }
   /** Spotify is a closed platform with no public audio URL. Politely out of scope. */
   | { code: "spotify_not_supported"; url?: string }
   /** The URL did not answer, timed out, or refused us. */
@@ -520,6 +531,8 @@ export interface TranscriptionAttempt {
 const FAILURE_CODES: ReadonlySet<string> = new Set<TranscriptionFailureCode>([
   "unsupported_source",
   "youtube_not_yet_supported",
+  "youtube_unavailable",
+  "youtube_blocked",
   "spotify_not_supported",
   "source_unreachable",
   "no_audio_found",
@@ -672,7 +685,10 @@ export function httpStatusForFailure(failure: TranscriptionFailure): 400 | 402 |
     case "spotify_not_supported":
       return 501;
     case "source_unreachable":
+    case "youtube_unavailable":
       return 502;
+    case "youtube_blocked":
+      return 503;
     case "source_too_long":
       return 413;
     case "source_too_large":

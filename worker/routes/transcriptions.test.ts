@@ -502,8 +502,12 @@ describe("Transcription routes", () => {
     });
   });
 
-  describe("the two platforms we do not transcribe", () => {
-    it("answers YouTube with its own not-yet code, not a generic error", async () => {
+  describe("platform gating at POST time", () => {
+    // The test env has no YOUTUBE_INGEST_URL/_SECRET, so this exercises the
+    // unconfigured deployment: classification says "supported", the route's
+    // capability gate says "not here, not yet" — instantly, with the honest
+    // code, instead of minting a job that exists only to fail in the queue.
+    it("answers YouTube with the not-yet code while the sidecar is unconfigured", async () => {
       const res = await call("/api/transcriptions/jobs", {
         method: "POST",
         body: { url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", diarize: false },
@@ -513,6 +517,10 @@ describe("Transcription routes", () => {
       const json = await res.json<{ code: string; failure: { code: string } }>();
       expect(json.code).toBe("youtube_not_yet_supported");
       expect(json.failure.code).toBe("youtube_not_yet_supported");
+
+      // And no job row was created for it.
+      const listed = await call("/api/transcriptions/jobs", { sessionId: ownerSession });
+      expect((await listed.json<{ jobs: unknown[] }>()).jobs).toHaveLength(1);
     });
 
     it("answers Spotify with its own code", async () => {
@@ -534,8 +542,9 @@ describe("Transcription routes", () => {
       expect(res.status).toBe(200);
       const json = await res.json<{ source: { kind: string; supported: boolean; failure: { code: string } } }>();
       expect(json.source.kind).toBe("youtube");
-      expect(json.source.supported).toBe(false);
-      expect(json.source.failure.code).toBe("youtube_not_yet_supported");
+      // Classification says "supported" — capability is a deployment question,
+      // answered by POST /jobs (501 when the sidecar is unconfigured, below).
+      expect(json.source.supported).toBe(true);
 
       const listed = await call("/api/transcriptions/jobs", { sessionId: ownerSession });
       expect((await listed.json<{ jobs: unknown[] }>()).jobs).toHaveLength(1);

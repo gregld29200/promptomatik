@@ -735,6 +735,7 @@ export async function processTranscriptionJob(
            source_bytes = COALESCE(?, source_bytes),
            duration_seconds = COALESCE(?, duration_seconds),
            title = COALESCE(title, ?),
+           source_r2_key = COALESCE(source_r2_key, ?),
            updated_at = datetime('now')
        WHERE id = ?`
     )
@@ -744,6 +745,10 @@ export async function processTranscriptionJob(
         resolved.bytes,
         duration === null ? null : Math.ceil(duration),
         resolved.title,
+        // Uploads set this at creation; a YouTube extraction mints its R2
+        // object DURING resolve, and without this write-back neither the
+        // nightly purge nor per-job deletion would ever find the audio.
+        resolved.r2Key,
         jobId
       )
       .run();
@@ -849,7 +854,10 @@ export async function processTranscriptionJob(
     await deps.chargeQuota(env, row.user_id, jobId, billedSeconds, run.provider);
   } catch (error) {
     const failure = toTranscriptionFailure(error);
-    if (failure.code === "provider_unavailable") {
+    if (failure.code === "provider_unavailable" || failure.code === "youtube_blocked") {
+      // youtube_blocked joins the retryable club for the same reason: YouTube
+      // (or our sidecar) refused THIS attempt, nothing was billed, and nothing
+      // is wrong with the link — a retry in a few seconds is the honest move.
       // Not terminal, and not the teacher's fault. Give the row back and let the
       // queue try again in a few seconds.
       await releaseTranscriptionJob(env, jobId);

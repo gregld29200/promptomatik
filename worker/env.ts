@@ -46,6 +46,14 @@ export interface Env {
   STRIPE_WEBHOOK_SECRET?: string;
   // Shared secret for /api/internal/* machine calls (testimonial credit grant).
   TESTIMONIAL_GRANT_SECRET?: string;
+  /**
+   * YouTube ingest sidecar (containers/youtube-ingest). Both must be set or
+   * YouTube links get the honest "not available right now" refusal. The URL is
+   * the service origin (e.g. https://teachinspire-yt-ingest.fly.dev); the
+   * secret is the Bearer token the sidecar was deployed with.
+   */
+  YOUTUBE_INGEST_URL?: string;
+  YOUTUBE_INGEST_SECRET?: string;
   STRIPE_PRICE_PACK_60?: string;
   STRIPE_PRICE_PACK_180?: string;
 }
