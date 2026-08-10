@@ -32,6 +32,42 @@ uploads already handle the resulting file.
 teachers AND someone accepts the §5 operational burden as a standing monthly
 cost. Everything below survives as the blueprint for that day.
 
+### Addendum 2026-08-10 — a reopen path with no container
+
+`deAPI` (https://deapi.ai, docs `https://deapi.ai/llms.txt`) exposes
+`POST /api/v2/audio/transcriptions` with a `source_url` that accepts **YouTube,
+X, Twitch, Kick, TikTok and X Spaces directly**. If YouTube is ever reopened,
+this removes §3, §5.1 and §5.2 entirely — no Dockerfile, no yt-dlp pinning, no
+monthly rebuild, no canary, no datacenter-IP arms race. They carry it.
+
+It is **not** a candidate to replace any existing tier, for four reasons found
+on inspection (not assumed):
+
+1. **No diarization.** The endpoint takes only `source_url`/`source_file`,
+   `include_ts` and `model`; the model is `WhisperLargeV3`, which cannot
+   diarize. The "separate the voices" path is impossible there.
+2. **Decentralised GPU infrastructure** — self-described as "thousands of GPUs
+   worldwide", with no EU-residency guarantee. Classroom recordings carry
+   learners' voices, i.e. personal data; this is a materially weaker posture
+   than Deepgram's `api.eu.deepgram.com` and cuts against the reason retention
+   is 7 days at all.
+3. **Smaller ceilings than ours:** 20 MB audio / 50 MB video vs our 64 MB.
+4. **No language parameter**, so the `fr` hint that improves accuracy has
+   nowhere to go. Free-tier limits are also 1 RPM / 10 RPD on transcriptions.
+
+Pricing was NOT verified — the public pricing page shows only an image
+calculator and the transcription figure needs an authenticated price call. The
+"up to 20× lower" claim is against traditional providers; Groq is already
+$0.04/hr, so treat any cost advantage as unproven.
+
+So the shape of a reopen changes: **a fourth tier used ONLY for
+`source_kind = 'youtube'`, plain transcripts only, never for a diarized job and
+never the default for uploaded classroom audio.** Steps 5–7 below (the
+container) become unnecessary; steps 1–4 (the failure codes, the zero-charge
+transcript branch) still apply, and the provider CHECK would widen to a vendor
+slug rather than `'youtube_captions'`. Demand was still zero when this was
+written — this is a cheaper door, not a reason to open it.
+
 ---
 
 **Original plan follows** (historical — nothing below is wired: no container
