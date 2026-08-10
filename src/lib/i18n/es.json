@@ -542,7 +542,7 @@
     "transcription_title": "Transcripción",
     "transcription_desc": "Pega el enlace de un pódcast o sube una grabación: obtendrás un texto con marcas de tiempo y los interlocutores identificados.",
     "transcription_desc_short": "Convierte un audio en texto listo para usar en clase.",
-    "transcription_image_alt": "Una onda sonora que se despliega en líneas de texto anotadas",
+    "transcription_image_alt": "Una grabación de audio convertida en una transcripción en papel rayado",
     "transcription_locked": "Para participantes de la formación: tus pódcast y grabaciones convertidos en transcripciones listas para trabajar.",
     "transcription_cta_short": "Transcribir un audio",
     "transcription_library": "Mis transcripciones",

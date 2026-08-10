@@ -118,9 +118,7 @@ export function HomePage() {
               />
 
               {/* Sits next to Audio on purpose: 02 turns a script into audio, 03
-                  turns audio back into text. PLACEHOLDER ARTWORK — swap
-                  public/images/workshops/workshop-transcription{,@2x}.webp for the
-                  real collage; nothing else needs to change. */}
+                  turns audio back into text. */}
               <Workshop
                 number="03"
                 title={t("home.transcription_title")}

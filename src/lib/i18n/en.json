@@ -747,7 +747,7 @@
     "transcription_title": "Transcription",
     "transcription_desc": "Paste a podcast link or drop in a recording, and get back timestamped text with the speakers identified.",
     "transcription_desc_short": "Turn audio into text you can work with in class.",
-    "transcription_image_alt": "A sound wave unfolding into annotated lines of text",
+    "transcription_image_alt": "An audio recording turned into a transcription on ruled paper",
     "transcription_locked": "For training participants: your podcasts and recordings turned into transcripts ready to work from.",
     "transcription_cta_short": "Transcribe audio",
     "transcription_library": "My transcripts",

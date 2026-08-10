@@ -747,7 +747,7 @@
     "transcription_title": "Transcription",
     "transcription_desc": "Collez le lien d'un podcast ou déposez un enregistrement : vous récupérez un texte horodaté, avec les intervenants identifiés.",
     "transcription_desc_short": "Transformez un audio en texte exploitable en classe.",
-    "transcription_image_alt": "Une bande sonore qui se déplie en lignes de texte annotées",
+    "transcription_image_alt": "Un enregistrement audio transformé en transcription sur papier ligné",
     "transcription_locked": "Réservé aux participants de la formation : vos podcasts et enregistrements transformés en transcriptions prêtes à travailler.",
     "transcription_cta_short": "Transcrire un audio",
     "transcription_library": "Mes transcriptions",
