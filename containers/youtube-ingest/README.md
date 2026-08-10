@@ -104,16 +104,24 @@ from YouTube both surface as one opaque `download_error` otherwise.
   Service. This feature stays best-effort and out of the Module 2 tutorial and
   marketing material.
 
-## Contract (for the Worker's tests and any future host)
+## Contract v2 — submit → poll → fetch (all endpoints auth required)
 
-- `GET /health` → `{ ok: true, ytdlp: "<version>" }` (auth required)
-- `POST /extract` `{ url, maxDurationSeconds }` (auth required) →
-  - `200` — body: Opus audio; headers: `Content-Length`,
-    `X-Duration-Seconds`, `X-Title-B64` (UTF-8 title, base64)
-  - `404` — video unavailable (private / deleted / geo-blocked / age-gated)
-  - `403` — YouTube refused us (bot check) → Worker retries
-  - `413` — `{ code: "source_too_long", durationSeconds }`, decided from
-    metadata before any download
-  - `422` — not a single video (playlist, channel, non-YouTube URL)
-  - `401` — missing/wrong Bearer secret
-  - other `5xx` — transient; Worker retries
+Async BY NECESSITY, not taste: v1 answered POST with the audio itself, and
+Fly's edge kills a connection that moves no bytes for ~60 s, then auto-stops
+the "idle" machine mid-download (measured: a 42 MiB extraction died at 85%
+with `os error 110`). Short polls fix both — and double as the keep-alive.
+
+- `GET /health` → `{ ok, ytdlp, proxy }`
+- `POST /extract` `{ url, maxDurationSeconds }` → `202 { taskId }`
+  (`422` non-YouTube/playlist URL, `401` bad secret)
+- `GET /extract/{taskId}` →
+  - `{ status: "working" }` — poll again
+  - `{ status: "ready", durationSeconds, bytes }`
+  - `{ status: "failed", status_code, code, durationSeconds? }` where
+    `status_code` speaks the v1 vocabulary: 404 video unavailable, 403 bot
+    check (retry), 413 over the cap (with durationSeconds), 422 playlist,
+    502 anything else (retry)
+  - HTTP `404` — task unknown: the machine restarted; retry the whole job
+- `GET /extract/{taskId}/file` → the Opus audio (`Content-Length`,
+  `X-Duration-Seconds`, `X-Title-B64`), served once, then deleted.
+  Tasks and files are swept after 15 minutes regardless.

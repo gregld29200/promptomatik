@@ -507,6 +507,45 @@ describe("Transcription routes", () => {
     // unconfigured deployment: classification says "supported", the route's
     // capability gate says "not here, not yet" — instantly, with the honest
     // code, instead of minting a job that exists only to fail in the queue.
+    // REGRESSION — activation day, 2026-08-10. The route gate honoured the
+    // capability but createTranscriptionJob still refused kind "youtube"
+    // UNCONDITIONALLY (Slice-1 defence in depth, never updated), so a fully
+    // configured production answered /api/health with youtubeIngest:true and
+    // every real POST with 501. Two layers, two rules, both "honest". This
+    // test runs the WHOLE route with the sidecar configured, so any layer
+    // that still refuses turns it red.
+    it("accepts a YouTube job end-to-end once the sidecar is configured", async () => {
+      const ctx = createExecutionContext();
+      const res = await worker.fetch(
+        new Request("https://promptomatik.test/api/transcriptions/jobs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: sessionCookie(ownerSession).split(";")[0],
+          },
+          body: JSON.stringify({ url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", diarize: true }),
+        }),
+        {
+          ...testEnv,
+          YOUTUBE_INGEST_URL: "https://ingest.test",
+          YOUTUBE_INGEST_SECRET: "s3cret",
+        } as unknown as Env,
+        ctx
+      );
+      await waitOnExecutionContext(ctx);
+      // 202: the job is accepted and queued, not finished — same as every source kind.
+      expect(res.status).toBe(202);
+      const { jobId } = await res.json<{ jobId: string }>();
+      expect(jobId).toBeTruthy();
+
+      // And the row exists — the Slice-1 layer used to throw before the INSERT.
+      const row = await testEnv.DB.prepare(
+        "SELECT source_kind, status FROM transcription_jobs WHERE id = ?"
+      ).bind(jobId).first<{ source_kind: string; status: string }>();
+      expect(row?.source_kind).toBe("youtube");
+      expect(row?.status).toBe("queued");
+    });
+
     it("answers YouTube with the not-yet code while the sidecar is unconfigured", async () => {
       const res = await call("/api/transcriptions/jobs", {
         method: "POST",

@@ -106,14 +106,34 @@ function failureForStatus(status: number, rejection: ExtractRejection): Transcri
   return new TranscriptionError({ code: "youtube_blocked", status });
 }
 
+/** One short request. The sidecar answers these in milliseconds. */
+const CONTROL_TIMEOUT_MS = 30_000;
+/** The audio download from the sidecar — already extracted, just transfer. */
+const FILE_TIMEOUT_MS = 240_000;
+/** Poll cadence. Each poll is also what keeps the scale-to-zero machine alive. */
+const POLL_INTERVAL_MS = 6_000;
+
+export interface ResolveYouTubeOptions {
+  /** Test seams — production always uses the defaults. */
+  pollIntervalMs?: number;
+  timeoutMs?: number;
+}
+
 /**
  * Extract a YouTube video's audio into R2 and return it as an ordinary
  * bytes-source. Throws `TranscriptionError` only — never a bare string.
+ *
+ * SUBMIT → POLL → FETCH, not one long call. The first version held a single
+ * HTTP response open for the whole extraction and died in production: Fly's
+ * edge kills a connection that moves no bytes for ~60 s, then auto-stops the
+ * "idle" machine mid-download (measured: a 42 MiB extraction killed at 85%).
+ * Polling makes every request short, and doubles as the machine's keep-alive.
  */
 export async function resolveYouTube(
   env: Env,
   url: string,
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch = fetch,
+  options: ResolveYouTubeOptions = {}
 ): Promise<ResolvedSource> {
   if (!youtubeIngestConfigured(env)) {
     // The classify step said "supported" because the capability exists; this
@@ -123,33 +143,91 @@ export async function resolveYouTube(
   }
 
   const base = env.YOUTUBE_INGEST_URL!.trim().replace(/\/+$/, "");
-  let response: Response;
+  const headers = {
+    Authorization: `Bearer ${env.YOUTUBE_INGEST_SECRET!.trim()}`,
+    "Content-Type": "application/json",
+  };
+  const pollMs = options.pollIntervalMs ?? POLL_INTERVAL_MS;
+  const deadline = Date.now() + (options.timeoutMs ?? YOUTUBE_EXTRACT_TIMEOUT_MS);
+
+  // ---- 1. Submit. Answers in milliseconds with a task id.
+  let submitted: Response;
   try {
-    response = await fetcher(`${base}/extract`, {
+    submitted = await fetcher(`${base}/extract`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.YOUTUBE_INGEST_SECRET!.trim()}`,
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ url, maxDurationSeconds: TRANSCRIPTION_MAX_SOURCE_SECONDS }),
-      signal: AbortSignal.timeout(YOUTUBE_EXTRACT_TIMEOUT_MS),
+      signal: AbortSignal.timeout(CONTROL_TIMEOUT_MS),
     });
-  } catch (error) {
-    // Timeout, DNS, connection reset: the sidecar is unreachable, which is our
-    // problem and transient — the retryable code, not a teacher-facing dead end.
-    // The fetch error's message is operator-noise (DNS, abort); the code alone
-    // is what the row and the teacher need.
+  } catch {
+    // Timeout, DNS, connection reset: our infrastructure, transient, retryable.
     throw new TranscriptionError({ code: "youtube_blocked" });
   }
-
-  if (!response.ok) {
+  if (!submitted.ok) {
     let rejection: ExtractRejection = {};
     try {
-      rejection = (await response.json()) as ExtractRejection;
+      rejection = (await submitted.json()) as ExtractRejection;
     } catch {
       // A body-less error page. The status alone decides.
     }
-    throw failureForStatus(response.status, rejection);
+    throw failureForStatus(submitted.status, rejection);
+  }
+  const { taskId } = (await submitted.json()) as { taskId?: string };
+  if (!taskId) {
+    throw new TranscriptionError({ code: "youtube_blocked" });
+  }
+
+  // ---- 2. Poll until terminal. A single flaky poll is tolerated — only the
+  // deadline or a terminal answer ends the loop.
+  interface StatusBody extends ExtractRejection {
+    status?: string;
+    status_code?: number;
+  }
+  for (;;) {
+    if (Date.now() >= deadline) {
+      throw new TranscriptionError({ code: "youtube_blocked" });
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs));
+
+    let poll: Response;
+    try {
+      poll = await fetcher(`${base}/extract/${taskId}`, {
+        headers,
+        signal: AbortSignal.timeout(CONTROL_TIMEOUT_MS),
+      });
+    } catch {
+      continue; // transient; the deadline is the real limit
+    }
+    if (poll.status === 404) {
+      // The machine restarted and lost the task. Retrying the whole job is the
+      // only honest recovery, so: retryable.
+      throw new TranscriptionError({ code: "youtube_blocked" });
+    }
+    if (!poll.ok) {
+      throw failureForStatus(poll.status, {});
+    }
+    const body = (await poll.json()) as StatusBody;
+    if (body.status === "working") continue;
+    if (body.status === "failed") {
+      throw failureForStatus(body.status_code ?? 502, body);
+    }
+    if (body.status === "ready") break;
+    throw new TranscriptionError({ code: "youtube_blocked" });
+  }
+
+  // ---- 3. Fetch the finished audio. Bytes flow immediately, so the idle
+  // timeout that killed v1 does not apply here.
+  let response: Response;
+  try {
+    response = await fetcher(`${base}/extract/${taskId}/file`, {
+      headers,
+      signal: AbortSignal.timeout(FILE_TIMEOUT_MS),
+    });
+  } catch {
+    throw new TranscriptionError({ code: "youtube_blocked" });
+  }
+  if (!response.ok) {
+    throw failureForStatus(response.status === 404 ? 500 : response.status, {});
   }
 
   const length = Number(response.headers.get("content-length"));

@@ -1,4 +1,4 @@
-// YouTube resolver unit tests.
+// YouTube resolver unit tests — submit → poll → fetch protocol.
 //
 // There is NO ingest sidecar in this environment, so nothing here talks to
 // one. Every response below is HANDWRITTEN against the contract in
@@ -16,6 +16,8 @@ import { TranscriptionError } from "./transcription/types";
 const baseEnv = env as unknown as Env;
 
 const WATCH_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+/** Test seam: instant polls, short deadline — the logic, not the clock. */
+const FAST = { pollIntervalMs: 1, timeoutMs: 3_000 };
 
 function configuredEnv(): Env {
   return {
@@ -35,16 +37,32 @@ async function failureOf(promise: Promise<unknown>) {
   throw new Error("expected resolveYouTube to throw");
 }
 
-function audioResponse(options: {
-  bytes?: Uint8Array;
-  duration?: string;
-  title?: string;
-  omitLength?: boolean;
-}): Response {
-  const bytes = options.bytes ?? new TextEncoder().encode("OPUS-FIXTURE-AUDIO");
+/**
+ * A scripted sidecar: each entry answers one request, in order. `null` entries
+ * throw a network error instead. The last entry repeats, so an "endless
+ * working" script needs only two entries.
+ */
+function scriptedFetcher(script: Array<(() => Response) | null>): typeof fetch {
+  let call = 0;
+  return (async () => {
+    const step = script[Math.min(call, script.length - 1)];
+    call += 1;
+    if (step === null) throw new TypeError("fetch failed");
+    return step();
+  }) as unknown as typeof fetch;
+}
+
+const accepted = () => Response.json({ taskId: "t-1" }, { status: 202 });
+const working = () => Response.json({ status: "working" });
+const ready = () => Response.json({ status: "ready", durationSeconds: 1832, bytes: 18 });
+const failed = (status_code: number, extra: Record<string, unknown> = {}) => () =>
+  Response.json({ status: "failed", code: "download_error", status_code, ...extra });
+
+function audioFile(options: { title?: string; omitLength?: boolean } = {}): Response {
+  const bytes = new TextEncoder().encode("OPUS-FIXTURE-AUDIO");
   const headers = new Headers({
     "Content-Type": "audio/ogg",
-    "X-Duration-Seconds": options.duration ?? "1832",
+    "X-Duration-Seconds": "1832",
   });
   if (options.title !== undefined) {
     headers.set(
@@ -53,8 +71,6 @@ function audioResponse(options: {
     );
   }
   if (!options.omitLength) headers.set("Content-Length", String(bytes.length));
-  // A hand-rolled streamed body: `new Response(bytes)` would re-derive
-  // Content-Length and defeat the omitLength case.
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(bytes);
@@ -76,33 +92,39 @@ describe("youtubeIngestConfigured", () => {
 describe("resolveYouTube — refusals", () => {
   it("throws the not-yet code when the sidecar is unconfigured, without fetching", async () => {
     const failure = await failureOf(
-      resolveYouTube(baseEnv, WATCH_URL, (() => {
-        throw new Error("must not fetch");
-      }) as unknown as typeof fetch)
+      resolveYouTube(baseEnv, WATCH_URL, scriptedFetcher([null]), FAST)
     );
     expect(failure.code).toBe("youtube_not_yet_supported");
   });
 
-  it("maps 404 to youtube_unavailable — only a different link will ever work", async () => {
+  it("treats an unreachable sidecar at SUBMIT as retryable, never the teacher's fault", async () => {
     const failure = await failureOf(
-      resolveYouTube(configuredEnv(), WATCH_URL, async () =>
-        Response.json({ code: "download_error" }, { status: 404 })
-      )
+      resolveYouTube(configuredEnv(), WATCH_URL, scriptedFetcher([null]), FAST)
+    );
+    expect(failure.code).toBe("youtube_blocked");
+  });
+
+  it("maps a failed task with 404 to youtube_unavailable — only a different link will work", async () => {
+    const failure = await failureOf(
+      resolveYouTube(configuredEnv(), WATCH_URL, scriptedFetcher([accepted, failed(404)]), FAST)
     );
     expect(failure).toMatchObject({ code: "youtube_unavailable", status: 404 });
   });
 
-  it.each([403, 429, 500, 401])("maps %s to the retryable youtube_blocked", async (status) => {
+  it.each([403, 429, 500])("maps a failed task with %s to the retryable youtube_blocked", async (code) => {
     const failure = await failureOf(
-      resolveYouTube(configuredEnv(), WATCH_URL, async () => new Response(null, { status }))
+      resolveYouTube(configuredEnv(), WATCH_URL, scriptedFetcher([accepted, failed(code)]), FAST)
     );
-    expect(failure).toMatchObject({ code: "youtube_blocked", status });
+    expect(failure).toMatchObject({ code: "youtube_blocked" });
   });
 
   it("maps the metadata-first 413 to source_too_long with the sidecar's measured duration", async () => {
     const failure = await failureOf(
-      resolveYouTube(configuredEnv(), WATCH_URL, async () =>
-        Response.json({ code: "source_too_long", durationSeconds: 7200 }, { status: 413 })
+      resolveYouTube(
+        configuredEnv(),
+        WATCH_URL,
+        scriptedFetcher([accepted, failed(413, { durationSeconds: 7200 })]),
+        FAST
       )
     );
     expect(failure).toMatchObject({
@@ -112,48 +134,83 @@ describe("resolveYouTube — refusals", () => {
     });
   });
 
-  it("maps 422 (a playlist) to unsupported_source", async () => {
+  it("maps a failed task with 422 (a playlist) to unsupported_source", async () => {
     const failure = await failureOf(
-      resolveYouTube(configuredEnv(), WATCH_URL, async () =>
-        Response.json({ code: "unsupported_source" }, { status: 422 })
-      )
+      resolveYouTube(configuredEnv(), WATCH_URL, scriptedFetcher([accepted, failed(422)]), FAST)
     );
     expect(failure.code).toBe("unsupported_source");
   });
 
-  it("treats an unreachable sidecar as retryable, never as the teacher's fault", async () => {
+  it("treats a task the sidecar no longer knows (machine restart) as retryable", async () => {
     const failure = await failureOf(
-      resolveYouTube(configuredEnv(), WATCH_URL, (async () => {
-        throw new TypeError("fetch failed");
-      }) as unknown as typeof fetch)
+      resolveYouTube(
+        configuredEnv(),
+        WATCH_URL,
+        scriptedFetcher([accepted, () => Response.json({ status: "unknown" }, { status: 404 })]),
+        FAST
+      )
     );
     expect(failure.code).toBe("youtube_blocked");
   });
 
-  it("treats a 200 without a Content-Length as a sidecar bug, retryable", async () => {
+  it("gives up as retryable when the task never leaves 'working' before the deadline", async () => {
     const failure = await failureOf(
-      resolveYouTube(configuredEnv(), WATCH_URL, async () => audioResponse({ omitLength: true }))
+      resolveYouTube(configuredEnv(), WATCH_URL, scriptedFetcher([accepted, working]), {
+        pollIntervalMs: 1,
+        timeoutMs: 50,
+      })
+    );
+    expect(failure.code).toBe("youtube_blocked");
+  });
+
+  it("rides out ONE flaky poll and still succeeds — the deadline is the limit, not a hiccup", async () => {
+    const resolved = await resolveYouTube(
+      configuredEnv(),
+      WATCH_URL,
+      scriptedFetcher([accepted, null, working, ready, () => audioFile({ title: "Ok" })]),
+      FAST
+    );
+    expect(resolved.title).toBe("Ok");
+    await baseEnv.MEDIA.delete(resolved.r2Key!);
+  });
+
+  it("treats a ready file without a Content-Length as a sidecar bug, retryable", async () => {
+    const failure = await failureOf(
+      resolveYouTube(
+        configuredEnv(),
+        WATCH_URL,
+        scriptedFetcher([accepted, ready, () => audioFile({ omitLength: true })]),
+        FAST
+      )
     );
     expect(failure.code).toBe("youtube_blocked");
   });
 });
 
 describe("resolveYouTube — the happy path", () => {
-  it("authenticates, streams the audio into R2, and returns an ordinary bytes source", async () => {
-    const captured: { url?: string; auth?: string | null; body?: unknown } = {};
+  it("submits, polls to ready, streams the audio into R2, returns an ordinary bytes source", async () => {
+    const seen: Array<{ url: string; auth: string | null; method: string }> = [];
+    let call = 0;
+    const script = [accepted, working, working, ready, () => audioFile({ title: "Épisode : l'école en 2026" })];
     const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      captured.url = String(input);
-      captured.auth = new Headers(init?.headers).get("authorization");
-      captured.body = JSON.parse(String(init?.body));
-      return audioResponse({ title: "Épisode : l'école en 2026", duration: "1832" });
+      seen.push({
+        url: String(input),
+        auth: new Headers(init?.headers).get("authorization"),
+        method: init?.method ?? "GET",
+      });
+      const step = script[Math.min(call, script.length - 1)];
+      call += 1;
+      return step();
     }) as unknown as typeof fetch;
 
-    const resolved = await resolveYouTube(configuredEnv(), WATCH_URL, fetcher);
+    const resolved = await resolveYouTube(configuredEnv(), WATCH_URL, fetcher, FAST);
 
-    // The request honoured the contract.
-    expect(captured.url).toBe("https://ingest.test/extract");
-    expect(captured.auth).toBe("Bearer s3cret");
-    expect(captured.body).toEqual({ url: WATCH_URL, maxDurationSeconds: 5400 });
+    // The protocol, in order: one POST, then polls, then the file.
+    expect(seen[0]).toMatchObject({ url: "https://ingest.test/extract", method: "POST" });
+    expect(seen[1].url).toBe("https://ingest.test/extract/t-1");
+    expect(seen[seen.length - 1].url).toBe("https://ingest.test/extract/t-1/file");
+    // Every request carries the shared secret.
+    for (const request of seen) expect(request.auth).toBe("Bearer s3cret");
 
     // The resolution is shaped exactly like an upload's, so the cascade,
     // quota, retention and deletion all treat it as an ordinary job.
@@ -167,8 +224,7 @@ describe("resolveYouTube — the happy path", () => {
     expect(resolved.audio.filename).toBe("Episode  lecole en 2026.ogg");
     expect(await resolved.audio.blob.text()).toBe("OPUS-FIXTURE-AUDIO");
 
-    // And the bytes really are in R2 under the key the job row will carry —
-    // the object retention and deletion will later remove.
+    // And the bytes really are in R2 under the key the job row will carry.
     const stored = await baseEnv.MEDIA.get(resolved.r2Key!);
     expect(stored).not.toBeNull();
     expect(await stored!.text()).toBe("OPUS-FIXTURE-AUDIO");
@@ -176,9 +232,13 @@ describe("resolveYouTube — the happy path", () => {
     await baseEnv.MEDIA.delete(resolved.r2Key!);
   });
 
-  it("survives a missing or garbled title header — the filename falls back, nothing throws", async () => {
-    const resolved = await resolveYouTube(configuredEnv(), WATCH_URL, (async () =>
-      audioResponse({})) as unknown as typeof fetch);
+  it("survives a missing title header — the filename falls back, nothing throws", async () => {
+    const resolved = await resolveYouTube(
+      configuredEnv(),
+      WATCH_URL,
+      scriptedFetcher([accepted, ready, () => audioFile({})]),
+      FAST
+    );
     expect(resolved.title).toBeNull();
     if (resolved.audio.kind !== "bytes") throw new Error("expected a bytes source");
     expect(resolved.audio.filename).toBe("youtube-audio.ogg");

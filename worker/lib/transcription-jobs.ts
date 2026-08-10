@@ -9,6 +9,7 @@
 // status. Wall-clock is spent awaiting the provider, not burning CPU.
 
 import { nanoid } from "nanoid";
+import { youtubeIngestConfigured } from "./transcription-youtube";
 import type { Env } from "../env";
 import {
   isTranscriptionProviderConfigured,
@@ -334,9 +335,14 @@ export async function createTranscriptionJob(
   env: Env,
   input: CreateTranscriptionJobInput
 ): Promise<string> {
-  // YouTube is recognised, stored nowhere, and refused kindly. Slice 2 replaces
-  // this with a yt-dlp container — until then we never make a false promise.
-  if (input.source.kind === "youtube") {
+  // Defence in depth for YouTube, kept honest since the sidecar shipped: the
+  // route refuses an unconfigured deployment before calling this, but this
+  // layer cannot assume every caller is that route. THE BUG THIS COMMENT
+  // REPLACES: activation day, this check was still unconditional, so
+  // /api/health said "youtubeIngest: true" while every POST died here with
+  // 501 — two honest answers from two layers reading different rules. If the
+  // capability is off, refuse kindly; if it is on, a YouTube job is ordinary.
+  if (input.source.kind === "youtube" && !youtubeIngestConfigured(env)) {
     throw new TranscriptionError({
       code: "youtube_not_yet_supported",
       url: input.source.url,
