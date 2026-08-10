@@ -563,7 +563,13 @@ export function TranscribePage() {
                   {sourceCheck.supported
                     ? sourceCheck.kind === "podcast"
                       ? t("transcription.source_ok_podcast")
-                      : t("transcription.source_ok_direct_url")
+                      : // A YouTube link is NOT a media file, and saying it is
+                        // was wrong from the moment YouTube became supported.
+                        // It also sets the right expectation: the audio has to
+                        // be fetched first, so this one starts slower.
+                        sourceCheck.kind === "youtube"
+                        ? t("transcription.source_ok_youtube")
+                        : t("transcription.source_ok_direct_url")
                     : failureMessage(sourceCheck.failure ?? { code: "unsupported_source" }, {
                         sourceKind: sourceCheck.kind,
                       })}
