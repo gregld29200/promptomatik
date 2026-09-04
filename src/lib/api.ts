@@ -581,6 +581,12 @@ export function setUserTier(id: string, tier: Tier) {
   });
 }
 
+export function sendAccessLink(id: string) {
+  return request<{ email_sent: boolean }>(`/api/admin/users/${id}/access-link`, {
+    method: "POST",
+  });
+}
+
 export function getInvitations() {
   return request<{ invitations: Invitation[] }>("/api/admin/invitations");
 }

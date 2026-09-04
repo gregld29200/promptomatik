@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../env";
 import type { SessionData } from "../lib/session";
 import { requireAuth, requireAdmin } from "../lib/auth-middleware";
-import { sendInvitationEmail } from "../lib/email";
+import { sendInvitationEmail, sendPasswordResetEmail } from "../lib/email";
 import { isTier } from "../lib/tier";
 
 const admin = new Hono<{ Bindings: Env; Variables: { session: SessionData } }>();
@@ -125,6 +125,61 @@ admin.post("/users/:id/tier", async (c) => {
   }
 
   return c.json({ success: true });
+});
+
+// Existing accounts must never receive another invitation: its registration
+// token would be unusable. This sends a fresh password-reset link instead,
+// which is the safe way to restore access without touching their work.
+admin.post("/users/:id/access-link", async (c) => {
+  const userId = c.req.param("id");
+  const user = await c.env.DB.prepare(
+    "SELECT id, email, language_preference, is_active FROM users WHERE id = ?"
+  )
+    .bind(userId)
+    .first<{ id: string; email: string; language_preference: string; is_active: number }>();
+
+  if (!user) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  if (!user.is_active) {
+    return c.json({ error: "Cannot send an access link to a deactivated user" }, 409);
+  }
+
+  const resetId = crypto.randomUUID();
+  const token = crypto.randomUUID();
+  const now = new Date().toISOString();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+  // A new link supersedes every older one, even if delivery then fails. The
+  // token stays secret in D1 and the admin can issue another link safely.
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "INSERT INTO password_resets (id, user_id, token, expires_at, created_at) VALUES (?, ?, ?, ?, ?)"
+    ).bind(resetId, user.id, token, expiresAt, now),
+    c.env.DB.prepare(
+      "UPDATE password_resets SET used_at = ? WHERE user_id = ? AND id != ? AND used_at IS NULL"
+    ).bind(now, user.id, resetId),
+  ]);
+
+  const emailResult = c.env.RESEND_API_KEY
+    ? await sendPasswordResetEmail(c.env.RESEND_API_KEY, {
+      to: user.email,
+      token,
+      lang: user.language_preference === "en" || user.language_preference === "es" ? user.language_preference : "fr",
+      appBaseUrl: c.env.APP_URL ?? new URL(c.req.url).origin,
+    })
+    : { success: false, error: "Email service is not configured" };
+
+  if (!emailResult.success) {
+    console.error("admin access-link email failed", {
+      userId: user.id,
+      resetId,
+      error: emailResult.error ?? "unknown",
+    });
+  }
+
+  return c.json({ email_sent: emailResult.success });
 });
 
 admin.post("/users/:id/deactivate", async (c) => {

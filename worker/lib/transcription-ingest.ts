@@ -1622,7 +1622,9 @@ export async function resolveSource(
     // No assertSafeUrl: the hostname already matched the fixed YOUTUBE_HOSTS
     // list, and the sidecar only ever contacts YouTube — there is no
     // user-controlled destination for SSRF to reach.
-    return resolveYouTube(env, classified.url, fetcher);
+    // Await here so a typed refusal is observed in this async boundary rather
+    // than surfacing as an unhandled nested promise in Worker test runtimes.
+    return await resolveYouTube(env, classified.url, fetcher);
   }
 
   if (classified.kind === "direct_url") {

@@ -224,6 +224,8 @@ function UsersTab() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [accessLinkId, setAccessLinkId] = useState<string | null>(null);
+  const [accessResult, setAccessResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -253,6 +255,21 @@ function UsersTab() {
     setTogglingId(null);
   }
 
+  async function sendAccessLink(user: AdminUser) {
+    setAccessLinkId(user.id);
+    setAccessResult(null);
+    const res = await api.sendAccessLink(user.id);
+    if (res.error) {
+      setAccessResult({ type: "error", message: res.error.error });
+    } else {
+      setAccessResult({
+        type: res.data.email_sent ? "success" : "error",
+        message: t(res.data.email_sent ? "admin.access_link_sent" : "admin.access_link_not_sent"),
+      });
+    }
+    setAccessLinkId(null);
+  }
+
   if (loading) {
     return (
       <div className={s.empty}>
@@ -263,6 +280,11 @@ function UsersTab() {
 
   return (
     <Card className={s.tableCard}>
+      {accessResult && (
+        <div className={`${s.inviteResult} ${accessResult.type === "success" ? s.inviteSuccess : s.inviteError}`}>
+          {accessResult.message}
+        </div>
+      )}
       {users.length === 0 ? (
         <p className={s.empty}>{t("admin.no_users")}</p>
       ) : (
@@ -296,6 +318,16 @@ function UsersTab() {
                 <td className={s.rowActions}>
                   {u.id !== currentUser?.id && (
                     <>
+                      {u.is_active && (
+                        <Button
+                          variant="secondary"
+                          size="small"
+                          disabled={accessLinkId === u.id}
+                          onClick={() => sendAccessLink(u)}
+                        >
+                          {accessLinkId === u.id ? <Spinner size={14} /> : t("admin.access_link")}
+                        </Button>
+                      )}
                       <Button
                         variant="secondary"
                         size="small"
