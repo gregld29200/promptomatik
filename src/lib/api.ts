@@ -262,6 +262,14 @@ export interface InterviewJob<T = unknown> {
   updated_at: string;
 }
 
+/** Reader-facing card of a published template: the need it answers and how to adapt it. */
+export interface TemplateCard {
+  need: string;
+  when: string;
+  why: string;
+  adapt: string[];
+}
+
 export interface Prompt {
   id: string;
   user_id: string;
@@ -275,6 +283,7 @@ export interface Prompt {
   template_id: string | null;
   template_kind: "official" | "community";
   template_status: "pending" | "approved" | "rejected";
+  template_card: TemplateCard | null;
   created_at: string;
   updated_at: string;
 }
@@ -489,6 +498,7 @@ export interface AdminTemplate {
   author_name: string;
   template_kind: "official" | "community";
   template_status: "pending" | "approved" | "rejected";
+  template_card: TemplateCard | null;
 }
 
 export interface AdminTemplateSubmission {
@@ -499,6 +509,7 @@ export interface AdminTemplateSubmission {
   author_name: string;
   template_kind: "official" | "community";
   template_status: "pending" | "approved" | "rejected";
+  template_card: TemplateCard | null;
 }
 
 export function getAdminTemplates() {
@@ -512,6 +523,19 @@ export function getAdminTemplateSubmissions() {
 export function publishTemplate(id: string) {
   return request<{ success: boolean }>(`/api/admin/templates/${id}/publish`, {
     method: "POST",
+  });
+}
+
+export function generateTemplateCard(id: string) {
+  return request<{ card: TemplateCard }>(`/api/admin/templates/${id}/card/generate`, {
+    method: "POST",
+  });
+}
+
+export function saveTemplateCard(id: string, card: TemplateCard) {
+  return request<{ card: TemplateCard }>(`/api/admin/templates/${id}/card`, {
+    method: "PUT",
+    body: JSON.stringify(card),
   });
 }
 

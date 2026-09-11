@@ -4,6 +4,7 @@ import type { SessionData } from "../lib/session";
 import { requireAuth, requireAdmin } from "../lib/auth-middleware";
 import { sendInvitationEmail, sendPasswordResetEmail } from "../lib/email";
 import { isTier } from "../lib/tier";
+import { generateTemplateCard, normalizeTemplateCard, parseTemplateCard } from "../lib/template-card";
 
 const admin = new Hono<{ Bindings: Env; Variables: { session: SessionData } }>();
 
@@ -211,7 +212,7 @@ admin.post("/users/:id/reactivate", async (c) => {
 
 admin.get("/templates", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT p.id, p.name, p.tags, p.updated_at, p.template_kind, p.template_status, u.name AS author_name
+    `SELECT p.id, p.name, p.tags, p.updated_at, p.template_kind, p.template_status, p.template_card, u.name AS author_name
      FROM prompts p
      JOIN users u ON u.id = p.user_id
      WHERE p.is_template = 1
@@ -224,12 +225,14 @@ admin.get("/templates", async (c) => {
     updated_at: string;
     template_kind: string;
     template_status: string;
+    template_card: string | null;
     author_name: string;
   }>();
 
   const templates = (results ?? []).map((r) => ({
     ...r,
     tags: JSON.parse(r.tags),
+    template_card: parseTemplateCard(r.template_card),
   }));
 
   return c.json({ templates });
@@ -237,7 +240,7 @@ admin.get("/templates", async (c) => {
 
 admin.get("/templates/submissions", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT p.id, p.name, p.tags, p.updated_at, p.template_kind, p.template_status, u.name AS author_name
+    `SELECT p.id, p.name, p.tags, p.updated_at, p.template_kind, p.template_status, p.template_card, u.name AS author_name
      FROM prompts p
      JOIN users u ON u.id = p.user_id
      WHERE p.template_status = 'pending'
@@ -250,28 +253,36 @@ admin.get("/templates/submissions", async (c) => {
     updated_at: string;
     template_kind: string;
     template_status: string;
+    template_card: string | null;
     author_name: string;
   }>();
 
   const submissions = (results ?? []).map((r) => ({
     ...r,
     tags: JSON.parse(r.tags),
+    template_card: parseTemplateCard(r.template_card),
   }));
 
   return c.json({ submissions });
 });
 
+// A template goes live only with a reviewed card: the card is what readers browse.
+const CARD_REQUIRED = "Write and save the template card before publishing.";
+
 admin.post("/templates/:id/publish", async (c) => {
   const promptId = c.req.param("id");
 
   const existing = await c.env.DB.prepare(
-    "SELECT id FROM prompts WHERE id = ?"
+    "SELECT id, template_card FROM prompts WHERE id = ?"
   )
     .bind(promptId)
-    .first<{ id: string }>();
+    .first<{ id: string; template_card: string | null }>();
 
   if (!existing) {
     return c.json({ error: "Prompt not found" }, 404);
+  }
+  if (!parseTemplateCard(existing.template_card)) {
+    return c.json({ error: CARD_REQUIRED }, 409);
   }
 
   await c.env.DB.prepare(
@@ -304,13 +315,16 @@ admin.post("/templates/:id/approve", async (c) => {
   const promptId = c.req.param("id");
 
   const existing = await c.env.DB.prepare(
-    "SELECT id FROM prompts WHERE id = ? AND template_status = 'pending' AND template_kind = 'community'"
+    "SELECT id, template_card FROM prompts WHERE id = ? AND template_status = 'pending' AND template_kind = 'community'"
   )
     .bind(promptId)
-    .first<{ id: string }>();
+    .first<{ id: string; template_card: string | null }>();
 
   if (!existing) {
     return c.json({ error: "Pending submission not found" }, 404);
+  }
+  if (!parseTemplateCard(existing.template_card)) {
+    return c.json({ error: CARD_REQUIRED }, 409);
   }
 
   await c.env.DB.prepare(
@@ -352,6 +366,64 @@ admin.post("/templates/:id/reject", async (c) => {
     .run();
 
   return c.json({ success: true });
+});
+
+// ---- Template cards ----
+
+// POST /api/admin/templates/:id/card/generate — LLM draft, stored, returned for review.
+admin.post("/templates/:id/card/generate", async (c) => {
+  const promptId = c.req.param("id");
+
+  const row = await c.env.DB.prepare(
+    "SELECT name, language, tags, blocks, tips FROM prompts WHERE id = ?"
+  )
+    .bind(promptId)
+    .first<{ name: string; language: string; tags: string; blocks: string; tips: string | null }>();
+
+  if (!row) {
+    return c.json({ error: "Prompt not found" }, 404);
+  }
+
+  const result = await generateTemplateCard(c.env, {
+    name: row.name,
+    language: row.language,
+    tags: JSON.parse(row.tags),
+    blocks: JSON.parse(row.blocks),
+    tips: row.tips ? JSON.parse(row.tips) : [],
+  });
+
+  if (result.error !== null) {
+    return c.json({ error: result.error }, 502);
+  }
+
+  await c.env.DB.prepare("UPDATE prompts SET template_card = ? WHERE id = ?")
+    .bind(JSON.stringify(result.card), promptId)
+    .run();
+
+  return c.json({ card: result.card });
+});
+
+// PUT /api/admin/templates/:id/card — the admin's reviewed version.
+admin.put("/templates/:id/card", async (c) => {
+  const promptId = c.req.param("id");
+  const body = await c.req.json<unknown>().catch(() => null);
+  const card = normalizeTemplateCard(body);
+
+  if (!card) {
+    return c.json({ error: "Every field of the card is required." }, 400);
+  }
+
+  const updated = await c.env.DB.prepare(
+    "UPDATE prompts SET template_card = ?, updated_at = datetime('now') WHERE id = ?"
+  )
+    .bind(JSON.stringify(card), promptId)
+    .run();
+
+  if (!updated.meta.changes) {
+    return c.json({ error: "Prompt not found" }, 404);
+  }
+
+  return c.json({ card });
 });
 
 export { admin };

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "../env";
 import { requireAuth, requireParticipant } from "../lib/auth-middleware";
 import type { SessionData } from "../lib/session";
+import { parseTemplateCard } from "../lib/template-card";
 import { normalizeLanguage } from "../lib/language";
 import { getUserTier } from "../lib/tier";
 
@@ -40,6 +41,7 @@ interface PromptRow {
   template_id: string | null;
   template_kind: string;
   template_status: string;
+  template_card: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +60,7 @@ function rowToPrompt(row: PromptRow) {
     template_id: row.template_id,
     template_kind: row.template_kind,
     template_status: row.template_status,
+    template_card: parseTemplateCard(row.template_card),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

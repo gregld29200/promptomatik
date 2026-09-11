@@ -106,7 +106,7 @@
   "dashboard": {
     "new_prompt": "Nuevo prompt",
     "my_prompts": "Mis prompts",
-    "templates": "Plantillas",
+    "templates": "Listos para usar",
     "welcome": "Bienvenido, {{name}}",
     "subtitle": "Tus prompts de ensenanza, listos para usar.",
     "empty": "Todavia no tienes prompts. Empieza creando uno.",
@@ -392,21 +392,21 @@
     "accepted": "Prompt actualizado"
   },
   "templates": {
-    "title": "Plantillas",
-    "subtitle": "Prompts oficiales y de la comunidad listos para usar",
-    "scope_all": "Todas",
-    "scope_official": "Oficiales",
-    "scope_community": "Comunidad",
+    "title": "Prompts listos para usar",
+    "subtitle": "Prompts ya construidos, por TeachInspire o por otros docentes. Léelos y copia el que necesites en tus prompts para adaptarlo.",
+    "scope_label": "Filtrar por origen",
+    "scope_all": "Todos",
+    "scope_official": "TeachInspire",
+    "scope_community": "Docentes",
     "create_official": "Crear prompt oficial",
-    "search_placeholder": "Buscar plantillas...",
-    "use": "Usar esta plantilla",
-    "used": "Plantilla anadida a tu biblioteca",
-    "empty": "Todavia no hay plantillas.",
-    "no_results": "Ninguna plantilla coincide con tu busqueda.",
-    "by": "Por {{name}}",
-    "kind_official": "Oficial",
-    "kind_community": "Comunidad",
-    "back": "Volver a plantillas"
+    "search_placeholder": "Buscar prompts…",
+    "read": "Leer el prompt",
+    "use": "Copiar a mis prompts",
+    "empty": "Todavía no hay prompts listos para usar.",
+    "no_results": "Ningún prompt coincide con tu búsqueda.",
+    "by": "Compartido por {{name}}",
+    "kind_official": "Prompt de TeachInspire",
+    "back": "Volver a los prompts listos para usar"
   },
   "onboarding": {
     "next": "Siguiente",
@@ -474,7 +474,7 @@
   },
   "upgrade": {
     "title": "Disponible para participantes de la formación",
-    "feature_templates": "La biblioteca de plantillas forma parte de la formación TeachInspire. Inspírate con prompts listos para usar, creados y validados por formadores.",
+    "feature_templates": "Los prompts listos para usar están incluidos en la formación TeachInspire. Inspírate en prompts ya construidos y revisados por formadores.",
     "feature_profile": "El perfil docente recuerda tu contexto (idiomas, niveles, alumnado) para personalizar cada prompt automáticamente. Forma parte de la formación TeachInspire.",
     "feature_refine": "El refinamiento guiado mejora tus prompts a partir de los resultados obtenidos. Forma parte de la formación TeachInspire.",
     "feature_edit": "El modo Modificar (editor de bloques) forma parte de la formación TeachInspire. Puedes consultar tus prompts en modo Usuario y Estudio.",
@@ -740,5 +740,27 @@
     "expired_title": "Esta transcripción se ha eliminado",
     "expired_body": "Tenía más de {{days}} días. El texto ya no se puede descargar, pero puedes volver a lanzar la transcripción a partir del mismo audio.",
     "library_expired": "Caducada"
+  },
+  "template_card": {
+    "title": "Ficha de la plantilla",
+    "intro": "Lo que leerán los docentes en la biblioteca. Revisa, corrige y confirma.",
+    "need": "La necesidad (será el título)",
+    "need_hint": "Verbo en infinitivo, sin el caso concreto. Ej.: Construir un programa de formación a medida para un aprendiente profesional.",
+    "when": "Cuándo usarlo",
+    "when_hint": "La situación de partida y lo que se obtiene. Una o dos frases.",
+    "why": "Qué lo hace valioso",
+    "why_hint": "Una frase sobre la elección pedagógica del prompt.",
+    "adapt": "Para adaptarlo",
+    "adapt_hint": "Un punto por línea. Indica qué cambiar y en qué bloque está.",
+    "generating": "Redactando un borrador…",
+    "regenerate": "Volver a redactar",
+    "generate_failed": "No se pudo redactar el borrador. Escribe la ficha tú mismo o inténtalo de nuevo.",
+    "incomplete": "Todos los campos son necesarios.",
+    "cancel": "Cancelar",
+    "save": "Guardar ficha",
+    "saved": "Ficha guardada.",
+    "edit": "Ficha",
+    "missing": "Sin ficha",
+    "original_name": "Prompt original: {{name}}"
   }
 }
