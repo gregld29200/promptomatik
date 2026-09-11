@@ -138,12 +138,12 @@
   box-shadow: var(--shadow-md);
 }
 
+/* No uppercase: an author name can be an e-mail address. */
 .cardOrigin {
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
   color: var(--color-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .cardName {
