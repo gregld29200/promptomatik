@@ -5,8 +5,10 @@
   "main": "./worker/index.ts",
   "compatibility_date": "2026-02-10",
   "routes": [
-    { "pattern": "studio.teachinspire.me", "custom_domain": true },
-    { "pattern": "promptomatik.com", "custom_domain": true }
+    { "pattern": "studio.teachinspire.me", "custom_domain": true }
+    // promptomatik.com left Cloudflare (DNS no longer proxied here) — the custom-domain
+    // route made every `wrangler deploy` fail after upload. Re-add it only once the
+    // zone is back on this account.
   ],
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
