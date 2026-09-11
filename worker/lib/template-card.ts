@@ -13,7 +13,30 @@ import { chatCompletion } from "./openrouter";
 import type { Env } from "../env";
 import { languageName, normalizeLanguage, type Language } from "./language";
 
+/**
+ * Fixed vocabulary of themes a template is filed under. One per template.
+ * Labels live in i18n (themes.<key>); the frontend mirrors this list in src/lib/api.ts.
+ */
+export const TEMPLATE_THEMES = [
+  "programme",
+  "lesson",
+  "assessment",
+  "listening",
+  "reading",
+  "speaking",
+  "writing",
+  "vocabulary",
+  "materials",
+] as const;
+export type TemplateTheme = (typeof TEMPLATE_THEMES)[number];
+
+function isTheme(value: unknown): value is TemplateTheme {
+  return typeof value === "string" && (TEMPLATE_THEMES as readonly string[]).includes(value);
+}
+
 export interface TemplateCard {
+  /** Where the template is filed in the library. Optional only for cards written before themes existed. */
+  theme?: TemplateTheme;
   /** The teacher's need, infinitive verb first. Becomes the template's title. */
   need: string;
   /** When to reach for it: the starting situation and what comes out. 1-2 sentences. */
@@ -49,7 +72,9 @@ export function normalizeTemplateCard(input: unknown): TemplateCard | null {
     .filter((item): item is string => item !== null)
     .slice(0, LIMITS.adaptMax);
   if (!need || !when || !why || adapt.length === 0) return null;
-  return { need, when, why, adapt };
+  const card: TemplateCard = { need, when, why, adapt };
+  if (isTheme(raw.theme)) card.theme = raw.theme;
+  return card;
 }
 
 /** Read the stored JSON column. Tolerates NULL and legacy garbage. */
@@ -71,6 +96,7 @@ The prompt you receive was written by one teacher for one precise situation (one
 Write every field in ${language}, in the plain, concrete language teachers use with each other. No marketing tone, no jargon, no exclamation marks.
 
 Fields:
+- "theme": exactly one of ${TEMPLATE_THEMES.map((t) => `"${t}"`).join(", ")}. Meaning: programme = a multi-session training programme or course calendar; lesson = a single lesson plan; assessment = a test, quiz or rubric; listening / reading / speaking / writing = an activity centred on that skill; vocabulary = vocabulary or grammar work; materials = adapting or producing a teaching document.
 - "need": the teacher's need, starting with an infinitive verb, free of the specific case (no learner name, no exact hours, no job title unless the prompt only works for that job). Max 12 words. Example: "Construire un programme de formation sur mesure pour un apprenant professionnel".
 - "when": when to reach for this prompt. One or two sentences: the situation the teacher starts from, and what they get out. Name the input they must have ready if there is one (a source text, a syllabus, a transcript).
 - "why": one sentence on what this prompt does well pedagogically, in terms of what the teacher gains. Point at the technique that makes the difference when it is visible (a Think First step, a strict format, an example).
@@ -78,6 +104,7 @@ Fields:
 
 Respond with exactly this JSON object and nothing else:
 {
+  "theme": "...",
   "need": "...",
   "when": "...",
   "why": "...",

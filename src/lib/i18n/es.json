@@ -394,10 +394,6 @@
   "templates": {
     "title": "Prompts listos para usar",
     "subtitle": "Prompts ya construidos, por TeachInspire o por otros docentes. Léelos y copia el que necesites en tus prompts para adaptarlo.",
-    "scope_label": "Filtrar por origen",
-    "scope_all": "Todos",
-    "scope_official": "TeachInspire",
-    "scope_community": "Docentes",
     "create_official": "Crear prompt oficial",
     "search_placeholder": "Buscar prompts…",
     "read": "Leer el prompt",
@@ -406,7 +402,9 @@
     "no_results": "Ningún prompt coincide con tu búsqueda.",
     "by": "Compartido por {{name}}",
     "kind_official": "Prompt de TeachInspire",
-    "back": "Volver a los prompts listos para usar"
+    "back": "Volver a los prompts listos para usar",
+    "theme_label": "Filtrar por temática",
+    "theme_all": "Todas"
   },
   "onboarding": {
     "next": "Siguiente",
@@ -761,6 +759,20 @@
     "saved": "Ficha guardada.",
     "edit": "Ficha",
     "missing": "Sin ficha",
-    "original_name": "Prompt original: {{name}}"
+    "original_name": "Prompt original: {{name}}",
+    "theme": "Temática",
+    "theme_hint": "Solo una. Es el filtro de la biblioteca.",
+    "theme_placeholder": "Elegir una temática"
+  },
+  "themes": {
+    "programme": "Programa de formación",
+    "lesson": "Plan de clase",
+    "assessment": "Evaluación",
+    "listening": "Comprensión oral",
+    "reading": "Comprensión escrita",
+    "speaking": "Expresión oral",
+    "writing": "Producción escrita",
+    "vocabulary": "Vocabulario y gramática",
+    "materials": "Materiales didácticos"
   }
 }

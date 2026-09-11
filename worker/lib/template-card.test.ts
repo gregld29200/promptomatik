@@ -24,6 +24,13 @@ describe("normalizeTemplateCard", () => {
     expect(normalizeTemplateCard("need")).toBeNull();
   });
 
+  it("keeps a known theme and drops an unknown one", () => {
+    const base = { need: "n", when: "w", why: "y", adapt: ["a"] };
+    expect(normalizeTemplateCard({ ...base, theme: "listening" })?.theme).toBe("listening");
+    expect(normalizeTemplateCard({ ...base, theme: "karaoke" })?.theme).toBeUndefined();
+    expect(normalizeTemplateCard(base)).toEqual(base);
+  });
+
   it("caps the adapt list at four items", () => {
     const card = normalizeTemplateCard({ need: "n", when: "w", why: "y", adapt: ["1", "2", "3", "4", "5"] });
     expect(card?.adapt).toHaveLength(4);

@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { Shell } from "@/components/layout/shell";
-import { Badge, Button, Spinner } from "@/components/ui";
+import { Button, Spinner } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
 import { useAuth } from "@/lib/auth/auth-context";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { t } from "@/lib/i18n";
 import { Search } from "lucide-react";
 import * as api from "@/lib/api";
-import type { Template } from "@/lib/api";
+import { TEMPLATE_THEMES, type Template, type TemplateTheme } from "@/lib/api";
 import s from "./templates.module.css";
 
-type Scope = "all" | "official" | "community";
-
-const SCOPES: Scope[] = ["all", "official", "community"];
 
 /** Fallback for templates published before cards existed: first lines of the prompt itself. */
 function excerptOf(tpl: Template): string {
@@ -33,27 +30,34 @@ export function TemplatesPage() {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [usingId, setUsingId] = useState<string | null>(null);
-  const [scope, setScope] = useState<Scope>("all");
+  const [theme, setTheme] = useState<TemplateTheme | "all">("all");
 
   useEffect(() => {
     if (!isParticipant) return;
-    setLoaded(false);
-    api.getTemplates(scope === "all" ? undefined : scope).then((res) => {
+    api.getTemplates().then((res) => {
       if (res.data) setTemplates(res.data.templates);
       setLoaded(true);
     });
-  }, [scope, isParticipant]);
+  }, [isParticipant]);
+
+  // Only themes that have at least one template become a filter.
+  const themes = useMemo(
+    () => TEMPLATE_THEMES.filter((value) => templates.some((tpl) => tpl.template_card?.theme === value)),
+    [templates]
+  );
 
   const filtered = useMemo(() => {
-    if (!search) return templates;
-    const q = search.toLowerCase();
-    return templates.filter(
-      (tpl) =>
+    const q = search.trim().toLowerCase();
+    return templates.filter((tpl) => {
+      if (theme !== "all" && tpl.template_card?.theme !== theme) return false;
+      if (!q) return true;
+      return (
         tpl.name.toLowerCase().includes(q) ||
         (tpl.template_card?.need.toLowerCase().includes(q) ?? false) ||
         tpl.tags.some((tag) => tag.toLowerCase().includes(q))
-    );
-  }, [templates, search]);
+      );
+    });
+  }, [templates, search, theme]);
 
   async function handleUse(templateId: string) {
     setUsingId(templateId);
@@ -109,16 +113,24 @@ export function TemplatesPage() {
         {hasTemplates && (
           <>
             <div className={s.toolbar}>
-              <div className={s.scopeTabs} role="group" aria-label={t("templates.scope_label")}>
-                {SCOPES.map((value) => (
+              <div className={s.scopeTabs} role="group" aria-label={t("templates.theme_label")}>
+                <button
+                  type="button"
+                  className={`${s.scopeTab} ${theme === "all" ? s.scopeTabActive : ""}`}
+                  aria-pressed={theme === "all"}
+                  onClick={() => setTheme("all")}
+                >
+                  {t("templates.theme_all")}
+                </button>
+                {themes.map((value) => (
                   <button
                     key={value}
                     type="button"
-                    className={`${s.scopeTab} ${scope === value ? s.scopeTabActive : ""}`}
-                    aria-pressed={scope === value}
-                    onClick={() => setScope(value)}
+                    className={`${s.scopeTab} ${theme === value ? s.scopeTabActive : ""}`}
+                    aria-pressed={theme === value}
+                    onClick={() => setTheme(value)}
                   >
-                    {t(`templates.scope_${value}`)}
+                    {t(`themes.${value}`)}
                   </button>
                 ))}
               </div>
@@ -152,6 +164,12 @@ export function TemplatesPage() {
                   return (
                     <li key={tpl.id} className={s.templateCard}>
                       <p className={s.cardOrigin}>
+                        {tpl.template_card?.theme && (
+                          <>
+                            <span className={s.cardTheme}>{t(`themes.${tpl.template_card.theme}`)}</span>
+                            {" · "}
+                          </>
+                        )}
                         {tpl.template_kind === "community"
                           ? t("templates.by", { name: tpl.author_name ?? "" })
                           : t("templates.kind_official")}
@@ -164,14 +182,6 @@ export function TemplatesPage() {
                       </h3>
 
                       <p className={s.cardExcerpt}>{tpl.template_card?.when ?? excerptOf(tpl)}</p>
-
-                      {tpl.tags.length > 0 && (
-                        <div className={s.cardTags}>
-                          {tpl.tags.map((tag) => (
-                            <Badge key={tag}>{tag}</Badge>
-                          ))}
-                        </div>
-                      )}
 
                       <div className={s.cardActions}>
                         <Link to={detailHref} className={s.readLink}>

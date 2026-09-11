@@ -97,6 +97,9 @@ export function TemplateDetailPage() {
           </Link>
 
           <div className={s.header}>
+            {template.template_card?.theme && (
+              <p className={s.theme}>{t(`themes.${template.template_card.theme}`)}</p>
+            )}
             <h1 className={s.title}>{template.template_card?.need ?? template.name}</h1>
             {template.template_card && <p className={s.lead}>{template.template_card.when}</p>}
             <p className={s.author}>

@@ -437,10 +437,6 @@
   "templates": {
     "title": "Prompts prêts à l'emploi",
     "subtitle": "Des prompts déjà construits, par TeachInspire ou par d'autres enseignants. Lisez-les, puis copiez celui qui vous convient dans vos prompts pour l'adapter.",
-    "scope_label": "Filtrer par origine",
-    "scope_all": "Tous",
-    "scope_official": "TeachInspire",
-    "scope_community": "Enseignants",
     "create_official": "Créer un prompt officiel",
     "search_placeholder": "Rechercher un prompt…",
     "read": "Lire le prompt",
@@ -449,7 +445,9 @@
     "no_results": "Aucun prompt ne correspond à votre recherche.",
     "by": "Proposé par {{name}}",
     "kind_official": "Prompt TeachInspire",
-    "back": "Retour aux prompts prêts à l'emploi"
+    "back": "Retour aux prompts prêts à l'emploi",
+    "theme_label": "Filtrer par thématique",
+    "theme_all": "Toutes"
   },
   "onboarding": {
     "next": "Suivant",
@@ -966,6 +964,20 @@
     "saved": "Fiche enregistrée.",
     "edit": "Fiche",
     "missing": "Sans fiche",
-    "original_name": "Prompt d'origine : {{name}}"
+    "original_name": "Prompt d'origine : {{name}}",
+    "theme": "Thématique",
+    "theme_hint": "Une seule. C'est le filtre de la bibliothèque.",
+    "theme_placeholder": "Choisir une thématique"
+  },
+  "themes": {
+    "programme": "Programme de formation",
+    "lesson": "Plan de cours",
+    "assessment": "Évaluation",
+    "listening": "Compréhension orale",
+    "reading": "Compréhension écrite",
+    "speaking": "Expression orale",
+    "writing": "Production écrite",
+    "vocabulary": "Vocabulaire et grammaire",
+    "materials": "Supports de cours"
   }
 }

@@ -262,8 +262,23 @@ export interface InterviewJob<T = unknown> {
   updated_at: string;
 }
 
+/** Mirror of TEMPLATE_THEMES in worker/lib/template-card.ts. Labels: t(`themes.${theme}`). */
+export const TEMPLATE_THEMES = [
+  "programme",
+  "lesson",
+  "assessment",
+  "listening",
+  "reading",
+  "speaking",
+  "writing",
+  "vocabulary",
+  "materials",
+] as const;
+export type TemplateTheme = (typeof TEMPLATE_THEMES)[number];
+
 /** Reader-facing card of a published template: the need it answers and how to adapt it. */
 export interface TemplateCard {
+  theme?: TemplateTheme;
   need: string;
   when: string;
   why: string;

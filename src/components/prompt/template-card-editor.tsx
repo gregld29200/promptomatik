@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, Input, Textarea, Spinner } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
-import type { TemplateCard } from "@/lib/api";
+import { TEMPLATE_THEMES, type TemplateCard, type TemplateTheme } from "@/lib/api";
 import s from "./template-card-editor.module.css";
 
 interface TemplateCardEditorProps {
@@ -17,6 +17,7 @@ interface TemplateCardEditorProps {
 }
 
 interface Draft {
+  theme: TemplateTheme | "";
   need: string;
   when: string;
   why: string;
@@ -25,6 +26,7 @@ interface Draft {
 
 function toDraft(card: TemplateCard | null): Draft {
   return {
+    theme: card?.theme ?? "",
     need: card?.need ?? "",
     when: card?.when ?? "",
     why: card?.why ?? "",
@@ -40,8 +42,8 @@ function fromDraft(draft: Draft): TemplateCard | null {
     .split("\n")
     .map((line) => line.replace(/^[-•*]\s*/, "").trim())
     .filter(Boolean);
-  if (!need || !when || !why || adapt.length === 0) return null;
-  return { need, when, why, adapt };
+  if (!draft.theme || !need || !when || !why || adapt.length === 0) return null;
+  return { theme: draft.theme, need, when, why, adapt };
 }
 
 /**
@@ -91,7 +93,7 @@ export function TemplateCardEditor({ promptId, card, confirmLabel, onConfirm, on
     setBusy(false);
   }
 
-  const update = (field: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const update = (field: keyof Draft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setDraft((prev) => ({ ...prev, [field]: e.target.value }));
 
   return (
@@ -114,6 +116,25 @@ export function TemplateCardEditor({ promptId, card, confirmLabel, onConfirm, on
         </p>
       ) : (
         <div className={s.fields}>
+          <div className={s.field}>
+            <label htmlFor={`card-theme-${promptId}`} className={s.label}>
+              {t("template_card.theme")}
+            </label>
+            <select
+              id={`card-theme-${promptId}`}
+              className={s.select}
+              value={draft.theme}
+              onChange={update("theme")}
+            >
+              <option value="">{t("template_card.theme_placeholder")}</option>
+              {TEMPLATE_THEMES.map((theme) => (
+                <option key={theme} value={theme}>
+                  {t(`themes.${theme}`)}
+                </option>
+              ))}
+            </select>
+            <p className={s.hint}>{t("template_card.theme_hint")}</p>
+          </div>
           <Input
             id={`card-need-${promptId}`}
             label={t("template_card.need")}

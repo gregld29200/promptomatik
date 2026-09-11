@@ -437,10 +437,6 @@
   "templates": {
     "title": "Ready-to-use prompts",
     "subtitle": "Prompts already built, by TeachInspire or by other teachers. Read them, then copy the one you need into your prompts to adapt it.",
-    "scope_label": "Filter by origin",
-    "scope_all": "All",
-    "scope_official": "TeachInspire",
-    "scope_community": "Teachers",
     "create_official": "Create official prompt",
     "search_placeholder": "Search prompts…",
     "read": "Read the prompt",
@@ -449,7 +445,9 @@
     "no_results": "No prompt matches your search.",
     "by": "Shared by {{name}}",
     "kind_official": "TeachInspire prompt",
-    "back": "Back to ready-to-use prompts"
+    "back": "Back to ready-to-use prompts",
+    "theme_label": "Filter by theme",
+    "theme_all": "All"
   },
   "onboarding": {
     "next": "Next",
@@ -966,6 +964,20 @@
     "saved": "Card saved.",
     "edit": "Card",
     "missing": "No card",
-    "original_name": "Original prompt: {{name}}"
+    "original_name": "Original prompt: {{name}}",
+    "theme": "Theme",
+    "theme_hint": "Just one. It is the library filter.",
+    "theme_placeholder": "Choose a theme"
+  },
+  "themes": {
+    "programme": "Training programme",
+    "lesson": "Lesson plan",
+    "assessment": "Assessment",
+    "listening": "Listening",
+    "reading": "Reading",
+    "speaking": "Speaking",
+    "writing": "Writing",
+    "vocabulary": "Vocabulary and grammar",
+    "materials": "Teaching materials"
   }
 }

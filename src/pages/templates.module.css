@@ -180,10 +180,9 @@
   overflow: hidden;
 }
 
-.cardTags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+.cardTheme {
+  color: var(--color-navy-800);
+  font-weight: var(--weight-semibold);
 }
 
 .cardActions {
