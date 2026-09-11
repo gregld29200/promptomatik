@@ -979,5 +979,29 @@
     "writing": "Production écrite",
     "vocabulary": "Vocabulaire et grammaire",
     "materials": "Supports de cours"
+  },
+  "attachments": {
+    "clearSelection": "Annuler cette sélection",
+    "title": "Joindre des documents",
+    "limits": "PDF avec texte, DOCX, TXT ou Markdown · 5 fichiers · 10 Mo par fichier · 20 Mo et 100 000 caractères au total. PDF : 100 pages maximum, sans OCR.",
+    "privacy": "Le contenu est transmis au service d’IA de Promptomatik pour traiter votre demande. Les originaux ne sont pas conservés ; le texte expire après 24 h et est supprimé lors du nettoyage horaire. Les informations reprises dans un prompt enregistré y restent. La mise en page n’est pas reproduite à l’identique.",
+    "reading": "Lecture en cours…",
+    "ready": "Prêt",
+    "error": "À corriger",
+    "remove": "Retirer",
+    "errors": {
+      "model_context": "L’ensemble de la demande est trop long pour le modèle. Raccourcissez votre demande ou fournissez des extraits de documents plus courts.",
+      "format": "Format non pris en charge. Utilisez PDF, DOCX, TXT ou Markdown.",
+      "file_size": "Ce fichier dépasse 10 Mo. Fournissez un fichier plus léger.",
+      "count": "Vous pouvez joindre 5 fichiers maximum. Retirez-en un avant de continuer.",
+      "total": "Les limites de la demande sont dépassées : 5 fichiers, 20 Mo et 100 000 caractères maximum. Retirez un document ou fournissez des extraits plus courts.",
+      "characters": "Le texte dépasse 100 000 caractères. Fournissez des extraits plus courts.",
+      "unreadable": "Ce document est vide, protégé, illisible ou contient une page non blanche sans texte extractible. Les pages blanches sont acceptées, mais l’OCR n’est pas disponible. Fournissez une version avec texte ou collez le contenu.",
+      "complex": "Ce document est trop complexe ou dépasse 100 pages PDF. Fournissez une version simplifiée ou des extraits plus courts.",
+      "expired": "Ce contexte est indisponible ou a expiré. Recommencez et joignez à nouveau vos documents.",
+      "sealed": "L’analyse a déjà commencé. Recommencez pour modifier les documents.",
+      "contexts": "Trop de demandes temporaires. Réessayez après leur expiration.",
+      "storage": "Le transfert ou le stockage a échoué. Retirez ce fichier et ajoutez-le à nouveau."
+    }
   }
 }

@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import type { Env } from "./env";
 import { health } from "./routes/health";
 import { auth } from "./routes/auth";
+import { interviewAttachments } from './routes/interview-attachments';
+import { purgeAttachmentContexts } from './lib/attachments/context';
 import { interview } from "./routes/interview";
 import { prompts } from "./routes/prompts";
 import { admin } from "./routes/admin";
@@ -36,6 +38,7 @@ app.use("*", async (c, next) => {
 
 app.route("/api/health", health);
 app.route("/api/auth", auth);
+app.route("/api/interview/attachments", interviewAttachments);
 app.route("/api/interview", interview);
 app.route("/api/prompts", prompts);
 app.route("/api/profile", profile);
@@ -83,7 +86,8 @@ export default {
    * already refuses to serve an expired transcript in the meantime.
    */
   async scheduled(_controller: ScheduledController, env: Env) {
-    await runTranscriptionRetentionSweep(env);
+    await purgeAttachmentContexts(env.DB);
+    if (_controller.cron === "40 3 * * *") await runTranscriptionRetentionSweep(env);
   },
   async queue(batch: MessageBatch, env: Env) {
     if (batch.queue === "document-jobs") {

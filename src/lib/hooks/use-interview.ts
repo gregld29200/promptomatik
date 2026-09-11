@@ -17,6 +17,7 @@ export type InterviewStep =
   | "error";
 
 export function useInterview() {
+  const [documentContextId, setDocumentContextId] = useState<string>();
   const [step, setStep] = useState<InterviewStep>("input");
   const [originalText, setOriginalText] = useState("");
   const [intent, setIntent] = useState<IntentAnalysis | null>(null);
@@ -105,12 +106,13 @@ export function useInterview() {
   }, []);
 
   const submitText = useCallback(
-    async (text: string) => {
+    async (text: string, contextId?: string, documentIds?: string[]) => {
+      setDocumentContextId(contextId);
       setOriginalText(text);
       setStep("analyzing");
       setError(null);
 
-      const analyzeResult = await api.analyzeIntent(text, language);
+      const analyzeResult = await api.analyzeIntent(text, language, contextId, documentIds);
       if (analyzeResult.error) {
         setError(analyzeResult.error.error);
         setStep("error");
@@ -134,7 +136,8 @@ export function useInterview() {
           intentData,
           {},
           text,
-          language
+          language,
+          contextId
         );
         if (assembleJob.error) {
           setError(assembleJob.error.error);
@@ -146,7 +149,7 @@ export function useInterview() {
       }
 
       // Otherwise get follow-up questions
-      const questionsResult = await api.getQuestions(intentData, language);
+      const questionsResult = await api.getQuestions(intentData, language, contextId, text);
       if (questionsResult.error) {
         setError(questionsResult.error.error);
         setStep("error");
@@ -178,7 +181,8 @@ export function useInterview() {
       intent,
       answers,
       originalText,
-      language
+      language,
+      documentContextId
     );
     if (assembleJob.error) {
       setError(assembleJob.error.error);
@@ -187,9 +191,10 @@ export function useInterview() {
     }
 
     await awaitAssembleJob(assembleJob.data.job.id, originalText);
-  }, [intent, answers, originalText, language, awaitAssembleJob]);
+  }, [intent, answers, originalText, language, documentContextId, awaitAssembleJob]);
 
   const reset = useCallback(() => {
+    setDocumentContextId(undefined);
     setStep("input");
     setOriginalText("");
     setIntent(null);

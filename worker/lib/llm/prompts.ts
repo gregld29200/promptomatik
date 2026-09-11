@@ -195,7 +195,7 @@ Respond with a single JSON object:
 }`;
 }
 
-export function promptAssemblyPrompt(lang: Language, profile?: TeacherProfile): string {
+export function promptAssemblyPrompt(lang: Language, profile?: TeacherProfile, hasDocuments = false): string {
   return `You are an expert prompt engineer specializing in education.
 
 Your task is to either:
@@ -262,7 +262,7 @@ If you are asking clarifying questions:
 If you are returning the final prompt:
 {
   "kind": "prompt",
-  "prompt": {
+  "prompt": {${hasDocuments ? '\n    "required_documents": [{ "id": "exact source id", "role": "role of the original document, in the target output language" }],' : ''}
     "name": "...",
     "blocks": [
       {

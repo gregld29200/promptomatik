@@ -774,5 +774,29 @@
     "writing": "Producción escrita",
     "vocabulary": "Vocabulario y gramática",
     "materials": "Materiales didácticos"
+  },
+  "attachments": {
+    "clearSelection": "Cancelar esta selección",
+    "title": "Adjuntar documentos",
+    "limits": "PDF con texto, DOCX, TXT o Markdown · 5 archivos · 10 MB por archivo · 20 MB y 100 000 caracteres en total. PDF: hasta 100 páginas, sin OCR.",
+    "privacy": "El contenido se envía al servicio de IA de Promptomatik para procesar su solicitud. Los originales no se guardan; el texto caduca a las 24 horas y se elimina en la limpieza horaria. La información incluida en un prompt guardado permanece en él. El formato original no se reproduce exactamente.",
+    "reading": "Leyendo…",
+    "ready": "Listo",
+    "error": "Requiere atención",
+    "remove": "Retirar",
+    "errors": {
+      "model_context": "La solicitud completa es demasiado larga para el modelo. Acorte su solicitud o proporcione extractos más cortos.",
+      "format": "Formato no compatible. Use PDF, DOCX, TXT o Markdown.",
+      "file_size": "Este archivo supera los 10 MB. Elija uno más pequeño.",
+      "count": "Puede adjuntar hasta 5 archivos. Retire uno para continuar.",
+      "total": "Se superan los límites: 5 archivos, 20 MB y 100 000 caracteres. Retire un documento o proporcione extractos más cortos.",
+      "characters": "El texto supera los 100 000 caracteres. Proporcione extractos más cortos.",
+      "unreadable": "Este documento está vacío, protegido, ilegible o contiene una página no vacía sin texto extraíble. Se aceptan las páginas en blanco, pero no se realiza OCR. Proporcione una versión con texto o pegue el contenido.",
+      "complex": "Este documento es demasiado complejo o supera las 100 páginas PDF. Proporcione una versión simplificada o extractos más cortos.",
+      "expired": "Este contexto no está disponible o ha caducado. Empiece de nuevo y adjunte los documentos otra vez.",
+      "sealed": "El análisis ya ha comenzado. Empiece de nuevo para cambiar los documentos.",
+      "contexts": "Demasiadas solicitudes temporales. Inténtelo después de que caduquen.",
+      "storage": "La transferencia o el almacenamiento ha fallado. Retire este archivo y añádalo de nuevo."
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { AttachmentNotice } from '@/components/prompt/attachment-notice';
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 import { Shell } from "@/components/layout/shell";
@@ -316,6 +317,7 @@ export function PromptViewPage() {
             />
           )}
 
+          <AttachmentNotice blocks={prompt.blocks} />
           <div className={s.tagBar}>
             {prompt.tags.map((tag) => (
               <span key={tag} className={s.tag}>

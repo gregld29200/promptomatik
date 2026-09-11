@@ -4,8 +4,13 @@
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "anthropic/claude-sonnet-4.6";
-const FALLBACK_MODEL = "moonshotai/kimi-k2.5";
+const DEFAULT_MODEL = "google/gemini-3.8-flash";
+const FALLBACK_MODEL = "deepseek/deepseek-v4.1-flash";
+const MODELS_WITH_DISABLED_REASONING = new Set([
+  FALLBACK_MODEL,
+  "deepseek/deepseek-v4-flash-0731",
+  "qwen/qwen3.8-flash",
+]);
 // Keep total request time bounded and fail over quickly when a model stalls.
 const DEFAULT_ATTEMPT_TIMEOUT_MS = 15_000;
 const DEFAULT_TOTAL_TIMEOUT_MS = 30_000;
@@ -29,6 +34,8 @@ interface ChatModelsConfig {
 }
 
 interface ChatExecutionConfig {
+  /** Suppress provider response bodies for calls containing private sources. */
+  redactErrors?: boolean;
   attemptTimeoutMs?: number;
   totalTimeoutMs?: number;
   modelAttempts?: number;
@@ -126,7 +133,7 @@ export async function chatCompletion<T>(
   };
 
   const parseHttpStatusFromError = (error: string): number | null => {
-    const match = error.match(/AI request failed \((\d{3})\):/);
+    const match = error.match(/AI request failed \((\d{3})\)(?::|\.)/);
     if (!match) return null;
     const parsed = Number(match[1]);
     return Number.isFinite(parsed) ? parsed : null;
@@ -147,7 +154,9 @@ export async function chatCompletion<T>(
 
     const status = parseHttpStatusFromError(error);
     if (status === null) return false;
-    return [408, 409, 425, 429, 500, 502, 503, 504, 520, 522, 524].includes(status);
+    // Some OpenRouter providers reject an otherwise valid model request with
+    // 400/422. Let the configured fallback handle provider-specific behavior.
+    return [400, 408, 409, 422, 425, 429, 500, 502, 503, 504, 520, 522, 524].includes(status);
   };
 
   const isModelAvailabilityError = (error: string): boolean => {
@@ -174,6 +183,8 @@ export async function chatCompletion<T>(
         messages: req.messages,
         temperature: req.temperature ?? 0.7,
         max_tokens: req.max_tokens ?? 2048,
+        // These reasoning models can otherwise consume the JSON output budget on thinking.
+        ...(MODELS_WITH_DISABLED_REASONING.has(model) ? { reasoning: { enabled: false } } : {}),
       };
 
       const doFetch = (body: unknown) =>
@@ -203,7 +214,7 @@ export async function chatCompletion<T>(
         } else if (res.status >= 500) {
           return { data: null, error: "The AI service is temporarily unavailable. Please try again." };
         } else {
-          return { data: null, error: `AI request failed (${res.status}): ${body.slice(0, 200)}` };
+          return { data: null, error: execution.redactErrors ? `AI request failed (${res.status}).` : `AI request failed (${res.status}): ${body.slice(0, 200)}` };
         }
       }
 
@@ -212,7 +223,7 @@ export async function chatCompletion<T>(
       }
       if (!res.ok) {
         const body = await res.text().catch(() => "");
-        return { data: null, error: `AI request failed (${res.status}): ${body.slice(0, 200)}` };
+        return { data: null, error: execution.redactErrors ? `AI request failed (${res.status}).` : `AI request failed (${res.status}): ${body.slice(0, 200)}` };
       }
 
       const json = (await res.json()) as {

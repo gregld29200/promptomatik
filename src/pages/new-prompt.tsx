@@ -1,3 +1,6 @@
+import { useAttachments } from '@/lib/hooks/use-attachments';
+import { Attachments } from '@/components/interview/attachments';
+import { AttachmentNotice } from '@/components/prompt/attachment-notice';
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Shell } from "@/components/layout/shell";
@@ -28,6 +31,7 @@ export function NewPromptPage() {
   const analyzeSpriteSrc = "/lightbulb-sprite.svg";
   const assemblingSpriteSrc = "/funnel-sprite.svg";
   const navigate = useNavigate();
+  const attachments = useAttachments();
   const {
     step,
     intent,
@@ -59,9 +63,9 @@ export function NewPromptPage() {
 
   function handleSubmitText(e: React.FormEvent) {
     e.preventDefault();
-    if (text.trim().length >= 20) {
+    if (text.trim().length >= 20 && !attachments.blocked) {
       // refreshMe updates the quota chip once the generation is admitted
-      void submitText(text.trim()).then(() => refreshMe());
+      void submitText(text.trim(), attachments.contextId, attachments.documentIds).then(() => refreshMe());
     }
   }
 
@@ -130,8 +134,11 @@ export function NewPromptPage() {
                   onChange={(e) => setText(e.target.value)}
                   placeholder={t("interview.placeholder")}
                   rows={5}
+                  maxLength={20_000}
+                  aria-label={t("interview.title")}
                   data-onboard="request-text"
                 />
+                <Attachments attachments={attachments} />
                 {text.length > 0 && text.trim().length < 20 && (
                   <p className={s.hint}>{t("interview.min_length")}</p>
                 )}
@@ -139,7 +146,7 @@ export function NewPromptPage() {
                   variant="cta"
                   size="large"
                   type="submit"
-                  disabled={text.trim().length < 20}
+                  disabled={text.trim().length < 20 || attachments.blocked}
                   data-onboard="submit-request"
                 >
                   {t("interview.submit")}
@@ -290,6 +297,7 @@ export function NewPromptPage() {
                 )}
               </Card>
 
+              <AttachmentNotice blocks={result.blocks} />
               <div className={s.actions}>
                 <Button
                   variant="cta"
@@ -300,7 +308,7 @@ export function NewPromptPage() {
                 >
                   {saving ? t("common.saving") : t("interview.save_prompt")}
                 </Button>
-                <Button variant="ghost" onClick={reset}>
+                <Button variant="ghost" onClick={() => { reset(); attachments.reset(); }}>
                   {t("interview.start_over")}
                 </Button>
               </div>
@@ -344,9 +352,9 @@ export function NewPromptPage() {
         {step === "error" && error !== "daily_quota" && (
           <FadeIn duration={0.4} direction="up" distance={16}>
             <div className={s.loading}>
-              <p className={s.errorText}>{error || t("common.error")}</p>
+              <p className={s.errorText}>{error && ["expired", "sealed", "model_context"].includes(error) ? t(`attachments.errors.${error}`) : error || t("common.error")}</p>
               <div className={s.actions}>
-                <Button variant="primary" onClick={reset}>
+                <Button variant="primary" onClick={() => { reset(); attachments.reset(); }}>
                   {t("common.retry")}
                 </Button>
               </div>

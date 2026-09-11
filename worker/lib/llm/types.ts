@@ -9,6 +9,7 @@ export type Technique =
   | "think_first";
 
 export interface PromptBlock {
+  attachment_requirements?: boolean;
   technique: Technique;
   content: string;
   annotation: string;
@@ -47,6 +48,7 @@ export type AssembleResult =
   | { kind: "ask_user"; questions: InterviewQuestion[] };
 
 export interface AssembledPrompt {
+  required_documents?: { id: string; role: string }[];
   name: string;
   blocks: PromptBlock[];
   tips: string[];

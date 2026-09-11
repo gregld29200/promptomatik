@@ -18,11 +18,7 @@
     "TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT": "10",
     "TTS_PRICE_AUDIO_PER_1M_TOKENS_FINAL": "20",
     "LLM_MODEL_PREP": "gemini-2.5-flash",
-    // Tier-aware model routing (worker/lib/interview-jobs.ts → llmModels):
-    // participant jobs run OPENROUTER_MODEL first with the FALLBACK as backup;
-    // free-tier jobs run OPENROUTER_FALLBACK_MODEL (economy) first with
-    // OPENROUTER_MODEL as backup. The primary/fallback semantics intentionally
-    // invert per tier — this is cost routing, not a bug.
+    // All tiers use the configured primary model first, then the fallback.
     "OPENROUTER_MODEL": "anthropic/claude-sonnet-4.6",
     "OPENROUTER_FALLBACK_MODEL": "moonshotai/kimi-k2.5",
     "DOCS_MODEL": "google/gemini-3.1-pro-preview",
@@ -69,7 +65,7 @@
   // minute does not matter — reads enforce expiry on their own, so a late sweep
   // can never serve an expired transcript.
   "triggers": {
-    "crons": ["40 3 * * *"]
+    "crons": ["40 3 * * *", "10 * * * *"]
   },
   "queues": {
     "producers": [

@@ -206,6 +206,7 @@ export type Technique =
   | "think_first";
 
 export interface PromptBlock {
+  attachment_requirements?: boolean;
   technique: Technique;
   content: string;
   annotation: string;
@@ -236,6 +237,7 @@ export interface InterviewQuestion {
 }
 
 export interface AssembledPrompt {
+  required_documents?: { id: string; role: string }[];
   name: string;
   blocks: PromptBlock[];
   tips: string[];
@@ -305,17 +307,17 @@ export interface Prompt {
 
 // ---- Interview endpoints ----
 
-export function analyzeIntent(text: string, language: Language) {
+export function analyzeIntent(text: string, language: Language, document_context_id?: string, document_ids?: string[]) {
   return request<{ job: InterviewJob }>("/api/interview/analyze", {
     method: "POST",
-    body: JSON.stringify({ text, language }),
+    body: JSON.stringify({ text, language, document_context_id, document_ids }),
   });
 }
 
-export function getQuestions(intent: IntentAnalysis, language: Language) {
+export function getQuestions(intent: IntentAnalysis, language: Language, document_context_id?: string, original_text?: string) {
   return request<{ job: InterviewJob }>("/api/interview/questions", {
     method: "POST",
-    body: JSON.stringify({ intent, language }),
+    body: JSON.stringify({ intent, language, document_context_id, original_text }),
   });
 }
 
@@ -323,7 +325,8 @@ export function assemblePrompt(
   intent: IntentAnalysis,
   answers: Record<string, string>,
   originalText: string,
-  language: Language
+  language: Language,
+  document_context_id?: string
 ) {
   return request<{ job: InterviewJob }>("/api/interview/assemble", {
     method: "POST",
@@ -332,6 +335,7 @@ export function assemblePrompt(
       answers,
       original_text: originalText,
       language,
+      document_context_id,
     }),
   });
 }
@@ -1290,4 +1294,19 @@ export function transcriptionDownloads(
     vtt: `${job.downloads.vtt}?lang=${lang}`,
     json: `${job.downloads.json}?lang=${lang}`,
   };
+}
+
+
+export function createAttachmentContext() {
+  return request<{ contextId: string }>("/api/interview/attachments", { method: "POST" });
+}
+export function uploadInterviewAttachment(contextId: string, file: File) {
+  const body = new FormData();
+  body.append("file", file);
+  return request<{ document: import("../../shared/attachments").AttachmentInfo }>(
+    `/api/interview/attachments/${contextId}/files`, { method: "POST", body },
+    { json: false, timeoutMs: 40_000 });
+}
+export function removeInterviewAttachment(contextId: string, fileId: string) {
+  return request<{ success: boolean }>(`/api/interview/attachments/${contextId}/files/${fileId}`, { method: "DELETE" });
 }

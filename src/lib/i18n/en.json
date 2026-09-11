@@ -979,5 +979,29 @@
     "writing": "Writing",
     "vocabulary": "Vocabulary and grammar",
     "materials": "Teaching materials"
+  },
+  "attachments": {
+    "clearSelection": "Dismiss this selection",
+    "title": "Attach documents",
+    "limits": "Text-based PDF, DOCX, TXT or Markdown · 5 files · 10 MB per file · 20 MB and 100,000 characters in total. PDF: up to 100 pages, no OCR.",
+    "privacy": "Content is sent to Promptomatik’s AI service to process your request. Original files are not stored; extracted text expires after 24 hours and is deleted by the hourly cleanup. Information included in a saved prompt remains in that prompt. Original formatting is not reproduced exactly.",
+    "reading": "Reading…",
+    "ready": "Ready",
+    "error": "Needs attention",
+    "remove": "Remove",
+    "errors": {
+      "model_context": "The combined request is too long for the model. Shorten your request or provide shorter document excerpts.",
+      "format": "Unsupported format. Use PDF, DOCX, TXT or Markdown.",
+      "file_size": "This file exceeds 10 MB. Choose a smaller file.",
+      "count": "You can attach up to 5 files. Remove one to continue.",
+      "total": "Request limits exceeded: up to 5 files, 20 MB and 100,000 characters. Remove a document or provide shorter excerpts.",
+      "characters": "Text exceeds 100,000 characters. Provide shorter excerpts.",
+      "unreadable": "This document is empty, protected, unreadable or contains a non-blank page without extractable text. Blank pages are accepted, but OCR is not available. Provide a text-based version or paste the content.",
+      "complex": "This document is too complex or exceeds 100 PDF pages. Provide a simpler version or shorter excerpts.",
+      "expired": "This context is unavailable or expired. Start again and reattach your documents.",
+      "sealed": "Analysis has already started. Start again to change documents.",
+      "contexts": "Too many temporary requests. Try again after they expire.",
+      "storage": "Upload or storage failed. Remove this file and add it again."
+    }
   }
 }

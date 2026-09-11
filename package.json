@@ -7,6 +7,7 @@
 		"dev": "vite",
 		"build": "tsc -b && vite build",
 		"test": "node --test scripts/home-layout.test.mjs && vitest run",
+		"test:prompts": "node scripts/prompt-library-smoke.mjs",
 		"audio:smoke": "tsx scripts/audio-studio-smoke.ts",
 		"audio:seed-voices": "tsx scripts/seed-voice-previews.ts",
 		"audio:pilot": "tsx scripts/pilot-assets.ts",
@@ -16,7 +17,7 @@
 		"preview": "vite preview",
 		"deploy": "npm run build && wrangler deploy",
 		"seed": "npx tsx seed/seed.ts",
-		"db:migrate": "npx wrangler d1 execute promptomatik-db --local --file=./migrations/0001_init-schema.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0002_add-is-active.sql || true; } && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0003_replace-model-rec-with-tips.sql || true; } && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0004_add-template-moderation.sql || true; } && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0005_add-password-resets.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0006_add_interview_jobs.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0007_add-spanish-language.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0008_expand-interview-job-kinds.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0009_add-user-tier.sql || true; } && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0010_invitations-self-serve.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0011_audio_studio.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0012_audio_credit_purchases.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0013_document_jobs.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0014_audio_segment_last_error_status.sql || true; } && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0015_audio_segment_model_used.sql || true; } && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0016_audio_job_title.sql || true; } && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0017_transcription_studio.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0018a_transcription_retention_columns.sql || true; } && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0018_transcription_retention.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0019_template_card.sql || true; }"
+		"db:migrate": "npx wrangler d1 execute promptomatik-db --local --file=./migrations/0001_init-schema.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0002_add-is-active.sql || true; } && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0003_replace-model-rec-with-tips.sql || true; } && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0004_add-template-moderation.sql || true; } && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0005_add-password-resets.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0006_add_interview_jobs.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0007_add-spanish-language.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0008_expand-interview-job-kinds.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0009_add-user-tier.sql || true; } && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0010_invitations-self-serve.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0011_audio_studio.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0012_audio_credit_purchases.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0013_document_jobs.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0014_audio_segment_last_error_status.sql || true; } && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0015_audio_segment_model_used.sql || true; } && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0016_audio_job_title.sql || true; } && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0017_transcription_studio.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0018a_transcription_retention_columns.sql || true; } && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0018_transcription_retention.sql && npx wrangler d1 execute promptomatik-db --local --file=./migrations/0019_interview_attachments.sql && { npx wrangler d1 execute promptomatik-db --local --file=./migrations/0019_template_card.sql || true; }"
 	},
 	"dependencies": {
 		"@cloudflare/puppeteer": "^1.1.0",
@@ -31,6 +32,8 @@
 		"@fontsource/source-sans-3": "^5.2.9",
 		"@fontsource/space-grotesk": "^5.2.10",
 		"bcryptjs": "^3.0.3",
+		"fast-xml-parser": "^5.11.1",
+		"fflate": "^0.8.3",
 		"hono": "^4.12.27",
 		"lamejs": "^1.2.1",
 		"lucide-react": "^0.563.0",
@@ -39,6 +42,7 @@
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
 		"react-router": "^7.18.1",
+		"unpdf": "^1.8.1",
 		"zod": "^4.4.3"
 	},
 	"devDependencies": {
