@@ -5,12 +5,14 @@ import { Card, Button, Input, Spinner } from "@/components/ui";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getLanguage, t } from "@/lib/i18n";
 import { formatDate } from "@/lib/format-date";
+import { TemplateCardEditor } from "@/components/prompt/template-card-editor";
 import * as api from "@/lib/api";
 import type {
   Invitation,
   AdminUser,
   AdminTemplate,
   AdminTemplateSubmission,
+  TemplateCard,
   AudioAdminMetrics,
   AudioQuality,
   Tier,
@@ -18,6 +20,12 @@ import type {
 import s from "./admin.module.css";
 
 type Tab = "invitations" | "users" | "templates" | "audio";
+
+interface CardReview {
+  id: string;
+  card: TemplateCard | null;
+  mode: "publish" | "approve" | "edit";
+}
 
 export function AdminPage() {
   const { user } = useAuth();
@@ -377,6 +385,7 @@ function TemplatesTab() {
   const [result, setResult] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [cardReview, setCardReview] = useState<CardReview | null>(null);
 
   const loadTemplates = useCallback(async () => {
     const [templatesRes, submissionsRes] = await Promise.all([
@@ -392,22 +401,33 @@ function TemplatesTab() {
     loadTemplates();
   }, [loadTemplates]);
 
-  async function handlePublish(e: FormEvent) {
+  // Every path to "live" runs through the card review below.
+  function handlePublish(e: FormEvent) {
     e.preventDefault();
     const id = promptId.trim();
     if (!id) return;
-    setPublishing(true);
     setResult(null);
+    setCardReview({ id, card: null, mode: "publish" });
+  }
 
-    const res = await api.publishTemplate(id);
-    if (res.error) {
-      setResult({ type: "error", message: res.error.error });
-    } else {
+  async function confirmCardReview(review: CardReview): Promise<string | null> {
+    if (review.mode === "publish") {
+      setPublishing(true);
+      const res = await api.publishTemplate(review.id);
+      setPublishing(false);
+      if (res.error) return res.error.error;
       setResult({ type: "success", message: t("admin.publish_template") });
       setPromptId("");
-      loadTemplates();
+    } else if (review.mode === "approve") {
+      const res = await api.approveTemplateSubmission(review.id);
+      if (res.error) return res.error.error;
+      setResult({ type: "success", message: t("admin.submission_approved") });
+    } else {
+      setResult({ type: "success", message: t("template_card.saved") });
     }
-    setPublishing(false);
+    setCardReview(null);
+    await loadTemplates();
+    return null;
   }
 
   async function handleUnpublish(id: string) {
@@ -417,16 +437,9 @@ function TemplatesTab() {
     setUnpublishingId(null);
   }
 
-  async function handleApprove(id: string) {
-    setReviewingId(id);
-    const res = await api.approveTemplateSubmission(id);
-    if (res.error) {
-      setResult({ type: "error", message: res.error.error });
-    } else {
-      setResult({ type: "success", message: t("admin.submission_approved") });
-      await loadTemplates();
-    }
-    setReviewingId(null);
+  function handleApprove(submission: AdminTemplateSubmission) {
+    setResult(null);
+    setCardReview({ id: submission.id, card: submission.template_card, mode: "approve" });
   }
 
   async function handleReject(id: string) {
@@ -473,6 +486,23 @@ function TemplatesTab() {
         </div>
       )}
 
+      {cardReview && (
+        <TemplateCardEditor
+          key={cardReview.id}
+          promptId={cardReview.id}
+          card={cardReview.card}
+          confirmLabel={
+            cardReview.mode === "publish"
+              ? t("admin.publish")
+              : cardReview.mode === "approve"
+                ? t("admin.approve")
+                : t("template_card.save")
+          }
+          onConfirm={() => confirmCardReview(cardReview)}
+          onCancel={() => setCardReview(null)}
+        />
+      )}
+
       <h3 className={s.sectionTitle}>{t("admin.pending_submissions")}</h3>
       {submissions.length === 0 ? (
         <p className={s.empty}>{t("admin.no_pending_submissions")}</p>
@@ -497,7 +527,7 @@ function TemplatesTab() {
                     variant="primary"
                     size="small"
                     disabled={reviewingId === submission.id}
-                    onClick={() => handleApprove(submission.id)}
+                    onClick={() => handleApprove(submission)}
                   >
                     {reviewingId === submission.id ? <Spinner size={14} /> : t("admin.approve")}
                   </Button>
@@ -532,10 +562,26 @@ function TemplatesTab() {
           <tbody>
             {templates.map((tpl) => (
               <tr key={tpl.id}>
-                <td>{tpl.name}</td>
+                <td>
+                  {tpl.template_card?.need ?? tpl.name}
+                  {!tpl.template_card && (
+                    <span className={`${s.statusBadge} ${s.statusPending}`}>{t("template_card.missing")}</span>
+                  )}
+                </td>
                 <td>{tpl.author_name}</td>
                 <td>{formatDate(tpl.updated_at)}</td>
-                <td>
+                <td className={s.rowActions}>
+                  <Button
+                    variant="secondary"
+                    size="small"
+                    disabled={cardReview?.id === tpl.id}
+                    onClick={() => {
+                      setResult(null);
+                      setCardReview({ id: tpl.id, card: tpl.template_card, mode: "edit" });
+                    }}
+                  >
+                    {t("template_card.edit")}
+                  </Button>
                   <Button
                     variant="danger"
                     size="small"

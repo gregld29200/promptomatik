@@ -1,15 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { Shell } from "@/components/layout/shell";
-import { Card, Badge, Button, Spinner } from "@/components/ui";
+import { Button, Spinner } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
 import { useAuth } from "@/lib/auth/auth-context";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { t } from "@/lib/i18n";
-import { Search, ArrowUpRight } from "lucide-react";
+import { Search } from "lucide-react";
 import * as api from "@/lib/api";
-import type { Template, Technique } from "@/lib/api";
+import { TEMPLATE_THEMES, type Template, type TemplateTheme } from "@/lib/api";
 import s from "./templates.module.css";
+
+
+/** Fallback for templates published before cards existed: first lines of the prompt itself. */
+function excerptOf(tpl: Template): string {
+  return [...tpl.blocks]
+    .sort((a, b) => a.order - b.order)
+    .map((b) => b.content)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 320);
+}
 
 export function TemplatesPage() {
   const { user, isParticipant } = useAuth();
@@ -18,30 +30,36 @@ export function TemplatesPage() {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const [usingId, setUsingId] = useState<string | null>(null);
-  const [scope, setScope] = useState<"all" | "official" | "community">("all");
+  const [theme, setTheme] = useState<TemplateTheme | "all">("all");
 
   useEffect(() => {
     if (!isParticipant) return;
-    setLoaded(false);
-    api.getTemplates(scope === "all" ? undefined : scope).then((res) => {
+    api.getTemplates().then((res) => {
       if (res.data) setTemplates(res.data.templates);
       setLoaded(true);
     });
-  }, [scope, isParticipant]);
+  }, [isParticipant]);
+
+  // Only themes that have at least one template become a filter.
+  const themes = useMemo(
+    () => TEMPLATE_THEMES.filter((value) => templates.some((tpl) => tpl.template_card?.theme === value)),
+    [templates]
+  );
 
   const filtered = useMemo(() => {
-    if (!search) return templates;
-    const q = search.toLowerCase();
-    return templates.filter(
-      (tpl) =>
+    const q = search.trim().toLowerCase();
+    return templates.filter((tpl) => {
+      if (theme !== "all" && tpl.template_card?.theme !== theme) return false;
+      if (!q) return true;
+      return (
         tpl.name.toLowerCase().includes(q) ||
+        (tpl.template_card?.need.toLowerCase().includes(q) ?? false) ||
         tpl.tags.some((tag) => tag.toLowerCase().includes(q))
-    );
-  }, [templates, search]);
+      );
+    });
+  }, [templates, search, theme]);
 
-  async function handleUse(e: React.MouseEvent, templateId: string) {
-    e.preventDefault();
-    e.stopPropagation();
+  async function handleUse(templateId: string) {
     setUsingId(templateId);
     const res = await api.useTemplate(templateId);
     if (res.data) {
@@ -94,41 +112,42 @@ export function TemplatesPage() {
 
         {hasTemplates && (
           <>
-            <div className={s.scopeTabs}>
-              <button
-                type="button"
-                className={`${s.scopeTab} ${scope === "all" ? s.scopeTabActive : ""}`}
-                onClick={() => setScope("all")}
-              >
-                {t("templates.scope_all")}
-              </button>
-              <button
-                type="button"
-                className={`${s.scopeTab} ${scope === "official" ? s.scopeTabActive : ""}`}
-                onClick={() => setScope("official")}
-              >
-                {t("templates.scope_official")}
-              </button>
-              <button
-                type="button"
-                className={`${s.scopeTab} ${scope === "community" ? s.scopeTabActive : ""}`}
-                onClick={() => setScope("community")}
-              >
-                {t("templates.scope_community")}
-              </button>
-            </div>
+            <div className={s.toolbar}>
+              <div className={s.scopeTabs} role="group" aria-label={t("templates.theme_label")}>
+                <button
+                  type="button"
+                  className={`${s.scopeTab} ${theme === "all" ? s.scopeTabActive : ""}`}
+                  aria-pressed={theme === "all"}
+                  onClick={() => setTheme("all")}
+                >
+                  {t("templates.theme_all")}
+                </button>
+                {themes.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`${s.scopeTab} ${theme === value ? s.scopeTabActive : ""}`}
+                    aria-pressed={theme === value}
+                    onClick={() => setTheme(value)}
+                  >
+                    {t(`themes.${value}`)}
+                  </button>
+                ))}
+              </div>
 
-            <div className={s.searchBar}>
-              <Search size={16} className={s.searchIcon} />
-              <input
-                type="text"
-                name="search"
-                autoComplete="off"
-                className={s.searchInput}
-                placeholder={t("templates.search_placeholder")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+              <div className={s.searchBar}>
+                <Search size={16} className={s.searchIcon} />
+                <input
+                  type="search"
+                  name="search"
+                  autoComplete="off"
+                  className={s.searchInput}
+                  placeholder={t("templates.search_placeholder")}
+                  aria-label={t("templates.search_placeholder")}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
             </div>
 
             {!hasResults && (
@@ -138,54 +157,49 @@ export function TemplatesPage() {
             )}
 
             {hasResults && (
-              <div className={s.grid}>
-                {filtered.map((tpl) => (
-                  <Link key={tpl.id} to={`/prompts/templates/${tpl.id}`} className={s.templateLink}>
-                    <Card variant="gilt" className={s.templateCard}>
-                      <div className={s.cardHeading}>
-                        <h3 className={s.cardName}>{tpl.name || "Untitled"}</h3>
-                        <span className={s.cardOpenHint} aria-hidden="true">
-                          <ArrowUpRight size={13} />
-                        </span>
-                      </div>
-                      <div className={s.cardBadges}>
-                        {tpl.blocks.slice(0, 3).map((b, i) => (
-                          <Badge key={i} technique={b.technique as Technique}>
-                            {t(`techniques.${b.technique}`)}
-                          </Badge>
-                        ))}
-                        {tpl.tags.map((tag) => (
-                          <Badge key={tag}>{tag}</Badge>
-                        ))}
-                      </div>
-                      <div className={s.cardMeta}>
-                        <div className={s.cardMetaInfo}>
-                          <span className={s.cardAuthor}>
-                            {t("templates.by", { name: tpl.author_name ?? "" })}
-                          </span>
-                          <span
-                            className={`${s.kindBadge} ${
-                              tpl.template_kind === "community" ? s.kindCommunity : s.kindOfficial
-                            }`}
-                          >
-                            {tpl.template_kind === "community"
-                              ? t("templates.kind_community")
-                              : t("templates.kind_official")}
-                          </span>
-                        </div>
+              <ul className={s.grid}>
+                {filtered.map((tpl) => {
+                  const detailHref = `/prompts/templates/${tpl.id}`;
+                  const isUsing = usingId === tpl.id;
+                  return (
+                    <li key={tpl.id} className={s.templateCard}>
+                      <p className={s.cardOrigin}>
+                        {tpl.template_card?.theme && (
+                          <>
+                            <span className={s.cardTheme}>{t(`themes.${tpl.template_card.theme}`)}</span>
+                            {" · "}
+                          </>
+                        )}
+                        {tpl.template_kind === "community"
+                          ? t("templates.by", { name: tpl.author_name ?? "" })
+                          : t("templates.kind_official")}
+                      </p>
+
+                      <h3 className={s.cardName}>
+                        <Link to={detailHref} className={s.cardNameLink}>
+                          {(tpl.template_card?.need ?? tpl.name) || "Untitled"}
+                        </Link>
+                      </h3>
+
+                      <p className={s.cardExcerpt}>{tpl.template_card?.when ?? excerptOf(tpl)}</p>
+
+                      <div className={s.cardActions}>
+                        <Link to={detailHref} className={s.readLink}>
+                          {t("templates.read")}
+                        </Link>
                         <Button
                           variant="primary"
                           size="small"
-                          disabled={usingId === tpl.id}
-                          onClick={(e) => handleUse(e, tpl.id)}
+                          disabled={isUsing}
+                          onClick={() => handleUse(tpl.id)}
                         >
-                          {usingId === tpl.id ? <Spinner size={14} /> : t("templates.use")}
+                          {isUsing ? <Spinner size={14} /> : t("templates.use")}
                         </Button>
                       </div>
-                    </Card>
-                  </Link>
-                ))}
-              </div>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </>
         )}

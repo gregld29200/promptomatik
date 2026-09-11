@@ -149,7 +149,7 @@
   "dashboard": {
     "new_prompt": "Nouveau prompt",
     "my_prompts": "Mes prompts",
-    "templates": "Modèles",
+    "templates": "Prêts à l'emploi",
     "welcome": "Bienvenue, {{name}}",
     "subtitle": "Vos prompts pédagogiques, prêts à l'emploi.",
     "empty": "Vous n'avez pas encore de prompts. Commencez par en créer un !",
@@ -435,21 +435,19 @@
     "accepted": "Prompt mis à jour !"
   },
   "templates": {
-    "title": "Modèles",
-    "subtitle": "Prompts officiels et communautaires prêts à l'emploi",
-    "scope_all": "Tous",
-    "scope_official": "Officiels",
-    "scope_community": "Communauté",
+    "title": "Prompts prêts à l'emploi",
+    "subtitle": "Des prompts déjà construits, par TeachInspire ou par d'autres enseignants. Lisez-les, puis copiez celui qui vous convient dans vos prompts pour l'adapter.",
     "create_official": "Créer un prompt officiel",
-    "search_placeholder": "Rechercher un modèle...",
-    "use": "Utiliser ce modèle",
-    "used": "Modèle ajouté à votre bibliothèque !",
-    "empty": "Aucun modèle pour l'instant.",
-    "no_results": "Aucun modèle ne correspond.",
-    "by": "Par {{name}}",
-    "kind_official": "Officiel",
-    "kind_community": "Communauté",
-    "back": "Retour aux modèles"
+    "search_placeholder": "Rechercher un prompt…",
+    "read": "Lire le prompt",
+    "use": "Copier dans mes prompts",
+    "empty": "Aucun prompt prêt à l'emploi pour l'instant.",
+    "no_results": "Aucun prompt ne correspond à votre recherche.",
+    "by": "Proposé par {{name}}",
+    "kind_official": "Prompt TeachInspire",
+    "back": "Retour aux prompts prêts à l'emploi",
+    "theme_label": "Filtrer par thématique",
+    "theme_all": "Toutes"
   },
   "onboarding": {
     "next": "Suivant",
@@ -679,7 +677,7 @@
   },
   "upgrade": {
     "title": "Réservé aux participants de la formation",
-    "feature_templates": "La bibliothèque de templates est incluse dans la formation TeachInspire. Inspirez-vous de prompts prêts à l'emploi, créés et validés par des formateurs.",
+    "feature_templates": "Les prompts prêts à l'emploi sont inclus dans la formation TeachInspire. Inspirez-vous de prompts déjà construits et validés par des formateurs.",
     "feature_profile": "Le profil enseignant mémorise votre contexte (langues, niveaux, public) pour personnaliser chaque prompt automatiquement. Il est inclus dans la formation TeachInspire.",
     "feature_refine": "Le raffinement guidé améliore vos prompts à partir des résultats obtenus. Il est inclus dans la formation TeachInspire.",
     "feature_edit": "Le mode Modifier (éditeur de blocs) est inclus dans la formation TeachInspire. Vous pouvez consulter vos prompts en mode Utilisateur et Étude.",
@@ -945,5 +943,41 @@
     "expired_title": "Cette transcription a été supprimée",
     "expired_body": "Elle avait plus de {{days}} jours. Le texte n'est plus disponible au téléchargement, mais vous pouvez relancer la transcription à partir du même audio.",
     "library_expired": "Expirée"
+  },
+  "template_card": {
+    "title": "Fiche du template",
+    "intro": "Ce que les enseignants liront dans la bibliothèque. Relisez, corrigez, puis validez.",
+    "need": "Le besoin (devient le titre)",
+    "need_hint": "Verbe à l'infinitif, sans le cas particulier. Ex. : Construire un programme de formation sur mesure pour un apprenant professionnel.",
+    "when": "Quand l'utiliser",
+    "when_hint": "La situation de départ et ce qu'on obtient. Une ou deux phrases.",
+    "why": "Ce qui fait sa valeur",
+    "why_hint": "Une phrase sur le choix pédagogique du prompt.",
+    "adapt": "Pour l'adapter",
+    "adapt_hint": "Un point par ligne. Nommez ce qu'il faut changer et le bloc où ça se trouve.",
+    "generating": "Rédaction d'un brouillon…",
+    "regenerate": "Régénérer le brouillon",
+    "generate_failed": "Le brouillon n'a pas pu être rédigé. Écrivez la fiche vous-même ou réessayez.",
+    "incomplete": "Tous les champs sont nécessaires.",
+    "cancel": "Annuler",
+    "save": "Enregistrer la fiche",
+    "saved": "Fiche enregistrée.",
+    "edit": "Fiche",
+    "missing": "Sans fiche",
+    "original_name": "Prompt d'origine : {{name}}",
+    "theme": "Thématique",
+    "theme_hint": "Une seule. C'est le filtre de la bibliothèque.",
+    "theme_placeholder": "Choisir une thématique"
+  },
+  "themes": {
+    "programme": "Programme de formation",
+    "lesson": "Plan de cours",
+    "assessment": "Évaluation",
+    "listening": "Compréhension orale",
+    "reading": "Compréhension écrite",
+    "speaking": "Expression orale",
+    "writing": "Production écrite",
+    "vocabulary": "Vocabulaire et grammaire",
+    "materials": "Supports de cours"
   }
 }

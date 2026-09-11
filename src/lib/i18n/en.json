@@ -149,7 +149,7 @@
   "dashboard": {
     "new_prompt": "New prompt",
     "my_prompts": "My prompts",
-    "templates": "Templates",
+    "templates": "Ready to use",
     "welcome": "Welcome, {{name}}",
     "subtitle": "Your teaching prompts, ready to go.",
     "empty": "You don't have any prompts yet. Start by creating one!",
@@ -435,21 +435,19 @@
     "accepted": "Prompt updated!"
   },
   "templates": {
-    "title": "Templates",
-    "subtitle": "Official and community prompts ready to use",
-    "scope_all": "All",
-    "scope_official": "Official",
-    "scope_community": "Community",
+    "title": "Ready-to-use prompts",
+    "subtitle": "Prompts already built, by TeachInspire or by other teachers. Read them, then copy the one you need into your prompts to adapt it.",
     "create_official": "Create official prompt",
-    "search_placeholder": "Search templates...",
-    "use": "Use this template",
-    "used": "Template added to your library!",
-    "empty": "No templates yet.",
-    "no_results": "No templates match your search.",
-    "by": "By {{name}}",
-    "kind_official": "Official",
-    "kind_community": "Community",
-    "back": "Back to templates"
+    "search_placeholder": "Search prompts…",
+    "read": "Read the prompt",
+    "use": "Copy to my prompts",
+    "empty": "No ready-to-use prompts yet.",
+    "no_results": "No prompt matches your search.",
+    "by": "Shared by {{name}}",
+    "kind_official": "TeachInspire prompt",
+    "back": "Back to ready-to-use prompts",
+    "theme_label": "Filter by theme",
+    "theme_all": "All"
   },
   "onboarding": {
     "next": "Next",
@@ -679,7 +677,7 @@
   },
   "upgrade": {
     "title": "Available for training participants",
-    "feature_templates": "The template library is part of the TeachInspire training. Browse ready-to-use prompts created and validated by trainers.",
+    "feature_templates": "Ready-to-use prompts are included in the TeachInspire training. Draw on prompts already built and reviewed by trainers.",
     "feature_profile": "The teacher profile remembers your context (languages, levels, audience) to personalize every prompt automatically. It's part of the TeachInspire training.",
     "feature_refine": "Guided refinement improves your prompts based on the results you get. It's part of the TeachInspire training.",
     "feature_edit": "Edit Mode (block editor) is part of the TeachInspire training. You can view your prompts in User and Study modes.",
@@ -945,5 +943,41 @@
     "expired_title": "This transcript has been deleted",
     "expired_body": "It was more than {{days}} days old. The text is no longer available to download, but you can run the transcription again from the same audio.",
     "library_expired": "Expired"
+  },
+  "template_card": {
+    "title": "Template card",
+    "intro": "What teachers will read in the library. Review, correct, then confirm.",
+    "need": "The need (becomes the title)",
+    "need_hint": "Infinitive verb first, without the specific case. E.g.: Build a tailored training programme for a professional learner.",
+    "when": "When to use it",
+    "when_hint": "The starting situation and what comes out. One or two sentences.",
+    "why": "What makes it valuable",
+    "why_hint": "One sentence on the prompt's pedagogical choice.",
+    "adapt": "To adapt it",
+    "adapt_hint": "One item per line. Name what to change and the block it lives in.",
+    "generating": "Drafting…",
+    "regenerate": "Redraft",
+    "generate_failed": "The draft could not be written. Write the card yourself or try again.",
+    "incomplete": "Every field is required.",
+    "cancel": "Cancel",
+    "save": "Save card",
+    "saved": "Card saved.",
+    "edit": "Card",
+    "missing": "No card",
+    "original_name": "Original prompt: {{name}}",
+    "theme": "Theme",
+    "theme_hint": "Just one. It is the library filter.",
+    "theme_placeholder": "Choose a theme"
+  },
+  "themes": {
+    "programme": "Training programme",
+    "lesson": "Lesson plan",
+    "assessment": "Assessment",
+    "listening": "Listening",
+    "reading": "Reading",
+    "speaking": "Speaking",
+    "writing": "Writing",
+    "vocabulary": "Vocabulary and grammar",
+    "materials": "Teaching materials"
   }
 }

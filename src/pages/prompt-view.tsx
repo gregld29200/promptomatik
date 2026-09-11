@@ -9,6 +9,7 @@ import { StudyMode } from "@/components/prompt/study-mode";
 import { BlockEditor } from "@/components/prompt/block-editor";
 import { CopyButton } from "@/components/prompt/copy-button";
 import { Tips } from "@/components/prompt/tips";
+import { TemplateCardEditor } from "@/components/prompt/template-card-editor";
 import { RefinementFlow } from "@/components/prompt/refinement-flow";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { FREE_LIBRARY_LIMIT } from "@/lib/config";
@@ -34,6 +35,7 @@ export function PromptViewPage() {
   const [submittingTemplate, setSubmittingTemplate] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<string | null>(null);
   const [templateActionLoading, setTemplateActionLoading] = useState<"publish" | "unpublish" | null>(null);
+  const [reviewingCard, setReviewingCard] = useState(false);
   const [gateMessage, setGateMessage] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -158,21 +160,18 @@ export function PromptViewPage() {
     setSubmittingTemplate(false);
   }
 
-  async function handlePublishOfficialTemplate() {
-    if (!id) return;
-    setTemplateActionLoading("publish");
-    setSubmitMessage(null);
+  // Publishing goes through the card review: the card is what readers browse.
+  async function publishAfterCardReview(): Promise<string | null> {
+    if (!id) return null;
     const res = await api.publishTemplate(id);
-    if (res.data) {
-      const refreshed = await api.getPrompt(id);
-      if (refreshed.data?.prompt) {
-        setPrompt(refreshed.data.prompt);
-      }
-      setSubmitMessage(t("prompt.publish_success"));
-    } else if (res.error) {
-      setSubmitMessage(res.error.error);
+    if (res.error) return res.error.error;
+    const refreshed = await api.getPrompt(id);
+    if (refreshed.data?.prompt) {
+      setPrompt(refreshed.data.prompt);
     }
-    setTemplateActionLoading(null);
+    setReviewingCard(false);
+    setSubmitMessage(t("prompt.publish_success"));
+    return null;
   }
 
   async function handleUnpublishOfficialTemplate() {
@@ -264,10 +263,13 @@ export function PromptViewPage() {
                 {isAdmin && !prompt.is_template && (
                   <Button
                     variant="cta"
-                    onClick={handlePublishOfficialTemplate}
-                    disabled={templateActionLoading !== null}
+                    onClick={() => {
+                      setSubmitMessage(null);
+                      setReviewingCard(true);
+                    }}
+                    disabled={templateActionLoading !== null || reviewingCard}
                   >
-                    {templateActionLoading === "publish" ? <Spinner size={14} /> : t("prompt.publish_official")}
+                    {t("prompt.publish_official")}
                   </Button>
                 )}
                 {isAdmin && prompt.is_template && (
@@ -303,6 +305,16 @@ export function PromptViewPage() {
               </div>
             )}
           </div>
+
+          {reviewingCard && id && (
+            <TemplateCardEditor
+              promptId={id}
+              card={prompt.template_card}
+              confirmLabel={t("prompt.publish_official")}
+              onConfirm={publishAfterCardReview}
+              onCancel={() => setReviewingCard(false)}
+            />
+          )}
 
           <div className={s.tagBar}>
             {prompt.tags.map((tag) => (

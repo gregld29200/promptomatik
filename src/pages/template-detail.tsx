@@ -97,9 +97,15 @@ export function TemplateDetailPage() {
           </Link>
 
           <div className={s.header}>
-            <h1 className={s.title}>{template.name}</h1>
+            {template.template_card?.theme && (
+              <p className={s.theme}>{t(`themes.${template.template_card.theme}`)}</p>
+            )}
+            <h1 className={s.title}>{template.template_card?.need ?? template.name}</h1>
+            {template.template_card && <p className={s.lead}>{template.template_card.when}</p>}
             <p className={s.author}>
-              {t("templates.by", { name: template.author_name ?? "" })}
+              {template.template_kind === "community"
+                ? t("templates.by", { name: template.author_name ?? "" })
+                : t("templates.kind_official")}
             </p>
           </div>
 
@@ -119,6 +125,24 @@ export function TemplateDetailPage() {
             />
             <CopyButton text={copyText} />
           </div>
+
+          {template.template_card && (
+            <section className={s.fiche} aria-label={t("template_card.title")}>
+              <div>
+                <h2 className={s.ficheTitle}>{t("template_card.why")}</h2>
+                <p className={s.ficheText}>{template.template_card.why}</p>
+              </div>
+              <div>
+                <h2 className={s.ficheTitle}>{t("template_card.adapt")}</h2>
+                <ul className={s.ficheList}>
+                  {template.template_card.adapt.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <p className={s.ficheOrigin}>{t("template_card.original_name", { name: template.name })}</p>
+            </section>
+          )}
 
           {template.tips.length > 0 && <Tips items={template.tips} />}
 
