@@ -82,7 +82,7 @@ async function main() {
       const result = await generateBlock({
         apiKey,
         model,
-        prompt: previewSentence(voice.name),
+        script: previewSentence(voice.name),
         mode: "monologue",
         voices: { solo: voice.name },
       });

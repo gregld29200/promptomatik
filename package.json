@@ -9,6 +9,7 @@
 		"test": "node --test scripts/home-layout.test.mjs && vitest run",
 		"test:prompts": "node scripts/prompt-library-smoke.mjs",
 		"audio:smoke": "tsx scripts/audio-studio-smoke.ts",
+		"audio:probe": "tsx scripts/tts-openrouter-probe.ts",
 		"audio:seed-voices": "tsx scripts/seed-voice-previews.ts",
 		"audio:pilot": "tsx scripts/pilot-assets.ts",
 		"transcribe:seed": "tsx scripts/seed-transcription-fixture.ts",

@@ -117,3 +117,37 @@ ${script}`);
 
   return sections.join("\n\n");
 }
+
+export interface SpeechStyleInput {
+  direction: AudioDirection;
+  mode: AudioMode;
+  /** "solo" in a monologue, "Speaker 1" or "Speaker 2" in a dialogue. */
+  speaker: string;
+}
+
+// Gemini 3.8 TTS speaks its input verbatim, so the direction compileDirection
+// writes into the 2.5 prompt travels as speech_metadata.style instead: one
+// sustained delivery description per voice, with the same presets and the
+// same per-speaker overrides.
+export function speechStyle(input: SpeechStyleInput): string {
+  const { direction, mode, speaker } = input;
+  const override = mode === "dialogue" ? direction.speakers?.[speaker] : undefined;
+  const cefr = CEFR_DELIVERY[direction.level] ?? CEFR_DELIVERY.B1;
+  const persona = expandPreset(STYLE_EXPANSIONS, override?.style || direction.style).replace(/\.+$/, "");
+  const accent = override && (trimOptional(override.accent) || trimOptional(override.accentDetail))
+    ? accentPhrase(override.accent ?? direction.accent, override.accentDetail)
+    : accentPhrase(direction.accent, direction.accentDetail);
+  const pacing = [expandPreset(PACE_EXPANSIONS, direction.pace), cefr.pacing].filter(Boolean).join(" ");
+  const notes = trimOptional(mode === "dialogue" ? override?.notes : direction.notes);
+  const scene = trimOptional(direction.scene);
+
+  const parts = [
+    persona ? `${persona}.` : "",
+    accent ? `Accent: ${accent}.` : "",
+    `Pacing: ${pacing}`,
+    `Clarity: ${cefr.clarity}`,
+    notes ? `Manner of speaking: ${notes.replace(/\.+$/, "")}.` : "",
+    scene ? `Scene: ${scene.replace(/\.+$/, "")}.` : "",
+  ];
+  return parts.filter(Boolean).join(" ");
+}

@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import type { Env } from "../env";
 import {
   getTtsModelConfig,
+  isOpenRouterTtsModel,
   modelChainForMode,
   priceForModel,
   audioCostUsd,
@@ -9,7 +10,7 @@ import {
   type AudioMode,
   type AudioQuality,
 } from "./audio-config";
-import { compileDirection } from "./audio-direction";
+import { validateTranscriptForTts } from "./audio-direction";
 import { SPEAKER_LABEL_WORDS, lintAudioScript } from "../../src/lib/audio-script-rules";
 import { concatPcmWithSilence, durationFromPcmBytes, mp3FromPcm, peaksFromPcm, wavFromPcm } from "./audio-assembly";
 import {
@@ -230,6 +231,11 @@ export async function listAudioJobsForUser(
   return (results ?? []).map((row) => rowToAudioJob(row));
 }
 
+function ttsApiKey(env: Env, model: string): string | undefined {
+  const key = isOpenRouterTtsModel(model) ? env.OPENROUTER_API_KEY : env.GEMINI_API_KEY;
+  return key?.trim() ? key : undefined;
+}
+
 async function generateSegment(
   env: Env,
   row: AudioJobRow,
@@ -237,28 +243,27 @@ async function generateSegment(
   provider: AudioGenerationProvider
 ): Promise<void> {
   if (segment.status === "ok") return;
-  if (!env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured.");
+  // A malformed transcript fails before any provider is paid for it.
+  validateTranscriptForTts(row.mode, segment.text);
 
-  const config = getTtsModelConfig(env);
-  const chain = modelChainForMode(config, row.mode);
+  // A model whose provider has no key configured is skipped.
+  const chain = modelChainForMode(getTtsModelConfig(env), row.mode).flatMap((step) => {
+    const apiKey = ttsApiKey(env, step.model);
+    return apiKey ? [{ model: step.model, apiKey }] : [];
+  });
+  if (chain.length === 0) throw new Error("No text-to-speech API key is configured.");
   const direction = JSON.parse(row.direction_json) as AudioDirection;
   const voices = JSON.parse(row.voices_json) as Record<string, string>;
-  const speakers = row.mode === "dialogue" ? Object.keys(voices) : ["solo"];
-  const prompt = compileDirection({
-    direction,
-    mode: row.mode,
-    speakers,
-    script: segment.text,
-  });
 
-  let lastError: unknown;
+  let fallbackStatus: number | undefined;
   for (let i = 0; i < chain.length; i += 1) {
     const isLast = i === chain.length - 1;
     try {
       const result = await provider.generateBlock({
-        apiKey: env.GEMINI_API_KEY,
+        apiKey: chain[i].apiKey,
         model: chain[i].model,
-        prompt,
+        script: segment.text,
+        direction,
         mode: row.mode,
         voices,
         // Non-final models fail fast on a rate/quota 429 so we switch to the
@@ -279,17 +284,32 @@ async function generateSegment(
              r2_key = ?
          WHERE job_id = ? AND idx = ?`
       )
-        .bind(result.durationSeconds, result.retryCount, result.lastErrorStatus ?? null, result.model, key, row.id, segment.idx)
+        .bind(
+          result.durationSeconds,
+          result.retryCount,
+          result.lastErrorStatus ?? fallbackStatus ?? null,
+          result.model,
+          key,
+          row.id,
+          segment.idx
+        )
         .run();
       return;
     } catch (error) {
-      lastError = error;
-      const is429 = error instanceof TtsProviderError && error.status === 429;
-      if (is429 && !isLast) continue;
-      throw error;
+      // Any failure of a non-final model hands the block to the next one: the
+      // chain spans two providers, so an OpenRouter outage, a spent balance
+      // (402) or a refused request must not fail the teacher's take.
+      if (isLast) throw error;
+      fallbackStatus = error instanceof TtsProviderError ? error.status : undefined;
+      console.warn("TTS model failed, falling back", {
+        jobId: row.id,
+        segmentIdx: segment.idx,
+        model: chain[i].model,
+        status: fallbackStatus,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
-  throw lastError;
 }
 
 async function assembleFinal(env: Env, row: AudioJobRow, regeneratedSegmentIdx?: number): Promise<void> {
@@ -320,7 +340,7 @@ async function assembleFinal(env: Env, row: AudioJobRow, regeneratedSegmentIdx?:
   const retryCount = segments.reduce((sum, segment) => sum + segment.retry_count, 0);
   const config = getTtsModelConfig(env);
   // Cost is summed per segment using each segment's actual model — a job may mix
-  // Pro ($20/1M) and Flash ($10/1M) blocks when the fallback chain kicked in.
+  // 3.8 Flash ($9/1M) and Pro ($20/1M) blocks when the fallback chain kicked in.
   // Silence inserted between blocks isn't billed, so we sum segment durations
   // rather than the concatenated total.
   const primaryModel = modelChainForMode(config, row.mode)[0].model;

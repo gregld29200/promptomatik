@@ -2,7 +2,6 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Env } from "../worker/env";
 import { getTtsModelConfig } from "../worker/lib/audio-config";
-import { compileDirection } from "../worker/lib/audio-direction";
 import { splitScriptIntoBlocks } from "../worker/lib/audio-script";
 import { concatPcmWithSilence, mp3FromPcm, wavFromPcm } from "../worker/lib/audio-assembly";
 import { costForQuality, generateBlock } from "../worker/lib/tts-provider";
@@ -51,16 +50,11 @@ async function main() {
   let retryCount = 0;
 
   for (const block of blocks) {
-    const prompt = compileDirection({
-      direction,
-      mode: "dialogue",
-      speakers: ["Speaker 1", "Speaker 2"],
-      script: block.text,
-    });
     const result = await generateBlock({
       apiKey,
       model,
-      prompt,
+      script: block.text,
+      direction,
       mode: "dialogue",
       voices: {
         "Speaker 1": "Kore",
