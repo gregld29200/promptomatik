@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../env";
-import { getTtsModelConfig, isOpenRouterTtsModel, modelChainForMode, priceForModel } from "./audio-config";
+import {
+  audioCostUsd,
+  audioTokensPerSecond,
+  getTtsModelConfig,
+  isOpenRouterTtsModel,
+  modelChainForMode,
+  priceForModel,
+} from "./audio-config";
 
 const config = getTtsModelConfig({} as Env);
 
@@ -43,6 +50,15 @@ describe("priceForModel", () => {
     expect(priceForModel(config, "google/gemini-3.8-flash-tts")).toBe(9);
     expect(priceForModel(config, "gemini-2.5-flash-preview-tts")).toBe(10);
     expect(priceForModel(config, "gemini-3.1-flash-tts-preview")).toBe(10);
+  });
+});
+
+describe("audioCostUsd", () => {
+  it("bills Gemini 3.8 at 32 audio tokens per second and the 2.5 models at 25", () => {
+    // One minute of 3.8 speech: 60 × 32 = 1,920 tokens at $9 per million.
+    expect(audioCostUsd(60, 9, audioTokensPerSecond("google/gemini-3.8-flash-tts"))).toBeCloseTo(0.01728, 8);
+    // One minute of 2.5 Pro speech: 60 × 25 = 1,500 tokens at $20 per million.
+    expect(audioCostUsd(60, 20, audioTokensPerSecond("gemini-2.5-pro-preview-tts"))).toBeCloseTo(0.03, 8);
   });
 });
 

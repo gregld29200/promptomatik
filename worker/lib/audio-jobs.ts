@@ -6,6 +6,7 @@ import {
   modelChainForMode,
   priceForModel,
   audioCostUsd,
+  audioTokensPerSecond,
   type AudioDirection,
   type AudioMode,
   type AudioQuality,
@@ -346,7 +347,11 @@ async function assembleFinal(env: Env, row: AudioJobRow, regeneratedSegmentIdx?:
   const primaryModel = modelChainForMode(config, row.mode)[0].model;
   const apiCostUsd = segments.reduce((sum, segment) => {
     const segModel = segment.model_used ?? primaryModel;
-    return sum + audioCostUsd(segment.duration_seconds ?? 0, priceForModel(config, segModel));
+    return sum + audioCostUsd(
+      segment.duration_seconds ?? 0,
+      priceForModel(config, segModel),
+      audioTokensPerSecond(segModel)
+    );
   }, 0);
   const model = segments.find((segment) => segment.model_used)?.model_used ?? primaryModel;
   const prefix = row.r2_prefix ?? r2Prefix(row.id);

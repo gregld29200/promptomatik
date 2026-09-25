@@ -109,8 +109,20 @@ export function modelChainForMode(config: TtsModelConfig, mode: AudioMode): TtsM
   return chain;
 }
 
-export function audioCostUsd(seconds: number, pricePer1MTokens: number): number {
-  const audioTokens = Math.ceil(Math.max(0, seconds)) * AUDIO_TOKENS_PER_SECOND;
+// Gemini 3.8 TTS bills 32 audio tokens per second of speech, not the 25 of
+// the 2.5 models (measured through OpenRouter: 384 tokens for 12.0 s).
+const OPENROUTER_AUDIO_TOKENS_PER_SECOND = 32;
+
+export function audioTokensPerSecond(model: string): number {
+  return isOpenRouterTtsModel(model) ? OPENROUTER_AUDIO_TOKENS_PER_SECOND : AUDIO_TOKENS_PER_SECOND;
+}
+
+export function audioCostUsd(
+  seconds: number,
+  pricePer1MTokens: number,
+  tokensPerSecond = AUDIO_TOKENS_PER_SECOND
+): number {
+  const audioTokens = Math.ceil(Math.max(0, seconds)) * tokensPerSecond;
   return (audioTokens / 1_000_000) * pricePer1MTokens;
 }
 

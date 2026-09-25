@@ -12,6 +12,7 @@ import type { Env } from "../worker/env";
 import {
   PCM_BYTES_PER_SECOND,
   audioCostUsd,
+  audioTokensPerSecond,
   getTtsModelConfig,
   priceForModel,
   type AudioDirection,
@@ -107,7 +108,7 @@ async function synthesize(
         `model ${result.model}`,
         `audio ${verdict}`,
         `took ${((Date.now() - startedAt) / 1000).toFixed(1)} s, retries ${result.retryCount}`,
-        `≈ $${audioCostUsd(seconds, pricePer1MTokens).toFixed(4)}`,
+        `≈ $${audioCostUsd(seconds, pricePer1MTokens, audioTokensPerSecond(result.model)).toFixed(4)}`,
         `listen: ${target}`,
       ].join("\n    "),
     };
