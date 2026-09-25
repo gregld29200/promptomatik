@@ -307,6 +307,9 @@ export function Shell({ children, pageLabel }: ShellProps) {
         <main
           className={`${s.main} ${isActive("/audio") || isActive("/transcribe") ? s.mainWide : ""}`}
           id="main-content"
+          // Focusable target for the skip link, so keyboard focus actually
+          // lands in the page instead of staying on the link.
+          tabIndex={-1}
         >
           {children}
         </main>

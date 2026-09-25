@@ -1,5 +1,5 @@
 import type { AudioMode } from "./audio-config";
-import { validateTranscriptForTts } from "./audio-direction";
+import { TranscriptValidationError, validateTranscriptForTts } from "./audio-direction";
 import { SPEAKER_LABEL_WORDS, STAGE_DIRECTION_TAG_MAP, SUPPORTED_AUDIO_TAGS } from "../../src/lib/audio-script-rules";
 
 const NORMALIZED_SPEAKER_RE = new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s*\\d+$`, "i");
@@ -198,59 +198,80 @@ function completeSpeakerRenameChanges(
     : result;
 }
 
-function systemPrompt(language: PrepareLanguage): string {
+function systemPrompt(language: PrepareLanguage, mode: AudioMode): string {
   const tagMap = Object.entries(STAGE_DIRECTION_TAG_MAP)
     .map(([source, tag]) => `${source} -> ${tag}`)
     .join(", ");
   return [
     "You prepare user-owned language-learning scripts for Gemini TTS.",
     "Do not write a script from scratch. Preserve the teacher's content and intent.",
-    "For dialogue, map detected speakers to Speaker 1 and Speaker 2 only. Never return named speaker labels such as Marie, Paul, Teacher, or Student.",
-    "In dialogue formatted_script, every non-empty line must start exactly with Speaker 1: or Speaker 2: followed by a space. Tags go after the colon, never inside the speaker label.",
+    mode === "dialogue"
+      ? "This is a dialogue. Map detected speakers to Speaker 1 and Speaker 2 only. Every non-empty line must start exactly with Speaker 1: or Speaker 2: followed by a space. Tags go after the colon, never inside the speaker label. Never use named speaker labels."
+      : "This is a monologue with one narrator. Never add speaker labels (including Speaker 1:, Narrator:, or character names), either in formatted_script or in changes.after. Preserve continuous narration, paragraph breaks and inline delivery tags. Set speaker_count to 1. Do not turn quoted speech into dialogue.",
     "Handle stage directions with exactly three actions:",
     `1. convert: parenthetical/bracketed acting notes with supported tag equivalents become inline tags. Mapping table: ${tagMap}. Supported tags: ${SUPPORTED_AUDIO_TAGS.join(", ")}. Use type stage_direction_converted.`,
     "2. promote: context that belongs upstream, such as setting, character state, or actions like checking a phone, becomes type direction_hint. Put proposed Scene/Director's-Notes text in after. It must not stay in the script.",
     "3. remove: non-spoken content with no useful audio or direction value becomes type removed_stage_direction.",
     "Speaker formatting changes use type speaker_rename. General TTS cleanup uses type cleanup.",
-    "formatted_script must contain only the proposed TTS-ready script, with Speaker 1/2 labels in dialogue and no display names.",
+    "formatted_script must contain only the proposed TTS-ready script. Each change must agree with formatted_script; do not propose changes that introduce invalid speaker formatting.",
     `Write rationale and warnings values in concise, natively idiomatic ${LANGUAGE_NAMES[language]}. Never mix languages. The script itself keeps its own language — only your commentary follows this instruction.`,
     "Return ONLY valid JSON matching this shape:",
-    '{"speaker_count":2,"formatted_script":"Speaker 1: ...\\nSpeaker 2: ...","changes":[{"type":"speaker_rename|stage_direction_converted|direction_hint|removed_stage_direction|cleanup","before":"Sarah:","after":"Speaker 1:","line":3,"rationale":"short reason"}],"warnings":[]}',
+    mode === "dialogue"
+      ? '{"speaker_count":2,"formatted_script":"Speaker 1: ...\\nSpeaker 2: ...","changes":[{"type":"speaker_rename","before":"Sarah:","after":"Speaker 1:","line":3,"rationale":"short reason"}],"warnings":[]}'
+      : '{"speaker_count":1,"formatted_script":"The day begins quietly.","changes":[],"warnings":[]}',
   ].join("\n");
 }
 
 export async function prepareAudioScript(input: PrepareAudioScriptInput): Promise<AudioPrepareResult> {
   const fetcher = input.fetcher ?? fetch;
-  const response = await fetcher(
-    `https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": input.apiKey,
-      },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt(input.language) }] },
-        contents: [{
-          role: "user",
-          parts: [{ text: `Mode: ${input.mode}\n\nScript:\n${input.script}` }],
-        }],
-        generationConfig: { responseMimeType: "application/json" },
-      }),
+  // One corrective retry: a proposal whose speaker formatting does not match
+  // the selected mode is sent back once before the teacher sees an error.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await fetcher(
+      `https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": input.apiKey,
+        },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt(input.language, input.mode) }] },
+          contents: [{
+            role: "user",
+            parts: [{ text: `Mode: ${input.mode}${attempt > 0 ? "\nYour previous proposal had invalid speaker formatting. Correct it according to the selected mode, including all proposed changes." : ""}\n\nScript:\n${input.script}` }],
+          }],
+          generationConfig: { responseMimeType: "application/json" },
+        }),
+      }
+    );
+
+    const body = await response.json().catch(() => null) as GeminiTextResponse | null;
+    if (!response.ok) {
+      throw new AudioPrepareError(body?.error?.message ?? `Prepare request failed with HTTP ${response.status}.`);
     }
-  );
 
-  const body = await response.json().catch(() => null) as GeminiTextResponse | null;
-  if (!response.ok) {
-    throw new AudioPrepareError(body?.error?.message ?? `Prepare request failed with HTTP ${response.status}.`);
+    const text = body?.candidates?.[0]?.content?.parts?.find((part) => typeof part.text === "string")?.text;
+    if (!text) {
+      throw new AudioPrepareError("Prepare response did not include text.");
+    }
+
+    const parsed = parsePrepareResponse(text);
+    const result = input.mode === "dialogue"
+      ? completeSpeakerRenameChanges(parsed, input.script, input.language)
+      : parsed;
+    try {
+      validateTranscriptForTts(input.mode, result.formatted_script);
+      if (input.mode === "monologue") {
+        for (const change of result.changes) {
+          if (change.type !== "direction_hint") validateTranscriptForTts(input.mode, change.after);
+        }
+      }
+      return result;
+    } catch (error) {
+      if (!(error instanceof TranscriptValidationError)) throw error;
+    }
   }
 
-  const text = body?.candidates?.[0]?.content?.parts?.find((part) => typeof part.text === "string")?.text;
-  if (!text) {
-    throw new AudioPrepareError("Prepare response did not include text.");
-  }
-
-  const result = completeSpeakerRenameChanges(parsePrepareResponse(text), input.script, input.language);
-  validateTranscriptForTts(input.mode, result.formatted_script);
-  return result;
+  throw new AudioPrepareError("The AI returned invalid speaker formatting for the selected mode. Your original script has not been changed. Please try Prepare again.");
 }

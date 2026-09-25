@@ -51,6 +51,53 @@
   color: #688889;
 }
 
+.filterRows {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.filterLabel {
+  min-width: 4.6rem;
+  margin-right: 0.2rem;
+  color: #688889;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.filter {
+  min-height: 32px;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid rgba(133, 162, 163, 0.34);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #2c3d57;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease-out,
+    background-color 180ms ease-out,
+    color 180ms ease-out;
+}
+
+.filter:hover {
+  border-color: #2c3d57;
+}
+
+.filterActive {
+  border-color: #2c3d57;
+  background: #2c3d57;
+  color: #ffffff;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
@@ -100,6 +147,21 @@
   font-weight: 700;
 }
 
+/* Gender reads as a word first and a colour second, so the tag never
+   relies on colour alone. */
+.feminine,
+.masculine {
+  font-weight: 700;
+}
+
+.feminine {
+  color: #a8532f;
+}
+
+.masculine {
+  color: #4d6f70;
+}
+
 .descriptor {
   margin-top: 0.2rem;
   color: #688889;
@@ -141,6 +203,7 @@
 @media (prefers-reduced-motion: reduce) {
   .slot,
   .card,
+  .filter,
   .preview {
     transition: none;
   }

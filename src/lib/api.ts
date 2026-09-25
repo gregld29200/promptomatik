@@ -675,8 +675,14 @@ export interface AudioDirection {
   speakers?: Record<string, AudioSpeakerDirection>;
 }
 
+export type AudioVoiceGender = "feminine" | "masculine";
+export type AudioVoiceTone = "energetic" | "warm" | "composed";
+
 export interface AudioVoice {
   name: string;
+  label: string;
+  gender: AudioVoiceGender;
+  tone: AudioVoiceTone;
   descriptor: string;
   previewUrl: string;
 }

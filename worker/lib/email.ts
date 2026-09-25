@@ -234,7 +234,7 @@ async function sendEmail(
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "TeachInspire Studio <noreply@promptomatik.com>",
+      from: "TeachInspire Studio <noreply@mail.teachinspire.me>",
       to: [to],
       subject,
       html,

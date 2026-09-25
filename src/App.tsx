@@ -1,28 +1,32 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/lib/auth/protected-route";
 import { useParams } from "react-router";
-import { useLanguage } from "@/lib/i18n";
+import { t, useLanguage } from "@/lib/i18n";
 import { OnboardingProvider } from "@/lib/onboarding/onboarding-context";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
-import { LoginPage } from "@/pages/login";
-import { RegisterPage } from "@/pages/register";
-import { SignupPage } from "@/pages/signup";
-import { ForgotPasswordPage } from "@/pages/forgot-password";
-import { ResetPasswordPage } from "@/pages/reset-password";
-import { DashboardPage } from "@/pages/dashboard";
-import { NewPromptPage } from "@/pages/new-prompt";
-import { PromptViewPage } from "@/pages/prompt-view";
-import { AdminPage } from "@/pages/admin";
-import { ProfilePage } from "@/pages/profile";
-import { TemplatesPage } from "@/pages/templates";
-import { TemplateDetailPage } from "@/pages/template-detail";
-import { AudioStudioPage } from "@/pages/audio";
-import { AudioLibraryPage } from "@/pages/audio-library";
-import { TranscribePage } from "@/pages/transcribe";
-import { TranscribeLibraryPage } from "@/pages/transcribe-library";
-import { DocumentsPage } from "@/pages/documents";
 import { HomePage } from "@/pages/home";
+
+// Every page but the hub loads on demand, so the first paint only ships the
+// shell and /home instead of the whole studio.
+const LoginPage = lazy(() => import("@/pages/login").then((m) => ({ default: m.LoginPage })));
+const RegisterPage = lazy(() => import("@/pages/register").then((m) => ({ default: m.RegisterPage })));
+const SignupPage = lazy(() => import("@/pages/signup").then((m) => ({ default: m.SignupPage })));
+const ForgotPasswordPage = lazy(() => import("@/pages/forgot-password").then((m) => ({ default: m.ForgotPasswordPage })));
+const ResetPasswordPage = lazy(() => import("@/pages/reset-password").then((m) => ({ default: m.ResetPasswordPage })));
+const DashboardPage = lazy(() => import("@/pages/dashboard").then((m) => ({ default: m.DashboardPage })));
+const NewPromptPage = lazy(() => import("@/pages/new-prompt").then((m) => ({ default: m.NewPromptPage })));
+const PromptViewPage = lazy(() => import("@/pages/prompt-view").then((m) => ({ default: m.PromptViewPage })));
+const AdminPage = lazy(() => import("@/pages/admin").then((m) => ({ default: m.AdminPage })));
+const ProfilePage = lazy(() => import("@/pages/profile").then((m) => ({ default: m.ProfilePage })));
+const TemplatesPage = lazy(() => import("@/pages/templates").then((m) => ({ default: m.TemplatesPage })));
+const TemplateDetailPage = lazy(() => import("@/pages/template-detail").then((m) => ({ default: m.TemplateDetailPage })));
+const AudioStudioPage = lazy(() => import("@/pages/audio").then((m) => ({ default: m.AudioStudioPage })));
+const AudioLibraryPage = lazy(() => import("@/pages/audio-library").then((m) => ({ default: m.AudioLibraryPage })));
+const TranscribePage = lazy(() => import("@/pages/transcribe").then((m) => ({ default: m.TranscribePage })));
+const TranscribeLibraryPage = lazy(() => import("@/pages/transcribe-library").then((m) => ({ default: m.TranscribeLibraryPage })));
+const DocumentsPage = lazy(() => import("@/pages/documents").then((m) => ({ default: m.DocumentsPage })));
 
 export function App() {
   // Subscribe to language changes — forces entire route tree to re-render
@@ -33,6 +37,13 @@ export function App() {
       <AuthProvider>
         <OnboardingProvider>
           <OnboardingTour />
+          <Suspense
+            fallback={
+              <main role="status" style={{ padding: "2rem", minHeight: "100vh" }}>
+                {t("common.loading")}
+              </main>
+            }
+          >
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -151,6 +162,7 @@ export function App() {
             <Route path="/templates/:id" element={<LegacyTemplateRedirect />} />
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
+          </Suspense>
         </OnboardingProvider>
       </AuthProvider>
     </BrowserRouter>
