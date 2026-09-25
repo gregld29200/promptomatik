@@ -9,6 +9,7 @@ import {
 import * as api from "@/lib/api";
 import type { Quota, User } from "@/lib/api";
 import { setLanguage, type Language } from "@/lib/i18n";
+import { watchSession } from "./session-refresh";
 
 interface AuthState {
   user: User | null;
@@ -51,6 +52,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setQuota(result.data.quota);
     }
   }, []);
+
+  // Pick up server-side changes (tier, quota) while the tab is visible.
+  useEffect(() => {
+    if (!user?.id) return;
+    return watchSession(
+      api.me,
+      (result) => {
+        if (result.data) {
+          setUser(result.data.user);
+          setQuota(result.data.quota);
+        }
+      },
+      window,
+      () => document.visibilityState === "visible"
+    );
+  }, [user?.id]);
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await api.login(email, password);

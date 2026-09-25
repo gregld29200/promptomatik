@@ -1,3 +1,9 @@
+// Inter and Playfair Display are only used by the Audio Studio, so they load
+// with this page instead of on every first paint.
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-500.css";
+import "@fontsource/inter/latin-600.css";
+import "@fontsource/playfair-display/latin-600.css";
 import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Copy, FileAudio, HelpCircle, Lock, Tags, Wand2, X } from "lucide-react";
 import { Link } from "react-router";

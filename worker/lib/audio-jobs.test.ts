@@ -643,12 +643,21 @@ describe("audio job lifecycle", () => {
     await waitOnExecutionContext(ctx);
 
     expect(response.status).toBe(200);
-    const body = await response.json<{ voices: { name: string; descriptor: string; previewUrl: string }[] }>();
+    const body = await response.json<{
+      voices: { name: string; label: string; gender: string; tone: string; descriptor: string; previewUrl: string }[];
+    }>();
     expect(body.voices).toHaveLength(30);
     expect(body.voices[0]).toMatchObject({
       name: "Zephyr",
+      label: "Nina",
+      gender: "feminine",
+      tone: "energetic",
       descriptor: "Bright",
-      previewUrl: "/api/audio/voices/Zephyr/preview",
+      previewUrl: "/api/audio/voices/Zephyr/preview?v=Nina",
     });
+    // Teachers pick voices by display name, so no two may share one.
+    expect(new Set(body.voices.map((voice) => voice.label)).size).toBe(30);
+    expect(body.voices.filter((voice) => voice.gender === "feminine")).toHaveLength(13);
+    expect(new Set(body.voices.map((voice) => voice.tone))).toEqual(new Set(["energetic", "warm", "composed"]));
   });
 });
