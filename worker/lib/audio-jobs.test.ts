@@ -97,7 +97,9 @@ async function resetDb() {
   for (const statement of TEST_SCHEMA_STATEMENTS) {
     await testEnv.DB.prepare(statement).run();
   }
-  (testEnv as unknown as { GEMINI_API_KEY: string }).GEMINI_API_KEY = "test-gemini-key";
+  const keys = testEnv as unknown as { GEMINI_API_KEY?: string; OPENROUTER_API_KEY?: string };
+  keys.GEMINI_API_KEY = "test-gemini-key";
+  keys.OPENROUTER_API_KEY = "test-openrouter-key";
 }
 
 async function seedParticipant(userId: string) {
@@ -220,12 +222,12 @@ describe("audio job lifecycle", () => {
     const job = await createBasicJob(userId);
 
     const config = getTtsModelConfig(testEnv);
-    const attempted: string[] = [];
+    const attempted: Array<{ model: string; apiKey: string; fastFail?: readonly number[] }> = [];
     const provider: AudioGenerationProvider = {
       async generateBlock(input) {
-        attempted.push(input.model);
-        // The monologue primary (3.1 Flash) is over quota; the 2.5 Flash
-        // fallback has headroom.
+        attempted.push({ model: input.model, apiKey: input.apiKey, fastFail: input.fastFailStatuses });
+        // The OpenRouter primary is rate-limited; 2.5 Pro on the Gemini API
+        // has headroom.
         if (input.model === config.monologueModel) {
           throw new TtsProviderError("Rate limited.", true, 429);
         }
@@ -240,14 +242,77 @@ describe("audio job lifecycle", () => {
       .bind(job.id)
       .first<{ status: string }>();
     const segment = await testEnv.DB.prepare(
-      "SELECT status, model_used FROM audio_segments WHERE job_id = ? AND idx = 0"
+      "SELECT status, model_used, last_error_status FROM audio_segments WHERE job_id = ? AND idx = 0"
     )
       .bind(job.id)
-      .first<{ status: string; model_used: string }>();
+      .first<{ status: string; model_used: string; last_error_status: number | null }>();
 
-    expect(attempted).toEqual([config.monologueModel, config.draftModel]);
+    expect(attempted).toEqual([
+      { model: "google/gemini-3.8-flash-tts", apiKey: "test-openrouter-key", fastFail: [429] },
+      { model: "gemini-2.5-pro-preview-tts", apiKey: "test-gemini-key", fastFail: undefined },
+    ]);
     expect(row?.status).toBe("ready");
-    expect(segment?.model_used).toBe(config.draftModel);
+    expect(segment?.model_used).toBe(config.finalModel);
+    // The primary's 429 stays visible to the admin rate-limit metric.
+    expect(segment?.last_error_status).toBe(429);
+  });
+
+  it("falls back to 2.5 Pro when OpenRouter refuses the block for any other reason", async () => {
+    const userId = "fallback-402-user";
+    await seedParticipant(userId);
+    const job = await createBasicJob(userId);
+
+    const config = getTtsModelConfig(testEnv);
+    const attempted: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        if (input.model === config.monologueModel) {
+          throw new TtsProviderError("Insufficient credits", false, 402);
+        }
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+    await assembleAudioJob(testEnv, job.id);
+
+    const row = await testEnv.DB.prepare("SELECT status, model_used FROM audio_jobs WHERE id = ?")
+      .bind(job.id)
+      .first<{ status: string; model_used: string }>();
+    expect(attempted).toEqual([config.monologueModel, config.finalModel]);
+    expect(row).toMatchObject({ status: "ready", model_used: config.finalModel });
+  });
+
+  it("goes straight to 2.5 Pro when no OpenRouter key is configured", async () => {
+    const userId = "no-openrouter-user";
+    await seedParticipant(userId);
+    const job = await createBasicJob(userId);
+    (testEnv as unknown as { OPENROUTER_API_KEY?: string }).OPENROUTER_API_KEY = "";
+
+    const attempted: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(attempted).toEqual([getTtsModelConfig(testEnv).finalModel]);
+  });
+
+  it("hands the provider the raw block and its direction", async () => {
+    const userId = "raw-block-user";
+    await seedParticipant(userId);
+    const job = await createBasicJob(userId);
+
+    const inputs: Array<{ script: string; level?: string; voices: Record<string, string> }> = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        inputs.push({ script: input.script, level: input.direction?.level, voices: input.voices });
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(inputs).toEqual([{ script: "Bonjour tout le monde.", level: "A2", voices: { solo: "Kore" } }]);
   });
 
   it("marks a failed block failed and does not charge quota", async () => {

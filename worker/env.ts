@@ -15,8 +15,10 @@ export interface Env {
   TTS_MODEL_DRAFT?: string;
   TTS_MODEL_FINAL?: string;
   TTS_MODEL_MONOLOGUE?: string;
+  TTS_MODEL_DIALOGUE?: string;
   TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT?: string;
   TTS_PRICE_AUDIO_PER_1M_TOKENS_FINAL?: string;
+  TTS_PRICE_AUDIO_PER_1M_TOKENS_OPENROUTER?: string;
   LLM_MODEL_PREP?: string;
   /** Documents module generation model (OpenRouter id). */
   DOCS_MODEL?: string;

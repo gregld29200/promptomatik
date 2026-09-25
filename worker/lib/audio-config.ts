@@ -31,8 +31,10 @@ export interface TtsModelConfig {
   draftModel: string;
   finalModel: string;
   monologueModel: string;
+  dialogueModel: string;
   draftPricePer1MTokens: number;
   finalPricePer1MTokens: number;
+  openRouterPricePer1MTokens: number;
   prepModel: string;
 }
 
@@ -49,11 +51,16 @@ export const AUDIO_TOKENS_PER_SECOND = 25;
 
 const DEFAULT_TTS_MODEL_DRAFT = "gemini-2.5-flash-preview-tts";
 const DEFAULT_TTS_MODEL_FINAL = "gemini-2.5-pro-preview-tts";
-// Monologue default: 3.1 Flash is fast and cheap, and its known weakness
-// (voice drift between speakers) never manifests with a single narrator.
-// This exact model id was verified working in the 2026-07-03 A/B test.
-const DEFAULT_TTS_MODEL_MONOLOGUE = "gemini-3.1-flash-tts-preview";
+// Primary for both modes: Gemini 3.8 Flash TTS served through OpenRouter,
+// which puts no daily request cap on a paid model — the Gemini API Tier 1
+// caps each TTS model at 50-100 requests/day per project.
+const DEFAULT_TTS_MODEL_PRIMARY = "google/gemini-3.8-flash-tts";
 const DEFAULT_LLM_MODEL_PREP = "gemini-2.5-flash";
+
+// OpenRouter ids carry the vendor prefix ("google/…"); Gemini API ids do not.
+export function isOpenRouterTtsModel(model: string): boolean {
+  return model.includes("/");
+}
 
 function readNumber(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
@@ -65,9 +72,12 @@ export function getTtsModelConfig(env: Env): TtsModelConfig {
   return {
     draftModel: env.TTS_MODEL_DRAFT?.trim() || DEFAULT_TTS_MODEL_DRAFT,
     finalModel: env.TTS_MODEL_FINAL?.trim() || DEFAULT_TTS_MODEL_FINAL,
-    monologueModel: env.TTS_MODEL_MONOLOGUE?.trim() || DEFAULT_TTS_MODEL_MONOLOGUE,
+    monologueModel: env.TTS_MODEL_MONOLOGUE?.trim() || DEFAULT_TTS_MODEL_PRIMARY,
+    dialogueModel: env.TTS_MODEL_DIALOGUE?.trim() || DEFAULT_TTS_MODEL_PRIMARY,
     draftPricePer1MTokens: readNumber(env.TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT, 10),
     finalPricePer1MTokens: readNumber(env.TTS_PRICE_AUDIO_PER_1M_TOKENS_FINAL, 20),
+    // OpenRouter list price of 3.8 Flash TTS: $9 per 1M audio tokens.
+    openRouterPricePer1MTokens: readNumber(env.TTS_PRICE_AUDIO_PER_1M_TOKENS_OPENROUTER, 9),
     prepModel: env.LLM_MODEL_PREP?.trim() || DEFAULT_LLM_MODEL_PREP,
   };
 }
@@ -76,29 +86,43 @@ export function modelForQuality(config: TtsModelConfig, quality: AudioQuality): 
   return quality === "draft" ? config.draftModel : config.finalModel;
 }
 
-// Per-model audio price. Only the Pro model is billed at the higher rate;
-// every Flash-tier model (2.5 Flash, 3.1 Flash) shares the lower rate.
+// Per-model audio price: Pro at the higher Gemini rate, any OpenRouter model
+// at the OpenRouter rate, every other Gemini Flash-tier model at the lower rate.
 export function priceForModel(config: TtsModelConfig, model: string): number {
-  return model === config.finalModel ? config.finalPricePer1MTokens : config.draftPricePer1MTokens;
+  if (model === config.finalModel) return config.finalPricePer1MTokens;
+  if (isOpenRouterTtsModel(model)) return config.openRouterPricePer1MTokens;
+  return config.draftPricePer1MTokens;
 }
 
-// Ordered model chain per mode. Each mode starts on its best-fit model and
-// falls back to 2.5 Flash when the primary hits a rate/quota limit — spreading
-// load across three separate per-model daily quotas (Pro 50, 2.5 Flash 100,
-// 3.1 Flash 100 = 250/day on Tier 1) instead of hammering one.
-//   Dialogue:  2.5 Pro    -> 2.5 Flash
-//   Monologue: 3.1 Flash  -> 2.5 Flash
+// Ordered model chain per mode. Both modes start on 3.8 Flash through
+// OpenRouter and fall back to 2.5 Pro on the Gemini API: two providers with
+// separate keys and limits, so an OpenRouter outage or a spent balance never
+// blocks generation.
+//   Dialogue:  3.8 Flash (OpenRouter) -> 2.5 Pro (Gemini API)
+//   Monologue: 3.8 Flash (OpenRouter) -> 2.5 Pro (Gemini API)
 export function modelChainForMode(config: TtsModelConfig, mode: AudioMode): TtsModelStep[] {
-  const primary = mode === "dialogue" ? config.finalModel : config.monologueModel;
+  const primary = mode === "dialogue" ? config.dialogueModel : config.monologueModel;
   const chain: TtsModelStep[] = [{ model: primary, pricePer1MTokens: priceForModel(config, primary) }];
-  if (config.draftModel !== primary) {
-    chain.push({ model: config.draftModel, pricePer1MTokens: priceForModel(config, config.draftModel) });
+  if (config.finalModel !== primary) {
+    chain.push({ model: config.finalModel, pricePer1MTokens: priceForModel(config, config.finalModel) });
   }
   return chain;
 }
 
-export function audioCostUsd(seconds: number, pricePer1MTokens: number): number {
-  const audioTokens = Math.ceil(Math.max(0, seconds)) * AUDIO_TOKENS_PER_SECOND;
+// Gemini 3.8 TTS bills 32 audio tokens per second of speech, not the 25 of
+// the 2.5 models (measured through OpenRouter: 384 tokens for 12.0 s).
+const OPENROUTER_AUDIO_TOKENS_PER_SECOND = 32;
+
+export function audioTokensPerSecond(model: string): number {
+  return isOpenRouterTtsModel(model) ? OPENROUTER_AUDIO_TOKENS_PER_SECOND : AUDIO_TOKENS_PER_SECOND;
+}
+
+export function audioCostUsd(
+  seconds: number,
+  pricePer1MTokens: number,
+  tokensPerSecond = AUDIO_TOKENS_PER_SECOND
+): number {
+  const audioTokens = Math.ceil(Math.max(0, seconds)) * tokensPerSecond;
   return (audioTokens / 1_000_000) * pricePer1MTokens;
 }
 
