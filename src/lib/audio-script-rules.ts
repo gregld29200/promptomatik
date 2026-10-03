@@ -54,7 +54,8 @@ export type ScriptLintCode =
   | "residual_stage_direction"
   | "unknown_tag"
   | "long_turn"
-  | "narration_line";
+  | "narration_line"
+  | "orphan_line";
 
 // Findings carry a code and its parameters, never prose: this module runs both
 // in the browser (where the studio renders it through i18n) and in the worker
@@ -113,6 +114,7 @@ export function lintAudioScript(script: string, mode: AudioModeForRules): Script
 
   const speakerSet = new Set<string>();
   const lines = script.split(/\r?\n/);
+  let seenTurn = false;
 
   lines.forEach((rawLine, index) => {
     const line = rawLine.trim();
@@ -124,9 +126,15 @@ export function lintAudioScript(script: string, mode: AudioModeForRules): Script
     if (mode === "dialogue") {
       if (knownSpeaker) {
         speakerSet.add(knownSpeaker);
+        seenTurn = true;
       } else if (label) {
         findings.push({ severity: "blocking", code: "unknown_speaker", line: lineNumber });
+        seenTurn = true;
+      } else if (!seenTurn) {
+        // Nobody can voice a line before the first turn.
+        findings.push({ severity: "blocking", code: "orphan_line", line: lineNumber });
       } else {
+        // Joined to the turn above and read by the same speaker.
         findings.push({ severity: "warning", code: "narration_line", line: lineNumber });
       }
     } else if (label) {

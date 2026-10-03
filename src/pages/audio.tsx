@@ -5,7 +5,7 @@ import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import "@fontsource/playfair-display/latin-600.css";
 import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Copy, FileAudio, HelpCircle, Lock, Tags, Wand2, X } from "lucide-react";
+import { Copy, FileAudio, HelpCircle, Lock, RotateCcw, Tags, Wand2, X } from "lucide-react";
 import { Link } from "react-router";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
@@ -13,6 +13,8 @@ import { HelpDot, HelpPanel, helpPanelId } from "@/components/ui/help-disclosure
 import { GenerationConsole } from "@/components/audio/generation-console";
 import { VoiceCasting } from "@/components/audio/voice-casting";
 import { WaveformPlayer } from "@/components/audio/waveform-player";
+import { ScriptReview, tagLabel } from "@/components/audio/script-review";
+import { applySuggestions, type SuggestionDecision } from "@/lib/audio-suggestions";
 import { useAuth } from "@/lib/auth/auth-context";
 import { SUPPORTED_LANGUAGES, getLanguage, t, type Language } from "@/lib/i18n";
 import * as api from "@/lib/api";
@@ -33,7 +35,6 @@ const PACES = ["Slow learner-friendly", "Natural classroom speed", "Business mee
 // silence insertion (BUILD_LOG.md, Phase 7 closure).
 const STYLES = ["Neutral classroom", "Warm and encouraging", "Professional corporate", "Business meeting", "Podcast host", "Examiner voice", "Customer service", "Informal conversation", "Storytelling"];
 const TAGS = SUPPORTED_AUDIO_TAGS;
-const PREPARE_GROUPS = ["speaker_rename", "tag_added", "direction_hint", "cleanup"] as const;
 
 // Sample scripts, one per interface language, offered when the editor is empty.
 const EXAMPLES: Record<Language, string> = {
@@ -103,15 +104,6 @@ const DIRECTION_LABELS: Record<Language, Record<string, string>> = {
 
 const DATE_LOCALES: Record<Language, string> = { fr: "fr-FR", en: "en-US", es: "es-ES" };
 
-const PREPARE_TYPE_TO_GROUP: Record<api.AudioPrepareChange["type"], (typeof PREPARE_GROUPS)[number]> = {
-  speaker_rename: "speaker_rename",
-  tag_added: "tag_added",
-  stage_direction_converted: "tag_added",
-  direction_hint: "direction_hint",
-  removed_stage_direction: "cleanup",
-  cleanup: "cleanup",
-};
-
 function estimateSeconds(script: string) {
   const words = stripTags(script).trim().split(/\s+/).filter(Boolean).length;
   return Math.ceil(words / 2.5);
@@ -145,85 +137,6 @@ function renderHighlighted(text: string) {
     }
     return <span key={index}>{part}</span>;
   });
-}
-
-function changeId(change: api.AudioPrepareChange, index: number) {
-  return `${change.type}-${change.line}-${index}`;
-}
-
-function diffParts(before: string, after: string) {
-  let prefix = 0;
-  while (prefix < before.length && prefix < after.length && before[prefix] === after[prefix]) {
-    prefix += 1;
-  }
-
-  let suffix = 0;
-  while (
-    suffix < before.length - prefix
-    && suffix < after.length - prefix
-    && before[before.length - 1 - suffix] === after[after.length - 1 - suffix]
-  ) {
-    suffix += 1;
-  }
-
-  return {
-    prefix: before.slice(0, prefix),
-    beforeChanged: before.slice(prefix, before.length - suffix),
-    afterChanged: after.slice(prefix, after.length - suffix),
-    suffix: before.slice(before.length - suffix),
-  };
-}
-
-function applyPreparedChanges(original: string, changes: api.AudioPrepareChange[], decisions: Record<string, "accepted" | "rejected">) {
-  const lines = original.split("\n");
-  const directionHints: string[] = [];
-  const orderedChanges = [...changes].sort((left, right) => {
-    const priority: Record<api.AudioPrepareChange["type"], number> = {
-      stage_direction_converted: 0,
-      tag_added: 0,
-      direction_hint: 1,
-      removed_stage_direction: 1,
-      cleanup: 1,
-      speaker_rename: 2,
-    };
-    return priority[left.type] - priority[right.type];
-  });
-
-  orderedChanges.forEach((change) => {
-    const originalIndex = changes.indexOf(change);
-    if (decisions[changeId(change, originalIndex)] !== "accepted") return;
-    if (change.type === "direction_hint") {
-      if (change.after.trim()) directionHints.push(change.after.trim());
-      const lineIndex = change.line - 1;
-      if (lineIndex >= 0 && lineIndex < lines.length && lines[lineIndex].includes(change.before)) {
-        lines[lineIndex] = lines[lineIndex].replace(change.before, "").replace(/\s{2,}/g, " ").trim();
-      }
-      return;
-    }
-    const lineIndex = change.line - 1;
-    if (lineIndex >= 0 && lineIndex < lines.length && lines[lineIndex].includes(change.before)) {
-      lines[lineIndex] = lines[lineIndex].replace(change.before, change.after);
-      return;
-    }
-
-    if (lineIndex >= 0 && lineIndex < lines.length && change.before.endsWith(":") && change.after.endsWith(":")) {
-      const expectedName = change.before.slice(0, -1).trim().toLowerCase();
-      const label = lines[lineIndex].match(/^([^:\n]{1,80}):/);
-      const currentName = label?.[1]?.trim().toLowerCase();
-      if (label && currentName?.startsWith(expectedName)) {
-        lines[lineIndex] = lines[lineIndex].replace(label[0], change.after);
-        return;
-      }
-    }
-
-    const script = lines.join("\n");
-    if (script.includes(change.before)) {
-      const next = script.replace(change.before, change.after);
-      lines.splice(0, lines.length, ...next.split("\n"));
-    }
-  });
-
-  return { script: lines.join("\n"), directionHints };
 }
 
 function directionLabel(value: string) {
@@ -293,10 +206,14 @@ export function AudioStudioPage() {
   const [selectedBlock, setSelectedBlock] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [regenerating, setRegenerating] = useState(false);
-  const [prepareResult, setPrepareResult] = useState<api.AudioPrepareResult | null>(null);
-  const [prepareDecisions, setPrepareDecisions] = useState<Record<string, "accepted" | "rejected">>({});
-  const [prepareError, setPrepareError] = useState<string | null>(null);
-  const [preparing, setPreparing] = useState(false);
+  // Inline review: the script is frozen while the teacher accepts or
+  // rejects each suggestion in place; `undoScript` restores the text the
+  // last applied review replaced.
+  const [review, setReview] = useState<(api.AudioSuggestResult & { script: string }) | null>(null);
+  const [reviewDecisions, setReviewDecisions] = useState<Record<string, SuggestionDecision>>({});
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [undo, setUndo] = useState<{ script: string; scene: string | undefined } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [editorCollapsed, setEditorCollapsed] = useState(false);
   const [openHelp, setOpenHelp] = useState<string | null>(null);
@@ -357,7 +274,6 @@ export function AudioStudioPage() {
   const quotaPool = (quota?.includedRemaining ?? 0) + (quota?.credits ?? 0);
   const quotaBlocked = quota ? estimate > quotaPool * 1.2 : false;
   const canGenerate = script.trim().length > 0 && blockingFindings.length === 0 && !missingVoices && !quotaBlocked;
-  const acceptedPrepareCount = Object.values(prepareDecisions).filter((decision) => decision === "accepted").length;
 
   useEffect(() => {
     if (!isParticipant) return;
@@ -457,15 +373,16 @@ export function AudioStudioPage() {
     });
   }
 
-  function clearPrepareReview() {
-    setPrepareResult(null);
-    setPrepareDecisions({});
-    setPrepareError(null);
+  function clearReview() {
+    setReview(null);
+    setReviewDecisions({});
+    setReviewError(null);
   }
 
   function updateScript(next: string) {
     setScript(next);
-    clearPrepareReview();
+    setUndo(null);
+    clearReview();
   }
 
   function insertTag(tag: string) {
@@ -513,62 +430,58 @@ export function AudioStudioPage() {
     if (jobRes.data) setActiveJob(jobRes.data.job);
   }
 
-  async function prepareScript() {
-    if (!script.trim() || preparing) return;
-    setPreparing(true);
-    setPrepareError(null);
-    const res = await api.prepareAudioScript({ script, mode });
-    setPreparing(false);
+  async function suggestEdits() {
+    if (!script.trim() || suggesting) return;
+    setSuggesting(true);
+    setReviewError(null);
+    const sent = script;
+    const res = await api.suggestAudioEdits({ script: sent, mode, level: direction.level });
+    setSuggesting(false);
     if (res.error) {
-      setPrepareResult(null);
-      setPrepareDecisions({});
-      setPrepareError(res.error.error);
+      setReview(null);
+      setReviewError(res.error.error);
       return;
     }
-
-    setPrepareResult(res.data);
-    setPrepareDecisions({});
+    setReview({ ...res.data, script: sent.replace(/\r\n/g, "\n") });
+    setReviewDecisions({});
   }
 
-  function decidePrepareChange(id: string, decision: "accepted" | "rejected") {
-    setPrepareDecisions((prev) => ({ ...prev, [id]: decision }));
+  function decideSuggestion(id: string, decision: SuggestionDecision | null) {
+    setReviewDecisions((prev) => {
+      const next = { ...prev };
+      if (decision) next[id] = decision;
+      else delete next[id];
+      return next;
+    });
   }
 
-  function acceptAllPreparedChanges() {
-    if (!prepareResult) return;
-    setPrepareDecisions(Object.fromEntries(
-      prepareResult.changes.map((change, index) => [changeId(change, index), "accepted"])
-    ));
+  function decideAllPending(decision: SuggestionDecision) {
+    if (!review) return;
+    setReviewDecisions((prev) => ({
+      ...Object.fromEntries(review.suggestions.map((suggestion) => [suggestion.id, decision])),
+      ...prev,
+    }));
   }
 
-  function applyPrepareSelection() {
-    if (!prepareResult || acceptedPrepareCount === 0) return;
-    const acceptedHints = prepareResult.changes
-      .map((change, index) => ({ change, id: changeId(change, index) }))
-      .filter(({ change, id }) => change.type === "direction_hint" && prepareDecisions[id] === "accepted")
-      .map(({ change }) => change.after.trim())
-      .filter(Boolean);
-    if (acceptedPrepareCount === prepareResult.changes.length) {
-      setScript(prepareResult.formatted_script);
-      if (acceptedHints.length > 0) {
-        setDirection((prev) => ({
-          ...prev,
-          scene: [prev.scene?.trim(), ...acceptedHints].filter(Boolean).join("\n"),
-        }));
-      }
-      clearPrepareReview();
-      return;
-    }
-
-    const next = applyPreparedChanges(script, prepareResult.changes, prepareDecisions);
+  function applyReview() {
+    if (!review) return;
+    const next = applySuggestions(review.script, review.suggestions, reviewDecisions);
+    setUndo({ script: review.script, scene: direction.scene });
     setScript(next.script);
-    if (next.directionHints.length > 0) {
+    if (next.scenes.length > 0) {
       setDirection((prev) => ({
         ...prev,
-        scene: [prev.scene?.trim(), ...next.directionHints].filter(Boolean).join("\n"),
+        scene: [prev.scene?.trim(), ...next.scenes].filter(Boolean).join("\n"),
       }));
     }
-    clearPrepareReview();
+    clearReview();
+  }
+
+  function undoReview() {
+    if (!undo) return;
+    setScript(undo.script);
+    setDirection((prev) => ({ ...prev, scene: undo.scene }));
+    setUndo(null);
   }
 
   async function regenerateBlock(idx: number) {
@@ -596,7 +509,7 @@ export function AudioStudioPage() {
 
   function handleModeChange(nextMode: AudioMode) {
     setMode(nextMode);
-    clearPrepareReview();
+    clearReview();
     if (nextMode === "monologue") {
       setVoices((prev) => ({ ...prev, solo: prev.solo || "Kore" }));
     } else {
@@ -675,15 +588,29 @@ export function AudioStudioPage() {
               ))}
             </div>
 
-            <textarea
-              ref={textareaRef}
-              value={script}
-              onChange={(event: ChangeEvent<HTMLTextAreaElement>) => updateScript(event.target.value)}
-              className={`${s.editor} ${editorCollapsed ? s.editorCollapsed : ""}`}
-              onFocus={() => setEditorCollapsed(false)}
-              placeholder={t("audio.script_placeholder")}
-              aria-label={t("audio.script_zone")}
-            />
+            {review ? (
+              <ScriptReview
+                script={review.script}
+                suggestions={review.suggestions}
+                warnings={review.warnings}
+                decisions={reviewDecisions}
+                onDecide={decideSuggestion}
+                onAcceptAll={() => decideAllPending("accepted")}
+                onRejectAll={() => decideAllPending("rejected")}
+                onApply={applyReview}
+                onCancel={clearReview}
+              />
+            ) : (
+              <textarea
+                ref={textareaRef}
+                value={script}
+                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => updateScript(event.target.value)}
+                className={`${s.editor} ${editorCollapsed ? s.editorCollapsed : ""}`}
+                onFocus={() => setEditorCollapsed(false)}
+                placeholder={t("audio.script_placeholder")}
+                aria-label={t("audio.script_zone")}
+              />
+            )}
 
             {!script.trim() && (
               <div className={s.emptyTools}>
@@ -700,34 +627,44 @@ export function AudioStudioPage() {
               <button
                 type="button"
                 className={s.secondaryAction}
-                disabled={!script.trim() || preparing}
-                onClick={() => void prepareScript()}
+                disabled={!script.trim() || suggesting || review !== null}
+                onClick={() => void suggestEdits()}
               >
                 <Wand2 size={16} aria-hidden />
-                {preparing ? t("audio.prepare_loading") : t("audio.prepare")}
+                {suggesting ? t("audio.suggest_loading") : t("audio.suggest")}
               </button>
+              {undo && !review && (
+                <button type="button" className={s.secondaryAction} onClick={undoReview}>
+                  <RotateCcw size={16} aria-hidden />
+                  {t("audio.review_undo_all")}
+                </button>
+              )}
               <button type="button" className={s.secondaryAction} onClick={() => setHelpOpen(true)}>
                 <HelpCircle size={16} aria-hidden />
                 {t("audio.help_title")}
               </button>
-              {!script.trim() && <span>{t("audio.prepare_empty_hint")}</span>}
+              {!script.trim() && <span>{t("audio.suggest_empty_hint")}</span>}
             </div>
 
-            <div className={s.tags}>
-              <Tags size={16} aria-hidden />
-              {TAGS.map((tag) => (
-                <button key={tag} type="button" onClick={() => insertTag(tag)}>
-                  {tag}
-                </button>
-              ))}
-            </div>
-            <p className={s.tagsNote}>{t("audio.tags_english_note")}</p>
+            {!review && (
+              <>
+                <div className={s.tags} aria-label={t("audio.tags_label")}>
+                  <Tags size={16} aria-hidden />
+                  {TAGS.map((tag) => (
+                    <button key={tag} type="button" onClick={() => insertTag(tag)} title={tag}>
+                      {tagLabel(tag)}
+                    </button>
+                  ))}
+                </div>
+                <p className={s.tagsNote}>{t("audio.tags_insert_note")}</p>
+              </>
+            )}
 
             {script.trim().length > 0 && blockingFindings.length > 0 && (
               <div className={s.lintPanel} role="alert">
                 <strong><Lock size={15} aria-hidden /> {t("audio.lint_blocking")}</strong>
                 {blockingFindings.map((finding) => (
-                  <p key={`${finding.code}-${finding.line ?? 0}`}>{lintMessage(finding)} <button type="button" onClick={() => void prepareScript()}>{t("audio.prepare")}</button></p>
+                  <p key={`${finding.code}-${finding.line ?? 0}`}>{lintMessage(finding)} <button type="button" onClick={() => void suggestEdits()}>{t("audio.suggest")}</button></p>
                 ))}
               </div>
             )}
@@ -736,88 +673,12 @@ export function AudioStudioPage() {
               <div className={s.lintWarnings}>
                 <strong>{t("audio.lint_warnings")}</strong>
                 {warningFindings.slice(0, 3).map((finding) => (
-                  <p key={`${finding.code}-${finding.line ?? 0}`}>{lintMessage(finding)} <button type="button" onClick={() => void prepareScript()}>{t("audio.prepare")}</button></p>
+                  <p key={`${finding.code}-${finding.line ?? 0}`}>{lintMessage(finding)} <button type="button" onClick={() => void suggestEdits()}>{t("audio.suggest")}</button></p>
                 ))}
               </div>
             )}
 
-            {prepareError && <p className={s.error}>{prepareError}</p>}
-
-            {prepareResult && (
-              <section className={s.prepareReview} aria-label={t("audio.prepare_review")}>
-                <div className={s.prepareHead}>
-                  <div>
-                    <h3>{t("audio.prepare_review")}</h3>
-                    <p>{t("audio.prepare_review_hint")}</p>
-                  </div>
-                  <button type="button" className={s.iconButton} onClick={clearPrepareReview} aria-label={t("common.close")}>
-                    <X size={16} aria-hidden />
-                  </button>
-                </div>
-
-                {prepareResult.warnings.length > 0 && (
-                  <div className={s.prepareWarnings} role="alert">
-                    <strong>{t("audio.prepare_warnings")}</strong>
-                    {prepareResult.warnings.map((warning) => <p key={warning}>{warning}</p>)}
-                  </div>
-                )}
-
-                <div className={s.prepareGroups}>
-                  {PREPARE_GROUPS.map((group) => {
-                    const changes = prepareResult.changes
-                      .map((change, index) => ({ change, index, id: changeId(change, index) }))
-                      .filter(({ change }) => PREPARE_TYPE_TO_GROUP[change.type] === group);
-                    if (changes.length === 0) return null;
-
-                    return (
-                      <section key={group} className={s.prepareGroup}>
-                        <h4>{t(`audio.prepare_group_${group}`)} <span>{changes.length}</span></h4>
-                        <div className={s.changeList}>
-                          {changes.map(({ change, id }) => {
-                            const parts = diffParts(change.before, change.after);
-                            const decision = prepareDecisions[id];
-                            return (
-                              <article key={id} className={`${s.changeItem} ${decision === "accepted" ? s.changeAccepted : ""} ${decision === "rejected" ? s.changeRejected : ""}`}>
-                                <div className={s.changeLine}>
-                                  <span>{t("audio.prepare_line", { line: String(change.line) })}</span>
-                                  <p>{change.rationale}</p>
-                                </div>
-                                <div className={s.inlineDiff}>
-                                  <span>{parts.prefix}</span>
-                                  {parts.beforeChanged && <del>{parts.beforeChanged}</del>}
-                                  <span>{parts.suffix}</span>
-                                  <span aria-hidden>→</span>
-                                  <span>{parts.prefix}</span>
-                                  {parts.afterChanged && <ins>{parts.afterChanged}</ins>}
-                                  <span>{parts.suffix}</span>
-                                </div>
-                                <div className={s.changeActions}>
-                                  <button type="button" className={decision === "accepted" ? s.choiceActive : ""} onClick={() => decidePrepareChange(id, "accepted")}>
-                                    {t("audio.prepare_accept")}
-                                  </button>
-                                  <button type="button" className={decision === "rejected" ? s.choiceActive : ""} onClick={() => decidePrepareChange(id, "rejected")}>
-                                    {t("audio.prepare_reject")}
-                                  </button>
-                                </div>
-                              </article>
-                            );
-                          })}
-                        </div>
-                      </section>
-                    );
-                  })}
-                </div>
-
-                <div className={s.prepareFooter}>
-                  <button type="button" className={s.secondaryAction} onClick={acceptAllPreparedChanges}>
-                    {t("audio.prepare_accept_all")}
-                  </button>
-                  <button type="button" className={s.confirmAction} disabled={acceptedPrepareCount === 0} onClick={applyPrepareSelection}>
-                    {t("audio.prepare_apply")}
-                  </button>
-                </div>
-              </section>
-            )}
+            {reviewError && <p className={s.error}>{reviewError}</p>}
 
             <div className={s.scriptPreview} aria-label={t("audio.preview")}>
               {(script || t("audio.preview_empty")).split("\n").map((line, index) => {

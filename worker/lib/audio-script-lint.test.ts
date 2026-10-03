@@ -11,6 +11,7 @@ const LINT_CODES = [
   "speaker_label_in_monologue",
   "too_many_speakers",
   "narration_line",
+  "orphan_line",
   "residual_stage_direction",
   "unknown_tag",
   "long_turn",
@@ -101,5 +102,11 @@ describe("lintAudioScript", () => {
       expect.objectContaining({ severity: "warning", code: "narration_line", line: 2 }),
       expect.objectContaining({ severity: "warning", code: "long_turn", line: 2 }),
     ]));
+  });
+
+  it("blocks a line nobody can voice, before the first turn", () => {
+    expect(lintAudioScript("Au café.\nSpeaker 1: Bonjour.", "dialogue")).toContainEqual(
+      expect.objectContaining({ severity: "blocking", code: "orphan_line", line: 1 })
+    );
   });
 });

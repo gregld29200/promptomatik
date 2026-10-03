@@ -7,6 +7,7 @@ import { getLanguage, type Language } from "@/lib/i18n";
 // Structural mirror of the Worker's `NormalisedTranscript`, declared once in
 // the component layer so the reading UI and this client cannot drift apart.
 import type { TranscriptData } from "@/components/transcription/types";
+import type { InlineSuggestion } from "@/lib/audio-suggestions";
 
 export interface ApiError {
   error: string;
@@ -738,21 +739,6 @@ export interface AudioQuota {
   monthResetsOn: string;
 }
 
-export interface AudioPrepareChange {
-  type: "speaker_rename" | "tag_added" | "stage_direction_converted" | "direction_hint" | "removed_stage_direction" | "cleanup";
-  before: string;
-  after: string;
-  line: number;
-  rationale: string;
-}
-
-export interface AudioPrepareResult {
-  speaker_count: number;
-  formatted_script: string;
-  changes: AudioPrepareChange[];
-  warnings: string[];
-}
-
 export function getAudioQuota() {
   return request<AudioQuota>("/api/audio/quota");
 }
@@ -782,10 +768,15 @@ export function deleteAudioJob(id: string) {
   });
 }
 
-// `language` drives the language of the rationales the model writes back — the
-// panel renders them verbatim, so it must match the interface language.
-export function prepareAudioScript(data: { script: string; mode: AudioMode }) {
-  return request<AudioPrepareResult>("/api/audio/prepare", {
+export interface AudioSuggestResult {
+  suggestions: InlineSuggestion[];
+  warnings: string[];
+}
+
+// Emotion tags and fixes, each positioned on `script` as sent: the studio
+// freezes the script while the teacher accepts or rejects them in place.
+export function suggestAudioEdits(data: { script: string; mode: AudioMode; level: CefrLevel }) {
+  return request<AudioSuggestResult>("/api/audio/suggest", {
     method: "POST",
     body: JSON.stringify({ ...data, language: getLanguage() }),
   }, { timeoutMs: 60_000 });

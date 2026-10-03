@@ -22,7 +22,7 @@ export interface PlanSpeechRunsInput {
 // read performance cues out of the prompt. Gemini 3.8 speaks its input
 // verbatim, so each tag is translated: a momentary sound becomes one of 3.8's
 // inline angle-bracket events, a sustained manner moves into the style of the
-// text it colours, and anything else is dropped rather than read aloud.
+// text it colours, and nothing in brackets is ever read aloud.
 export const EVENT_TAGS: Record<string, string> = {
   "[sighs]": "<sigh>",
   "[laughs]": "<laugh>",
@@ -59,10 +59,20 @@ function tagKey(tag: string): string {
   return `[${tag.slice(1, -1).trim().replace(/\s+/g, " ").toLowerCase()}]`;
 }
 
+// A free tag the studio does not list ("[confused]", "[laughing softly]")
+// was performed by the 2.5 models; 3.8 would drop it, so a short one is
+// played as a manner instead. Longer bracketed text is a stage direction.
+function freeManner(key: string): string | undefined {
+  if (key in EVENT_TAGS) return undefined;
+  const words = key.slice(1, -1).split(" ").filter(Boolean);
+  return words.length > 0 && words.length <= 4 ? words.join(" ") : undefined;
+}
+
 function mannersIn(text: string): string[] {
   const manners: string[] = [];
   for (const tag of text.match(TAG_RE) ?? []) {
-    const manner = MANNER_TAGS[tagKey(tag)];
+    const key = tagKey(tag);
+    const manner = MANNER_TAGS[key] ?? freeManner(key);
     if (manner && !manners.includes(manner)) manners.push(manner);
   }
   return manners;

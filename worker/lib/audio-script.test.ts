@@ -45,6 +45,19 @@ describe("splitScriptIntoBlocks", () => {
     expect(blocks[0].estimatedSeconds).toBe(80);
   });
 
+  it("keeps decimals, abbreviations and initials inside their sentence", () => {
+    const [block] = splitScriptIntoBlocks(
+      "Il est 3.5 fois plus rapide. M. Dupont et J. Martin arrivent ! Puis… on part ? Oui.",
+      "monologue"
+    );
+    expect(block.text).toBe("Il est 3.5 fois plus rapide.\nM. Dupont et J. Martin arrivent !\nPuis… on part ?\nOui.");
+  });
+
+  it("joins a turn typed over several lines into one labelled line", () => {
+    const [block] = splitScriptIntoBlocks("Speaker 1: Bonjour.\nComment ça va ?\nSpeaker 2: Très bien.", "dialogue");
+    expect(block.text).toBe("Speaker 1: Bonjour. Comment ça va ?\nSpeaker 2: Très bien.");
+  });
+
   it("keeps a single long speaker turn as one oversize block", () => {
     const script = `Speaker 1: ${words(260)}`;
     const blocks = splitScriptIntoBlocks(script, "dialogue");

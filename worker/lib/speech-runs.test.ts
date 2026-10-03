@@ -59,10 +59,10 @@ describe("planSpeechRuns", () => {
     });
   });
 
-  it("turns momentary tags into 3.8 inline events and drops unknown tags", () => {
+  it("turns momentary tags into 3.8 inline events", () => {
     const runs = planSpeechRuns({
       mode: "monologue",
-      script: "C'est drôle ! [laughs] Bon. [Pause] On continue [coughs] tranquillement. [sighs]",
+      script: "C'est drôle ! [laughs] Bon. [Pause] On continue tranquillement. [sighs]",
       voices: { solo: "Kore" },
     });
 
@@ -72,6 +72,20 @@ describe("planSpeechRuns", () => {
       style: "",
       turn: 0,
     }]);
+  });
+
+  it("plays a short free tag as a manner and never reads bracketed text aloud", () => {
+    const runs = planSpeechRuns({
+      mode: "monologue",
+      script: "Bon.\n[laughing softly] On continue.\n[il regarde par la fenêtre et soupire longuement] Voilà.",
+      voices: { solo: "Kore" },
+    });
+
+    expect(runs.map((run) => [run.text, run.style])).toEqual([
+      ["Bon.", ""],
+      ["On continue.", "Laughing softly."],
+      ["Voilà.", ""],
+    ]);
   });
 
   it("lets a manner tag colour the rest of its dialogue turn, from its sentence on", () => {

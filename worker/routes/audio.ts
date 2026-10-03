@@ -5,7 +5,8 @@ import { requireAdmin, requireAuth, requireParticipant } from "../lib/auth-middl
 import type { SessionData } from "../lib/session";
 import { getAudioQuotaBalance } from "../lib/audio-quota";
 import { getTtsModelConfig, type AudioMode } from "../lib/audio-config";
-import { isPrepareLanguage, prepareAudioScript } from "../lib/audio-prepare";
+import { isPrepareLanguage } from "../lib/audio-prepare";
+import { suggestAudioEdits } from "../lib/audio-suggest";
 import {
   createAudioJob,
   deleteAudioJobForUser,
@@ -103,8 +104,12 @@ audio.get("/voices/:name/preview", requireParticipant, async (c) => {
   });
 });
 
-audio.post("/prepare", requireParticipant, async (c) => {
-  const body = await c.req.json<{ script?: unknown; mode?: unknown; language?: unknown }>();
+const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1"] as const;
+
+// Inline suggestions for the studio editor: emotion tags plus the prepare
+// pass's structural fixes, each positioned on the script as sent.
+audio.post("/suggest", requireParticipant, async (c) => {
+  const body = await c.req.json<{ script?: unknown; mode?: unknown; language?: unknown; level?: unknown }>();
   if (typeof body.script !== "string" || !body.script.trim()) {
     return c.json({ error: "Script is required." }, 400);
   }
@@ -114,18 +119,20 @@ audio.post("/prepare", requireParticipant, async (c) => {
   if (!c.env.GEMINI_API_KEY) {
     return c.json({ error: "GEMINI_API_KEY is not configured." }, 500);
   }
+  const level = CEFR_LEVELS.find((value) => value === body.level);
 
   try {
-    const result = await prepareAudioScript({
+    const result = await suggestAudioEdits({
       apiKey: c.env.GEMINI_API_KEY,
       model: getTtsModelConfig(c.env).prepModel,
       script: body.script,
       mode: body.mode,
       language: isPrepareLanguage(body.language) ? body.language : "fr",
+      level,
     });
     return c.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to prepare audio script.";
+    const message = error instanceof Error ? error.message : "Unable to suggest edits.";
     return c.json({ error: message }, 502);
   }
 });
