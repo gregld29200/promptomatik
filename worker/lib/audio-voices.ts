@@ -35,7 +35,7 @@ const VOICES: ReadonlyArray<readonly [string, string, AudioVoiceGender, string]>
   ["Alnilam", "Oscar", "masculine", "Firm"],
   ["Schedar", "Adam", "masculine", "Even"],
   ["Gacrux", "Vera", "feminine", "Mature"],
-  ["Pulcherrima", "Julio", "masculine", "Forward"],
+  ["Pulcherrima", "Julia", "feminine", "Forward"],
   ["Achird", "Lucas", "masculine", "Friendly"],
   ["Zubenelgenubi", "Rafael", "masculine", "Casual"],
   ["Vindemiatrix", "Eva", "feminine", "Gentle"],
