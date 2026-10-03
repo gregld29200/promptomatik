@@ -108,7 +108,9 @@ function dialogueUnits(script: string): string[] {
     }
 
     if (current.length > 0) {
-      current.push(line);
+      // A turn typed over several lines stays one turn: speech planning and
+      // the TTS transcript both need every line to carry its speaker label.
+      current[current.length - 1] += ` ${line}`;
     } else {
       units.push(line);
     }
@@ -121,10 +123,31 @@ function dialogueUnits(script: string): string[] {
   return units;
 }
 
+// Words whose trailing period is not a sentence end ("M. Dupont", "p. ex.").
+const ABBREVIATIONS = new Set([
+  "m", "mm", "mme", "mmes", "mlle", "mlles", "dr", "pr", "st", "ste", "sr", "jr",
+  "mr", "mrs", "ms", "prof", "etc", "cf", "ex", "p", "vs", "av", "bd", "n°", "sra", "srta", "ud", "uds",
+]);
+const SENTENCE_END_RE = /[.!?]+["'”’»)\]]*\s+/g;
+
+// Splits on terminal punctuation followed by a space, so "3.5" stays whole,
+// and not after a known abbreviation or a single initial ("J. Martin").
 function monologueUnits(script: string): string[] {
   const normalized = script.replace(/\s+/g, " ").trim();
   if (!normalized) return [];
-  return normalized.match(/[^.!?]+[.!?]+(?:["')\]]+)?|[^.!?]+$/g)?.map((s) => s.trim()) ?? [normalized];
+  const units: string[] = [];
+  let start = 0;
+  for (const match of normalized.matchAll(SENTENCE_END_RE)) {
+    const end = (match.index ?? 0) + match[0].length;
+    const word = normalized.slice(start, match.index).split(" ").pop() ?? "";
+    const isAbbreviation = match[0].trimEnd() === "."
+      && (ABBREVIATIONS.has(word.toLowerCase()) || /^\p{Lu}$/u.test(word));
+    if (isAbbreviation) continue;
+    units.push(normalized.slice(start, end).trim());
+    start = end;
+  }
+  if (start < normalized.length) units.push(normalized.slice(start).trim());
+  return units.filter(Boolean);
 }
 
 export function splitScriptIntoBlocks(
