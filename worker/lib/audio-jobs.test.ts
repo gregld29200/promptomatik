@@ -657,7 +657,9 @@ describe("audio job lifecycle", () => {
     });
     // Teachers pick voices by display name, so no two may share one.
     expect(new Set(body.voices.map((voice) => voice.label)).size).toBe(30);
-    expect(body.voices.filter((voice) => voice.gender === "feminine")).toHaveLength(13);
+    expect(body.voices.filter((voice) => voice.gender === "feminine")).toHaveLength(14);
+    // Pulcherrima is one of Google's feminine voices.
+    expect(body.voices.find((voice) => voice.name === "Pulcherrima")).toMatchObject({ label: "Julia", gender: "feminine" });
     expect(new Set(body.voices.map((voice) => voice.tone))).toEqual(new Set(["energetic", "warm", "composed"]));
   });
 });

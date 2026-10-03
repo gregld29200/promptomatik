@@ -1,24 +1,28 @@
-// One-time voice preview seed (PRD §7.10, Phase 6).
+// Voice preview seed (PRD §7.10, Phase 6).
 // Generates one ~4s neutral English introduction per Gemini prebuilt voice
-// with the Draft (Flash) model at default temperature, and uploads each
-// sample to voices/{name}.mp3 in the MEDIA bucket (no lifecycle rule).
+// and uploads each sample to voices/{name}.mp3 in the MEDIA bucket (no
+// lifecycle rule). Previews use the model teachers actually hear: Gemini 3.8
+// through OpenRouter when OPENROUTER_API_KEY is set, else 2.5 Flash.
 //
 // Idempotent: voices that already have a preview object are skipped, so a
 // re-run only generates what is missing and never double-spends API cost.
+// --force regenerates them, e.g. after a voice is renamed; --voice limits
+// the run to the given Gemini voice ids.
 //
 // Usage:
-//   npm run audio:seed-voices           # local R2 (wrangler dev storage)
-//   npm run audio:seed-voices -- --remote   # production R2 bucket
+//   npm run audio:seed-voices                    # local R2 (wrangler dev storage)
+//   npm run audio:seed-voices -- --remote        # production R2 bucket
+//   npm run audio:seed-voices -- --remote --force --voice=Pulcherrima
 
 import { spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Env } from "../worker/env";
-import { getTtsModelConfig } from "../worker/lib/audio-config";
+import { audioCostUsd, audioTokensPerSecond, getTtsModelConfig, priceForModel } from "../worker/lib/audio-config";
 import { mp3FromPcm } from "../worker/lib/audio-assembly";
 import { AUDIO_VOICES } from "../worker/lib/audio-voices";
-import { costForQuality, generateBlock } from "../worker/lib/tts-provider";
+import { generateBlock } from "../worker/lib/tts-provider";
 
 const BUCKET = "teachinspire-media";
 const PREVIEW_PREFIX = "voices";
@@ -54,15 +58,26 @@ function previewExists(objectPath: string, locationFlag: string): boolean {
 
 async function main() {
   const remote = process.argv.includes("--remote");
+  const force = process.argv.includes("--force");
+  const only = process.argv
+    .filter((arg) => arg.startsWith("--voice="))
+    .flatMap((arg) => arg.slice("--voice=".length).split(","))
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const unknown = only.filter((name) => !AUDIO_VOICES.some((voice) => voice.name === name));
+  if (unknown.length > 0) {
+    throw new Error(`Unknown voice id(s): ${unknown.join(", ")}. Use Gemini ids such as Pulcherrima.`);
+  }
   const locationFlag = remote ? "--remote" : "--local";
   const envVars = await loadDevVars();
-  const apiKey = envVars.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is missing. Add it to .dev.vars or the shell environment.");
-  }
-
   const config = getTtsModelConfig(envVars as unknown as Env);
-  const model = config.draftModel;
+  const useOpenRouter = Boolean(envVars.OPENROUTER_API_KEY);
+  const apiKey = useOpenRouter ? envVars.OPENROUTER_API_KEY : envVars.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("OPENROUTER_API_KEY or GEMINI_API_KEY is missing. Add one to .dev.vars or the shell environment.");
+  }
+  const model = useOpenRouter ? config.monologueModel : config.draftModel;
+  const voices = only.length > 0 ? AUDIO_VOICES.filter((voice) => only.includes(voice.name)) : AUDIO_VOICES;
   const workDir = await mkdtemp(path.join(tmpdir(), "voice-previews-"));
 
   let generated = 0;
@@ -70,10 +85,10 @@ async function main() {
   let totalSeconds = 0;
 
   try {
-    for (const voice of AUDIO_VOICES) {
+    for (const voice of voices) {
       const objectPath = `${BUCKET}/${PREVIEW_PREFIX}/${voice.name}.mp3`;
 
-      if (previewExists(objectPath, locationFlag)) {
+      if (!force && previewExists(objectPath, locationFlag)) {
         skipped += 1;
         console.log(`skip ${voice.name} (preview already exists)`);
         continue;
@@ -110,10 +125,11 @@ async function main() {
     await rm(workDir, { recursive: true, force: true });
   }
 
-  const totalCostUsd = costForQuality(config, "draft", totalSeconds);
+  const totalCostUsd = audioCostUsd(totalSeconds, priceForModel(config, model), audioTokensPerSecond(model));
   console.log(JSON.stringify({
     target: remote ? "remote" : "local",
-    voices: AUDIO_VOICES.length,
+    model,
+    voices: voices.length,
     generated,
     skipped,
     totalAudioSeconds: Number(totalSeconds.toFixed(2)),
