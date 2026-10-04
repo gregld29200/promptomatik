@@ -24,6 +24,8 @@ npm run render:site
 
 `capture` drives Chromium with Playwright: run `npx playwright install chromium` once, or point `CHROMIUM_PATH` at a Chromium. Remotion downloads its own browser; `REMOTION_BROWSER` points it at a local one instead.
 
+`npm run transcript` writes the narration as plain text, chapter by chapter, with each chapter's start time in both cuts (`out/prise-en-main-studio-audio-script.txt`).
+
 To look at a few frames without a full render: `npm run stills -- StudioAudioModule 300,2300,4950` (PNGs in `out/stills/`). `npm run studio` opens the edit in Remotion Studio.
 
 ## Changing the tutorial

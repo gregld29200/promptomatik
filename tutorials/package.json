@@ -13,7 +13,8 @@
     "render:module": "remotion render StudioAudioModule out/studio-audio-module.mp4",
     "render:site": "remotion render StudioAudioSite out/studio-audio-site.mp4",
     "typecheck": "tsc --noEmit -p .",
-    "stills": "tsx scripts/stills.mts"
+    "stills": "tsx scripts/stills.mts",
+    "transcript": "tsx scripts/transcript.mts"
   },
   "dependencies": {
     "@remotion/cli": "4.0.532",

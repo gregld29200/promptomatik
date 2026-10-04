@@ -81,7 +81,7 @@ export const COMPARE_TAKES = [
 export const CHAPTERS: Chapter[] = [
   {
     id: "intro",
-    title: "Le Studio audio",
+    title: "Introduction",
     moduleOnly: true,
     paragraphs: [
       {
