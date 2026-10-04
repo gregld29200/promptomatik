@@ -64,6 +64,14 @@ const LANGUAGE_NAMES: Record<SuggestLanguage, string> = {
   es: "Spanish",
 };
 
+// Reasons in the teacher's language: examples in another language pull the
+// model into writing that language.
+const REASON_EXAMPLES: Record<SuggestLanguage, string> = {
+  fr: "« Yanis rit vraiment au lieu de lire « il rit ». », « Une action sans son : la voix la lirait à voix haute. », « Chloé est épuisée, sa voix le fait entendre. »",
+  en: "\"Yanis really laughs instead of reading out 'he laughs'.\", \"A silent action: the voice would read it aloud.\", \"Chloé is worn out, and you can hear it in her voice.\"",
+  es: "«Yanis se ríe de verdad en lugar de leer «se ríe».», «Una acción sin sonido: la voz la leería en voz alta.», «Chloé está agotada y se le nota en la voz.»",
+};
+
 // Beginners need clarity more than acting: fewer cues at A1/A2.
 const DENSITY: Record<CefrLevel, string> = {
   A1: "at most one tag every four lines",
@@ -93,6 +101,8 @@ function suggestPrompt(language: SuggestLanguage, mode: AudioMode, level: CefrLe
     "For each tag you insert, add a note: its 1-based line number, the tag and a one-sentence reason.",
     `Task 2, text in parentheses. It is a stage direction that would otherwise be read aloud. For each one, report its line and exact text, parentheses included, with one action: "tag" when an allowed tag performs it (e.g. ${examples}); "scene" when it describes the setting or an action, with a short scene sentence in the script's language; "remove" when it has no audio value. Add a one-sentence reason.`,
     `Write every reason in concise, natively idiomatic ${LANGUAGE_NAMES[language]}.`,
+    `The teacher reads each reason, so write it for a language teacher, not a technician: say what the listener will hear and why it helps the scene. Call whoever reads the script "the voice", never "the teacher". These examples show the style, not words to copy: ${REASON_EXAMPLES[language]}`,
+    "Never mention tags, brackets, stage directions, cues, markup, the model, the voice engine or text-to-speech in a reason, in any language (no balise, didascalie, livraison, etiqueta, acotación…). Name the characters and what they do or feel.",
     'Return ONLY valid JSON: {"annotated_script":"...","notes":[{"line":1,"tag":"[excited]","reason":"..."}],"parentheses":[{"line":2,"text":"(soupire)","action":"tag","tag":"[sighs]","reason":"..."}]}',
   ].join("\n");
 }
