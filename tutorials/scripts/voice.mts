@@ -1,5 +1,5 @@
-// Temporary narration, one take per paragraph, read by a studio voice so the
-// edit can be timed before the real voice-over is recorded.
+// The narration, one take per paragraph, read by a studio voice (Marco).
+// A recorded voice-over can replace it take by take (see README.md).
 //
 //   npm run voice                 missing paragraphs only
 //   npm run voice -- --force      every paragraph again
@@ -32,7 +32,7 @@ interface VoiceEntry {
   file: string;
   seconds: number;
   text: string;
-  source: "temporary" | "recorded";
+  source: "studio" | "recorded";
 }
 
 const apiKey = process.env.OPENROUTER_API_KEY;
@@ -59,7 +59,7 @@ async function read(id: string, text: string) {
   const result = await generateBlock({ apiKey: apiKey as string, model: MODEL, script: spoken(text), mode: "monologue", voices: { solo: NARRATOR }, direction: DIRECTION });
   const file = `studio-audio/voice/${id}.wav`;
   writeFileSync(resolve(ROOT, "public", file), wavFromPcm(result.pcm));
-  manifest[id] = { file, seconds: result.pcm.byteLength / PCM_BYTES_PER_SECOND, text, source: "temporary" };
+  manifest[id] = { file, seconds: result.pcm.byteLength / PCM_BYTES_PER_SECOND, text, source: "studio" };
   writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(`${id}: ${manifest[id].seconds.toFixed(1)} s`);
 }

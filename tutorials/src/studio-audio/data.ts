@@ -23,7 +23,7 @@ export interface VoiceEntry {
   file: string;
   seconds: number;
   text: string;
-  source: "temporary" | "recorded";
+  source: "studio" | "recorded";
 }
 
 export interface Turn {

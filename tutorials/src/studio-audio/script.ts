@@ -317,10 +317,11 @@ export const CHAPTERS: Chapter[] = [
       },
       {
         id: "ch5-3",
-        text: "Si un passage ne vous convient pas, inutile de tout refaire : on clique dessus pour régénérer uniquement celui-là. Seul ce passage est décompté de vos minutes.",
+        text: "Sur un texte long, la prise est découpée en blocs : si un passage ne vous convient pas, on clique dessus pour régénérer uniquement celui-là. Seul ce passage est décompté de vos minutes.",
         beats: [
-          { shot: "ready", focus: "player", spotlight: "waveform", click: "block0" },
-          { at: 0.5, shot: "block", focus: "player", spotlight: "regenArea", callout: { target: "regenArea", text: "Seul ce passage est décompté" } },
+          { shot: "ready", focus: "player", spotlight: "waveform" },
+          { at: 0.45, shot: "block", focus: "player", spotlight: "waveform", click: "block0" },
+          { at: 0.76, shot: "block", focus: "player", spotlight: "regenArea", callout: { target: "regenArea", text: "Seul ce passage est décompté" } },
         ],
       },
       {
