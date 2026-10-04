@@ -1,13 +1,20 @@
 import type { AudioMode, CefrLevel } from "./audio-config";
-import { prepareAudioScript, type AudioPrepareChange, type PrepareLanguage } from "./audio-prepare";
-import { SUPPORTED_AUDIO_TAGS, speakerLabelPrefix } from "../../src/lib/audio-script-rules";
+import { STAGE_DIRECTION_TAG_MAP, SUPPORTED_AUDIO_TAGS, speakerLabelPrefix } from "../../src/lib/audio-script-rules";
 import type { InlineSuggestion } from "../../src/lib/audio-suggestions";
 
 export type { InlineSuggestion } from "../../src/lib/audio-suggestions";
 
+// The interface languages the studio ships in. Reasons are shown verbatim in
+// the review, so the model writes them in the teacher's language.
+export const SUGGEST_LANGUAGES = ["fr", "en", "es"] as const;
+export type SuggestLanguage = (typeof SUGGEST_LANGUAGES)[number];
+
+export function isSuggestLanguage(value: unknown): value is SuggestLanguage {
+  return typeof value === "string" && (SUGGEST_LANGUAGES as readonly string[]).includes(value);
+}
+
 export interface AudioSuggestResult {
   suggestions: InlineSuggestion[];
-  warnings: string[];
 }
 
 export interface SuggestAudioEditsInput {
@@ -15,9 +22,16 @@ export interface SuggestAudioEditsInput {
   model: string;
   script: string;
   mode: AudioMode;
-  language: PrepareLanguage;
+  language: SuggestLanguage;
   level?: CefrLevel;
   fetcher?: typeof fetch;
+}
+
+export class AudioSuggestError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AudioSuggestError";
+  }
 }
 
 interface EmotionNote {
@@ -26,14 +40,25 @@ interface EmotionNote {
   reason: string;
 }
 
-interface EmotionProposal {
+export interface ParenthesisDecision {
+  line: number;
+  /** The exact text, parentheses included: "(il rit)". */
+  text: string;
+  action: "tag" | "scene" | "remove";
+  tag?: string;
+  scene?: string;
+  reason: string;
+}
+
+export interface SuggestProposal {
   annotatedScript: string;
   notes: EmotionNote[];
+  parentheses: ParenthesisDecision[];
 }
 
 const SUPPORTED = new Set<string>(SUPPORTED_AUDIO_TAGS);
 
-const LANGUAGE_NAMES: Record<PrepareLanguage, string> = {
+const LANGUAGE_NAMES: Record<SuggestLanguage, string> = {
   fr: "French",
   en: "English",
   es: "Spanish",
@@ -52,64 +77,79 @@ function tagKey(tag: string): string {
   return `[${tag.slice(1, -1).trim().replace(/\s+/g, " ").toLowerCase()}]`;
 }
 
-function emotionPrompt(language: PrepareLanguage, mode: AudioMode, level: CefrLevel): string {
+function suggestPrompt(language: SuggestLanguage, mode: AudioMode, level: CefrLevel): string {
+  const examples = Object.entries(STAGE_DIRECTION_TAG_MAP)
+    .map(([word, tag]) => `${word} -> ${tag}`)
+    .join(", ");
   return [
-    "You help a language teacher direct a text-to-speech recording of their own script.",
-    `This script is a ${mode}. Suggest delivery tags where an emotion or a pause would make the reading more natural and expressive.`,
-    `Allowed tags, and only these: ${SUPPORTED_AUDIO_TAGS.join(", ")}.`,
-    "Event tags ([sighs], [laughs], [giggles], [gasp], [pause]) sound at their exact position. Manner tags (all the others) colour the sentence they start, so place them at the start of a sentence.",
+    "You help a language teacher prepare their own script for a text-to-speech recording. Never rewrite it.",
     mode === "dialogue"
-      ? "In a dialogue, a tag goes after the speaker label and its colon, never before or inside the label."
-      : "In a monologue, never add speaker labels.",
-    `Be sparing: ${DENSITY[level]}, only where the text clearly calls for it. Never stack more than two tags in one place. Keep every tag already in the script.`,
-    "Return annotated_script: the script EXACTLY as given, same lines, same words, same punctuation, with only your new tags inserted. Changing, adding or removing a single word invalidates your answer.",
-    `For each tag you insert, add a note with its 1-based line number, the tag, and a one-sentence reason written in concise, natively idiomatic ${LANGUAGE_NAMES[language]}.`,
-    'Return ONLY valid JSON: {"annotated_script":"...","notes":[{"line":1,"tag":"[excited]","reason":"..."}]}',
+      ? "This is a dialogue. Lines start with a character name and a colon (\"Léa : …\"); keep names exactly as written."
+      : "This is a monologue read by one narrator.",
+    `Task 1, emotions. Insert delivery tags where an emotion or a pause clearly makes the reading more natural. Allowed tags, and only these: ${SUPPORTED_AUDIO_TAGS.join(", ")}.`,
+    "Event tags ([sighs], [laughs], [giggles], [gasp], [pause]) sound at their exact position. Manner tags (all the others) colour the sentence they start, so place them at the start of a sentence, after the character name and its colon.",
+    `Be sparing: ${DENSITY[level]}. Never stack two tags in one place. Keep every tag already in the script.`,
+    "annotated_script is the script EXACTLY as given: same lines, words, punctuation and parentheses, with only your new tags inserted. Changing a single word invalidates your answer.",
+    "For each tag you insert, add a note: its 1-based line number, the tag and a one-sentence reason.",
+    `Task 2, text in parentheses. It is a stage direction that would otherwise be read aloud. For each one, report its line and exact text, parentheses included, with one action: "tag" when an allowed tag performs it (e.g. ${examples}); "scene" when it describes the setting or an action, with a short scene sentence in the script's language; "remove" when it has no audio value. Add a one-sentence reason.`,
+    `Write every reason in concise, natively idiomatic ${LANGUAGE_NAMES[language]}.`,
+    'Return ONLY valid JSON: {"annotated_script":"...","notes":[{"line":1,"tag":"[excited]","reason":"..."}],"parentheses":[{"line":2,"text":"(soupire)","action":"tag","tag":"[sighs]","reason":"..."}]}',
   ].join("\n");
 }
 
-function parseEmotionProposal(raw: string): EmotionProposal | null {
+function parseJson(raw: string): unknown {
   const cleaned = raw.trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/i, "$1");
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(cleaned);
+    return JSON.parse(cleaned);
   } catch {
-    return null;
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start < 0 || end <= start) return null;
+    try {
+      return JSON.parse(cleaned.slice(start, end + 1));
+    } catch {
+      return null;
+    }
   }
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+// Lenient by design: a malformed note or parenthesis entry is skipped, never
+// allowed to sink the whole answer. Only a missing annotated script fails.
+export function parseSuggestResponse(raw: string): SuggestProposal | null {
+  const parsed = parseJson(raw);
   if (!parsed || typeof parsed !== "object") return null;
   const record = parsed as Record<string, unknown>;
   if (typeof record.annotated_script !== "string") return null;
-  const notes = Array.isArray(record.notes)
-    ? record.notes.flatMap((note): EmotionNote[] => {
-      if (!note || typeof note !== "object") return [];
-      const { line, tag, reason } = note as Record<string, unknown>;
-      if (!Number.isInteger(line) || typeof tag !== "string") return [];
-      return [{ line: Number(line), tag: tagKey(tag), reason: typeof reason === "string" ? reason.trim() : "" }];
-    })
-    : [];
-  return { annotatedScript: record.annotated_script, notes };
-}
 
-async function proposeEmotionTags(input: SuggestAudioEditsInput): Promise<EmotionProposal | null> {
-  const fetcher = input.fetcher ?? fetch;
-  const response = await fetcher(
-    `https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: emotionPrompt(input.language, input.mode, input.level ?? "B1") }] },
-        contents: [{ role: "user", parts: [{ text: `Script:\n${input.script}` }] }],
-        generationConfig: { responseMimeType: "application/json" },
-      }),
-    }
-  );
-  if (!response.ok) throw new Error(`Emotion suggestion failed with HTTP ${response.status}.`);
-  const body = await response.json().catch(() => null) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  } | null;
-  const text = body?.candidates?.[0]?.content?.parts?.find((part) => typeof part.text === "string")?.text;
-  return text ? parseEmotionProposal(text) : null;
+  const notes = (Array.isArray(record.notes) ? record.notes : []).flatMap((entry): EmotionNote[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const { line, tag, reason } = entry as Record<string, unknown>;
+    if (!Number.isInteger(line) || typeof tag !== "string") return [];
+    return [{ line: Number(line), tag: tagKey(tag), reason: text(reason) }];
+  });
+
+  const parentheses = (Array.isArray(record.parentheses) ? record.parentheses : []).flatMap((entry): ParenthesisDecision[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Record<string, unknown>;
+    const found = text(item.text);
+    const action = item.action;
+    if (!Number.isInteger(item.line) || !/^\(.*\)$/s.test(found)) return [];
+    if (action !== "tag" && action !== "scene" && action !== "remove") return [];
+    return [{
+      line: Number(item.line),
+      text: found,
+      action,
+      tag: typeof item.tag === "string" ? tagKey(item.tag) : undefined,
+      scene: text(item.scene).slice(0, 200) || undefined,
+      reason: text(item.reason),
+    }];
+  });
+
+  return { annotatedScript: record.annotated_script, notes, parentheses };
 }
 
 interface LineShape {
@@ -155,7 +195,7 @@ function lineStarts(script: string): number[] {
 // whole: the teacher's text is never altered by an emotion suggestion.
 export function emotionSuggestionsFrom(
   original: string,
-  proposal: EmotionProposal,
+  proposal: Pick<SuggestProposal, "annotatedScript" | "notes">,
   mode: AudioMode
 ): InlineSuggestion[] {
   const originalLines = original.split("\n");
@@ -169,8 +209,7 @@ export function emotionSuggestionsFrom(
   const suggestions: InlineSuggestion[] = [];
 
   originalIdx.forEach((lineIndex, position) => {
-    const raw = originalLines[lineIndex];
-    const line = raw.replace(/\r$/, "");
+    const line = originalLines[lineIndex].replace(/\r$/, "");
     const before = lineShape(line);
     const after = lineShape(annotatedLines[annotatedIdx[position]]);
     if (before.core !== after.core) return;
@@ -195,9 +234,7 @@ export function emotionSuggestionsFrom(
       }
       const atEnd = at >= line.trimEnd().length;
       const needsLead = at > 0 && !/\s/.test(line[at - 1]);
-      const insert = atEnd
-        ? ` ${tag.key}`
-        : `${needsLead ? " " : ""}${tag.key} `;
+      const insert = atEnd ? ` ${tag.key}` : `${needsLead ? " " : ""}${tag.key} `;
       const note = proposal.notes.find((entry) => entry.line === lineIndex + 1 && entry.tag === tag.key)
         ?? proposal.notes.find((entry) => entry.tag === tag.key && Math.abs(entry.line - (lineIndex + 1)) <= 1);
       const offset = starts[lineIndex] + at;
@@ -216,63 +253,49 @@ export function emotionSuggestionsFrom(
   return suggestions;
 }
 
-// Positions the structural fixes of the prepare pass (speaker labels,
-// stage directions, cleanups) on the original script. A change whose
-// `before` text cannot be found is dropped rather than guessed.
-// Teachers type, and read, the speaker label of their interface language;
-// the pipeline normalises all of them to "Speaker N" before speech.
-const SPEAKER_WORD: Record<PrepareLanguage, string> = { fr: "Locuteur", en: "Speaker", es: "Hablante" };
-
-export function fixSuggestionsFrom(
-  original: string,
-  changes: AudioPrepareChange[],
-  language: PrepareLanguage = "en"
-): InlineSuggestion[] {
+// Positions each decision about text in parentheses on the original script:
+// replaced by the tag that performs it, or removed (and, for "scene", moved
+// to the Scene field). A decision whose text cannot be found is dropped.
+export function parenthesisSuggestionsFrom(original: string, decisions: ParenthesisDecision[]): InlineSuggestion[] {
   const lines = original.split("\n");
   const starts = lineStarts(original);
   const suggestions: InlineSuggestion[] = [];
+  const used = new Set<number>();
 
-  changes.forEach((change, index) => {
-    if (change.type === "tag_added" || !change.before) return;
-    let start = -1;
-    let end = -1;
-    const lineIndex = change.line - 1;
-    if (lineIndex >= 0 && lineIndex < lines.length) {
-      const found = lines[lineIndex].indexOf(change.before);
-      if (found >= 0) start = starts[lineIndex] + found;
-      // The prepare pass may echo a speaker name in another case ("sophie:").
-      const label = lines[lineIndex].match(/^\s*([^:\n]{1,80}):/);
-      if (start < 0 && change.type === "speaker_rename" && label
-        && label[1].trim().toLowerCase().startsWith(change.before.slice(0, -1).trim().toLowerCase())) {
-        start = starts[lineIndex] + label[0].indexOf(label[1]);
-        end = starts[lineIndex] + label[0].length;
+  for (const decision of decisions) {
+    let foundAt = -1;
+    for (const lineIndex of [decision.line - 1, decision.line - 2, decision.line]) {
+      if (lineIndex < 0 || lineIndex >= lines.length) continue;
+      const found = lines[lineIndex].indexOf(decision.text);
+      if (found >= 0 && !used.has(starts[lineIndex] + found)) {
+        foundAt = starts[lineIndex] + found;
+        break;
       }
     }
-    if (start < 0) {
-      const first = original.indexOf(change.before);
-      if (first < 0 || original.indexOf(change.before, first + 1) >= 0) return;
-      start = first;
-    }
-    if (end < 0) end = start + change.before.length;
-    const isHint = change.type === "direction_hint";
-    const insert = isHint
-      ? ""
-      : change.after.replace(/^Speaker (\d+):/, `${SPEAKER_WORD[language]} $1:`);
-    if (!insert && original[end] === " " && (start === 0 || /\s/.test(original[start - 1]))) end += 1;
-    if (insert === change.before) return;
+    if (foundAt < 0) continue;
 
+    const tag = decision.action === "tag" && decision.tag && SUPPORTED.has(decision.tag) ? decision.tag : undefined;
+    if (decision.action === "tag" && !tag) continue;
+    let start = foundAt;
+    let end = start + decision.text.length;
+    if (!tag) {
+      // Take one neighbouring space with the removed text.
+      if (original[end] === " " && (start === 0 || /\s/.test(original[start - 1]))) end += 1;
+      else if (start > 0 && original[start - 1] === " " && (end === original.length || original[end] === "\n")) start -= 1;
+    }
+    used.add(foundAt);
     suggestions.push({
-      id: `fix-${start}-${index}`,
+      id: `paren-${start}`,
       kind: "fix",
       start,
       end,
-      insert,
-      scene: isHint && change.after.trim() ? change.after.trim() : undefined,
-      // The studio explains a speaker renaming itself, in teacher language.
-      reason: change.type === "speaker_rename" ? "" : change.rationale,
-      fixType: change.type,
+      insert: tag ?? "",
+      tag,
+      scene: decision.action === "scene" ? decision.scene ?? decision.text.slice(1, -1).trim() : undefined,
+      fixType: "stage_direction",
+      reason: decision.reason,
     });
-  });
+  }
 
   return suggestions;
 }
@@ -328,22 +351,46 @@ export function limitEmotionTags(
   return candidates.filter((_, index) => picked.has(index));
 }
 
-export async function suggestAudioEdits(input: SuggestAudioEditsInput): Promise<AudioSuggestResult> {
-  const script = input.script.replace(/\r\n/g, "\n");
-  const [fixes, emotions] = await Promise.allSettled([
-    prepareAudioScript({ ...input, script }),
-    proposeEmotionTags({ ...input, script }),
-  ]);
-  if (fixes.status === "rejected" && emotions.status === "rejected") {
-    throw fixes.reason instanceof Error ? fixes.reason : new Error("Unable to suggest edits.");
-  }
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 
-  const fixSuggestions = fixes.status === "fulfilled" ? fixSuggestionsFrom(script, fixes.value.changes, input.language) : [];
-  const tagSuggestions = emotions.status === "fulfilled" && emotions.value
-    ? limitEmotionTags(script, fixSuggestions, emotionSuggestionsFrom(script, emotions.value, input.mode), input.level ?? "B1")
-    : [];
-  return {
-    suggestions: mergeSuggestions(fixSuggestions, tagSuggestions),
-    warnings: fixes.status === "fulfilled" ? fixes.value.warnings : [],
-  };
+async function requestProposal(input: SuggestAudioEditsInput, script: string): Promise<SuggestProposal | null> {
+  const fetcher = input.fetcher ?? fetch;
+  const response = await fetcher(
+    `https://generativelanguage.googleapis.com/v1beta/models/${input.model}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": input.apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: suggestPrompt(input.language, input.mode, input.level ?? "B1") }] },
+        contents: [{ role: "user", parts: [{ text: `Script:\n${script}` }] }],
+        // Placing tags is a light task: thinking adds tens of seconds, not quality.
+        generationConfig: { responseMimeType: "application/json", thinkingConfig: { thinkingBudget: 0 } },
+      }),
+    }
+  );
+  if (!response.ok) {
+    if (RETRYABLE_STATUSES.has(response.status)) return null;
+    throw new AudioSuggestError(`Suggestion request failed with HTTP ${response.status}.`);
+  }
+  const body = await response.json().catch(() => null) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  } | null;
+  const raw = body?.candidates?.[0]?.content?.parts?.find((part) => typeof part.text === "string")?.text;
+  return raw ? parseSuggestResponse(raw) : null;
+}
+
+// One pass, one contract: emotions and parentheses come back together, so
+// the teacher never gets half a review. A busy model or an unreadable answer
+// is retried once; after that the caller gets an error, never a partial.
+export async function suggestAudioEdits(input: SuggestAudioEditsInput): Promise<AudioSuggestResult> {
+  const script = input.script.replace(/\r\n?/g, "\n");
+  let proposal: SuggestProposal | null = null;
+  for (let attempt = 0; attempt < 2 && !proposal; attempt += 1) {
+    proposal = await requestProposal(input, script);
+  }
+  if (!proposal) throw new AudioSuggestError("The suggestion model returned no usable answer.");
+
+  const fixes = parenthesisSuggestionsFrom(script, proposal.parentheses);
+  const tags = limitEmotionTags(script, fixes, emotionSuggestionsFrom(script, proposal, input.mode), input.level ?? "B1");
+  return { suggestions: mergeSuggestions(fixes, tags) };
 }

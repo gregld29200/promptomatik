@@ -5,7 +5,7 @@ import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import "@fontsource/playfair-display/latin-600.css";
 import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Copy, FileAudio, HelpCircle, Lock, RotateCcw, Tags, Wand2, X } from "lucide-react";
+import { Copy, FileAudio, HelpCircle, RotateCcw, Wand2, X } from "lucide-react";
 import { Link } from "react-router";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
@@ -13,12 +13,14 @@ import { HelpDot, HelpPanel, helpPanelId } from "@/components/ui/help-disclosure
 import { GenerationConsole } from "@/components/audio/generation-console";
 import { VoiceCasting } from "@/components/audio/voice-casting";
 import { WaveformPlayer } from "@/components/audio/waveform-player";
-import { ScriptReview, tagLabel } from "@/components/audio/script-review";
+import { ScriptReview } from "@/components/audio/script-review";
+import { ScriptStatus } from "@/components/audio/script-status";
+import { EmotionMenu } from "@/components/audio/emotion-menu";
 import { applySuggestions, type SuggestionDecision } from "@/lib/audio-suggestions";
 import { useAuth } from "@/lib/auth/auth-context";
 import { SUPPORTED_LANGUAGES, getLanguage, t, type Language } from "@/lib/i18n";
 import * as api from "@/lib/api";
-import { SUPPORTED_AUDIO_TAGS, lintAudioScript, type ScriptLintFinding } from "@/lib/audio-script-rules";
+import { DIALOGUE_SLOTS, SUPPORTED_AUDIO_TAGS, dialogueCast, lintAudioScript, type CastMember } from "@/lib/audio-script-rules";
 import type { AudioDirection, AudioJob, AudioMode, AudioQuality, AudioSpeakerDirection, AudioVoice, CefrLevel } from "@/lib/api";
 import { expiresLabel, formatShort, isExpired, modeLabel, qualityLabel, stripTags, takeTitle } from "@/lib/audio-display";
 import s from "./audio.module.css";
@@ -34,13 +36,12 @@ const PACES = ["Slow learner-friendly", "Natural classroom speed", "Business mee
 // 6x on identical input. Dictation returns in V1.5 on programmatic PCM
 // silence insertion (BUILD_LOG.md, Phase 7 closure).
 const STYLES = ["Neutral classroom", "Warm and encouraging", "Professional corporate", "Business meeting", "Podcast host", "Examiner voice", "Customer service", "Informal conversation", "Storytelling"];
-const TAGS = SUPPORTED_AUDIO_TAGS;
 
 // Sample scripts, one per interface language, offered when the editor is empty.
 const EXAMPLES: Record<Language, string> = {
-  fr: `Locuteur 1: Bonjour, je cherche une salle pour une réunion jeudi matin.\nLocuteur 2: Bien sûr. Vous attendez combien de personnes ?\nLocuteur 1: Huit personnes, avec un projecteur si possible.\nLocuteur 2: La salle Camélia est libre à 10 heures. Je vous la réserve ?`,
-  en: `Speaker 1: Good morning, I need to move my appointment to Friday.\nSpeaker 2: No problem. Would 2:30 work for you?\nSpeaker 1: Yes, that is perfect. Could you send me a confirmation?\nSpeaker 2: Of course. You will receive it in a few minutes.`,
-  es: `Hablante 1: Buenos días, quisiera cambiar mi cita al viernes.\nHablante 2: Sin problema. ¿Le viene bien a las dos y media?\nHablante 1: Sí, perfecto. ¿Podría enviarme una confirmación?\nHablante 2: Por supuesto. La recibirá en unos minutos.`,
+  fr: `Sophie : Bonjour, je cherche une salle pour une réunion jeudi matin.\nKarim : Bien sûr. Vous attendez combien de personnes ?\nSophie : Huit personnes, avec un projecteur si possible.\nKarim : La salle Camélia est libre à 10 heures. Je vous la réserve ?`,
+  en: `Emma: Good morning, I need to move my appointment to Friday.\nTom: No problem. Would 2:30 work for you?\nEmma: Yes, that is perfect. Could you send me a confirmation?\nTom: Of course. You will receive it in a few minutes.`,
+  es: `Lucía: Buenos días, quisiera cambiar mi cita al viernes.\nPablo: Sin problema. ¿Le viene bien a las dos y media?\nLucía: Sí, perfecto. ¿Podría enviarme una confirmación?\nPablo: Por supuesto. La recibirá en unos minutos.`,
 };
 
 // Display-only transforms; the backend direction values are the EN labels.
@@ -109,48 +110,31 @@ function estimateSeconds(script: string) {
   return Math.ceil(words / 2.5);
 }
 
-function speakerLabels(script: string) {
-  const labels = new Set<string>();
-  for (const match of script.matchAll(/^([^:\n]{1,40}):/gm)) {
-    const label = match[1].trim();
-    if (label) labels.add(label);
-  }
-  return [...labels];
-}
-
-function voicesForPayload(mode: AudioMode, script: string, selected: Record<string, string>) {
+// Voices go to the worker by slot ("Speaker 1"): it rewrites the names in
+// the script to the same slots before speech.
+function voicesForPayload(mode: AudioMode, cast: CastMember[], selected: Record<string, string>) {
   if (mode === "monologue") return { solo: selected.solo };
-  const labels = speakerLabels(script);
-  const speakers = labels.length > 0 ? labels : ["Speaker 1", "Speaker 2"];
-  return Object.fromEntries(
-    speakers.slice(0, 2).map((speaker, index) => [
-      speaker,
-      selected[`Speaker ${index + 1}`],
-    ])
-  );
+  const slots = cast.flatMap((member) => (member.slot ? [member.slot] : []));
+  const used = slots.length > 0 ? slots : [...DIALOGUE_SLOTS];
+  return Object.fromEntries(used.map((slot) => [slot, selected[slot]]));
 }
 
-function renderHighlighted(text: string) {
-  return text.split(/(\[[^\]]+\])/g).map((part, index) => {
-    if (part.startsWith("[") && part.endsWith("]")) {
-      return <mark key={index}>{part}</mark>;
-    }
-    return <span key={index}>{part}</span>;
-  });
+// Names the teacher gave their characters, by slot, for the voice cards and
+// the per-character settings. Numbered labels ("Locuteur 1") add nothing.
+function castNames(cast: CastMember[]): Partial<Record<string, string>> {
+  return Object.fromEntries(cast.flatMap((member) =>
+    member.slot && !/\d$/.test(member.label) ? [[member.slot, member.label]] : []
+  ));
 }
 
 function directionLabel(value: string) {
   return DIRECTION_LABELS[getLanguage()][value] ?? value;
 }
 
-function speakerDisplay(slot: string) {
+function speakerDisplay(slot: string, names: Partial<Record<string, string>>) {
+  if (names[slot]) return names[slot] as string;
   const n = slot.match(/^Speaker\s+(\d+)$/i)?.[1];
   return n ? t("audio.speaker_n", { n }) : slot;
-}
-
-function lintMessage(finding: ScriptLintFinding) {
-  const message = t(`audio.lint_${finding.code}`, { tag: finding.tag ?? "" });
-  return finding.line ? `${message} ${t("audio.lint_line", { line: String(finding.line) })}` : message;
 }
 
 // The worker re-runs the linter as a backstop and answers with `audio_lint_<code>`
@@ -158,8 +142,6 @@ function lintMessage(finding: ScriptLintFinding) {
 function jobErrorMessage(error: string) {
   return error.startsWith("audio_lint_") ? t(`audio.lint_${error.slice("audio_lint_".length)}`) : error;
 }
-
-const DIALOGUE_SLOTS = ["Speaker 1", "Speaker 2"] as const;
 
 function uiLocale() {
   return DATE_LOCALES[getLanguage()];
@@ -212,6 +194,9 @@ export function AudioStudioPage() {
   const [review, setReview] = useState<(api.AudioSuggestResult & { script: string }) | null>(null);
   const [reviewDecisions, setReviewDecisions] = useState<Record<string, SuggestionDecision>>({});
   const [reviewError, setReviewError] = useState<string | null>(null);
+  const [suggestNotice, setSuggestNotice] = useState<string | null>(null);
+  // Folded by default; opens by itself when a duplicated take carries per-character settings.
+  const [speakerSettingsOpen, setSpeakerSettingsOpen] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
   const [undo, setUndo] = useState<{ script: string; scene: string | undefined } | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -241,6 +226,7 @@ export function AudioStudioPage() {
       setMode(job.mode);
       updateScript(job.script);
       setDirection(job.direction);
+      setSpeakerSettingsOpen(Boolean(job.direction.speakers));
       setVoices((prev) => ({ ...prev, ...job.voices }));
       if (job.status === "ready" && !isExpired(job)) setActiveJob(job);
     });
@@ -268,12 +254,24 @@ export function AudioStudioPage() {
   const estimate = useMemo(() => estimateSeconds(script), [script]);
   const lintFindings = useMemo(() => lintAudioScript(script, mode), [script, mode]);
   const blockingFindings = lintFindings.filter((finding) => finding.severity === "blocking");
-  const warningFindings = lintFindings.filter((finding) => finding.severity === "warning");
-  const selectedVoices = useMemo(() => voicesForPayload(mode, script, voices), [mode, script, voices]);
-  const missingVoices = Object.values(selectedVoices).some((voice) => !voice);
+  const cast = useMemo(() => (mode === "dialogue" ? dialogueCast(script) : []), [mode, script]);
+  const names = useMemo(() => castNames(cast), [cast]);
+  const selectedVoices = useMemo(() => voicesForPayload(mode, cast, voices), [mode, cast, voices]);
+  const missingVoiceSlot = Object.entries(selectedVoices).find(([, voice]) => !voice)?.[0];
+  const missingVoices = missingVoiceSlot !== undefined;
   const quotaPool = (quota?.includedRemaining ?? 0) + (quota?.credits ?? 0);
   const quotaBlocked = quota ? estimate > quotaPool * 1.2 : false;
-  const canGenerate = script.trim().length > 0 && blockingFindings.length === 0 && !missingVoices && !quotaBlocked;
+  const canGenerate = script.trim().length > 0 && blockingFindings.length === 0 && !missingVoices && !quotaBlocked && review === null;
+  // Says why the button is grey, in one sentence, next to the button.
+  const generateHint = !script.trim()
+    ? t("audio.why_empty")
+    : review
+      ? t("audio.why_review")
+      : blockingFindings.length > 0
+        ? t("audio.why_blocking")
+        : missingVoiceSlot
+          ? t("audio.why_voice", { name: missingVoiceSlot === "solo" ? t("audio.narrator") : speakerDisplay(missingVoiceSlot, names) })
+          : null;
 
   useEffect(() => {
     if (!isParticipant) return;
@@ -382,6 +380,7 @@ export function AudioStudioPage() {
   function updateScript(next: string) {
     setScript(next);
     setUndo(null);
+    setSuggestNotice(null);
     clearReview();
   }
 
@@ -434,15 +433,21 @@ export function AudioStudioPage() {
     if (!script.trim() || suggesting) return;
     setSuggesting(true);
     setReviewError(null);
+    setSuggestNotice(null);
     const sent = script;
     const res = await api.suggestAudioEdits({ script: sent, mode, level: direction.level });
     setSuggesting(false);
     if (res.error) {
       setReview(null);
-      setReviewError(res.error.error);
+      // Never a technical message, and never half a review: the text is untouched.
+      setReviewError(t("audio.suggest_failed"));
       return;
     }
-    setReview({ ...res.data, script: sent.replace(/\r\n/g, "\n") });
+    if (res.data.suggestions.length === 0) {
+      setSuggestNotice(t("audio.suggest_none"));
+      return;
+    }
+    setReview({ ...res.data, script: sent.replace(/\r\n?/g, "\n") });
     setReviewDecisions({});
   }
 
@@ -572,7 +577,6 @@ export function AudioStudioPage() {
           <section className={s.zone}>
             <div className={s.zoneTitle}>
               <h2>{t("audio.script_zone")}</h2>
-              {script.trim() ? <span>{t("audio.estimate", { time: formatShort(estimate) })}</span> : null}
             </div>
 
             <div className={s.segmented} aria-label={t("audio.mode")}>
@@ -592,7 +596,6 @@ export function AudioStudioPage() {
               <ScriptReview
                 script={review.script}
                 suggestions={review.suggestions}
-                warnings={review.warnings}
                 decisions={reviewDecisions}
                 onDecide={decideSuggestion}
                 onAcceptAll={() => decideAllPending("accepted")}
@@ -623,74 +626,51 @@ export function AudioStudioPage() {
               </div>
             )}
 
-            <div className={s.prepareBar}>
-              <button
-                type="button"
-                className={s.secondaryAction}
-                disabled={!script.trim() || suggesting || review !== null}
-                onClick={() => void suggestEdits()}
-              >
-                <Wand2 size={16} aria-hidden />
-                {suggesting ? t("audio.suggest_loading") : t("audio.suggest")}
-              </button>
-              {undo && !review && (
-                <button type="button" className={s.secondaryAction} onClick={undoReview}>
-                  <RotateCcw size={16} aria-hidden />
-                  {t("audio.review_undo_all")}
-                </button>
-              )}
-              <button type="button" className={s.secondaryAction} onClick={() => setHelpOpen(true)}>
-                <HelpCircle size={16} aria-hidden />
-                {t("audio.help_title")}
-              </button>
-              {!script.trim() && <span>{t("audio.suggest_empty_hint")}</span>}
-            </div>
+            {!review && (
+              <ScriptStatus
+                mode={mode}
+                script={script}
+                findings={lintFindings}
+                cast={cast}
+                estimate={t("audio.estimate", { time: formatShort(estimate) })}
+                onSwitchToDialogue={() => handleModeChange("dialogue")}
+              />
+            )}
 
             {!review && (
-              <>
-                <div className={s.tags} aria-label={t("audio.tags_label")}>
-                  <Tags size={16} aria-hidden />
-                  {TAGS.map((tag) => (
-                    <button key={tag} type="button" onClick={() => insertTag(tag)} title={tag}>
-                      {tagLabel(tag)}
-                    </button>
-                  ))}
-                </div>
-                <p className={s.tagsNote}>{t("audio.tags_insert_note")}</p>
-              </>
-            )}
-
-            {script.trim().length > 0 && blockingFindings.length > 0 && (
-              <div className={s.lintPanel} role="alert">
-                <strong><Lock size={15} aria-hidden /> {t("audio.lint_blocking")}</strong>
-                {blockingFindings.map((finding) => (
-                  <p key={`${finding.code}-${finding.line ?? 0}`}>{lintMessage(finding)} <button type="button" onClick={() => void suggestEdits()}>{t("audio.suggest")}</button></p>
-                ))}
+              <div className={s.prepareBar}>
+                <button
+                  type="button"
+                  className={s.suggestAction}
+                  disabled={!script.trim() || suggesting}
+                  onClick={() => void suggestEdits()}
+                >
+                  <Wand2 size={16} aria-hidden />
+                  {suggesting ? t("audio.suggest_loading") : t("audio.suggest")}
+                </button>
+                <EmotionMenu onInsert={insertTag} />
+                {undo && (
+                  <button type="button" className={s.secondaryAction} onClick={undoReview}>
+                    <RotateCcw size={16} aria-hidden />
+                    {t("audio.review_undo_all")}
+                  </button>
+                )}
+                <button type="button" className={s.linkAction} onClick={() => setHelpOpen(true)}>
+                  <HelpCircle size={16} aria-hidden />
+                  {t("audio.help_title")}
+                </button>
               </div>
             )}
 
-            {warningFindings.length > 0 && (
-              <div className={s.lintWarnings}>
-                <strong>{t("audio.lint_warnings")}</strong>
-                {warningFindings.slice(0, 3).map((finding) => (
-                  <p key={`${finding.code}-${finding.line ?? 0}`}>{lintMessage(finding)} <button type="button" onClick={() => void suggestEdits()}>{t("audio.suggest")}</button></p>
-                ))}
-              </div>
+            {suggestNotice && <p className={s.notice} role="status">{suggestNotice}</p>}
+            {reviewError && (
+              <p className={s.error} role="alert">
+                {reviewError}{" "}
+                <button type="button" className={s.inlineRetry} onClick={() => void suggestEdits()}>
+                  {t("common.retry")}
+                </button>
+              </p>
             )}
-
-            {reviewError && <p className={s.error}>{reviewError}</p>}
-
-            <div className={s.scriptPreview} aria-label={t("audio.preview")}>
-              {(script || t("audio.preview_empty")).split("\n").map((line, index) => {
-                const label = line.match(/^([^:\n]{1,40}):/);
-                return (
-                  <p key={`${line}-${index}`} className={label ? s.turn : ""}>
-                    {label && <strong>{label[1]}</strong>}
-                    {renderHighlighted(label ? line.slice(label[0].length).trimStart() : line)}
-                  </p>
-                );
-              })}
-            </div>
           </section>
 
           <section className={s.zone}>
@@ -759,9 +739,19 @@ export function AudioStudioPage() {
                 </label>
               </>
             ) : (
-              DIALOGUE_SLOTS.map((slot) => (
+              <details
+                className={s.speakerDetails}
+                open={speakerSettingsOpen}
+                onToggle={(event) => setSpeakerSettingsOpen(event.currentTarget.open)}
+              >
+                <summary>
+                  {t("audio.speaker_settings", {
+                    names: DIALOGUE_SLOTS.map((slot) => speakerDisplay(slot, names)).join(" · "),
+                  })}
+                </summary>
+              {DIALOGUE_SLOTS.map((slot) => (
                 <fieldset key={slot} className={s.speakerGroup}>
-                  <legend>{speakerDisplay(slot)}</legend>
+                  <legend>{speakerDisplay(slot, names)}</legend>
                   <label className={s.field}>
                     <span>{t("audio.accent")} {helpDot(`${slot}-accent`)}</span>
                     <select
@@ -813,7 +803,8 @@ export function AudioStudioPage() {
                     {helpText(`${slot}-notes`, "audio.param_help_notes")}
                   </label>
                 </fieldset>
-              ))
+              ))}
+              </details>
             )}
             <label className={s.field}>
               <span>{t("audio.scene")} {helpDot("scene")}</span>
@@ -834,13 +825,20 @@ export function AudioStudioPage() {
               </button>
             </div>
 
-            <VoiceCasting voices={catalog} mode={mode} selected={voices} onChange={setVoices} />
+            <VoiceCasting voices={catalog} mode={mode} selected={voices} onChange={setVoices} slotNames={names} />
 
-            <div className={s.qualityRow}>
-              <button type="button" className={s.primary} disabled={!canGenerate} onClick={() => void generate()}>
+            <div className={s.generateDock}>
+              <button
+                type="button"
+                className={s.primary}
+                disabled={!canGenerate}
+                onClick={() => void generate()}
+                aria-describedby={generateHint ? "generate-hint" : undefined}
+              >
                 <FileAudio size={17} aria-hidden />
                 {t("audio.generate")}
               </button>
+              {generateHint && <p id="generate-hint" className={s.generateHint}>{generateHint}</p>}
             </div>
 
             {quotaBlocked && (

@@ -68,13 +68,16 @@ interface VoiceCastingProps {
   mode: AudioMode;
   selected: Record<string, string>;
   onChange: (voices: Record<string, string>) => void;
+  /** Character names from the script, by slot: { "Speaker 1": "Léa" }. */
+  slotNames?: Partial<Record<string, string>>;
 }
 
 function slotsForMode(mode: AudioMode) {
   return mode === "dialogue" ? ["Speaker 1", "Speaker 2"] : ["solo"];
 }
 
-function slotLabel(slot: string) {
+function slotLabel(slot: string, slotNames?: Partial<Record<string, string>>) {
+  if (slotNames?.[slot]) return slotNames[slot] as string;
   if (slot === "solo") return t("audio.narrator");
   const n = slot.match(/^Speaker\s+(\d+)$/i)?.[1];
   return n ? t("audio.speaker_n", { n }) : slot;
@@ -100,7 +103,7 @@ function toneFilterLabel(filter: ToneFilter) {
   return filter === "all" ? t("audio.voice_filter_all") : toneLabel(filter);
 }
 
-export function VoiceCasting({ voices, mode, selected, onChange }: VoiceCastingProps) {
+export function VoiceCasting({ voices, mode, selected, onChange, slotNames }: VoiceCastingProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [activePreview, setActivePreview] = useState<string | null>(null);
   const [targetSlot, setTargetSlot] = useState(slotsForMode(mode)[0]);
@@ -148,7 +151,7 @@ export function VoiceCasting({ voices, mode, selected, onChange }: VoiceCastingP
               onClick={() => setTargetSlot(slot)}
               aria-pressed={targetSlot === slot}
             >
-              <span>{slotLabel(slot)}</span>
+              <span>{slotLabel(slot, slotNames)}</span>
               <strong>{selectedVoice?.label ?? t("audio.voice_to_choose")}</strong>
               {selectedVoice && (
                 <small>

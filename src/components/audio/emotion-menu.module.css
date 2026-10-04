@@ -1,0 +1,69 @@
+.root {
+  position: relative;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 1px solid rgba(44, 61, 87, 0.35);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #2c3d57;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.trigger:focus-visible,
+.grid button:focus-visible {
+  outline: 3px solid rgba(44, 61, 87, 0.4);
+  outline-offset: 1px;
+}
+
+.panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  width: min(22rem, calc(100vw - 2.5rem));
+  padding: 0.75rem;
+  border: 1px solid rgba(44, 61, 87, 0.25);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(44, 61, 87, 0.16);
+}
+
+.hint {
+  margin: 0 0 0.5rem;
+  color: #4f6b6c;
+  font-size: 0.82rem;
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.grid button {
+  min-height: 36px;
+  padding: 0 0.7rem;
+  border: 1px solid rgba(176, 141, 30, 0.6);
+  border-radius: 999px;
+  background: #fdf6d8;
+  color: #2c3d57;
+  font-weight: 600;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.grid button:hover {
+  background: #f8ebb5;
+}

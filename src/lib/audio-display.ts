@@ -1,18 +1,19 @@
 // Shared display helpers for audio takes (studio page + library page).
 
 import { t } from "@/lib/i18n";
-import { SPEAKER_LABEL_WORDS } from "@/lib/audio-script-rules";
+import { speakerLabelPrefix } from "@/lib/audio-script-rules";
 import type { AudioJob, AudioMode, AudioQuality } from "@/lib/api";
-
-const SPEAKER_LABEL_RE = new RegExp(`^(${SPEAKER_LABEL_WORDS})\\s+\\d+\\s*:`, "gim");
 
 export function stripTags(text: string) {
   return text.replace(/\[[^\]]+\]/g, " ");
 }
 
 export function scriptTitle(script: string) {
+  // Character names ("Léa :") are not part of what is said.
   const clean = stripTags(script)
-    .replace(SPEAKER_LABEL_RE, " ")
+    .split("\n")
+    .map((line) => (speakerLabelPrefix(line.trim()) ? line.slice(line.indexOf(":") + 1) : line))
+    .join(" ")
     .replace(/\s+/g, " ")
     .trim();
   if (!clean) return t("audio.untitled");

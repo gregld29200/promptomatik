@@ -34,12 +34,6 @@
   font-weight: 700;
 }
 
-.warnings p {
-  margin: 0;
-  color: #8a5a00;
-  font-size: 0.86rem;
-}
-
 .text {
   max-height: 60vh;
   overflow-y: auto;
@@ -100,7 +94,8 @@
   font-size: 0.98rem;
 }
 
-.fix del {
+.fix del,
+.fixDone del {
   padding: 0 0.15rem;
   border-radius: 4px;
   background: #ffe9e6;
@@ -108,7 +103,8 @@
   text-decoration-thickness: 2px;
 }
 
-.fix ins {
+.fix ins,
+.fixDone ins {
   padding: 0 0.15rem;
   border-radius: 4px;
   background: #e8f4e9;
