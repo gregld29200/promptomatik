@@ -14,7 +14,7 @@ import { chromium, type Locator, type Page, type Route } from "playwright";
 import { createServer } from "vite";
 import { AUDIO_VOICES } from "../../worker/lib/audio-voices";
 import { normalizeDialogueLabels } from "../../src/lib/audio-script-rules";
-import { DEMO_SCENE, DEMO_SCRIPT, YANIS_NOTES } from "../src/studio-audio/script";
+import { DEMO_SCENE, DEMO_SCRIPT, SECOND_NOTES } from "../src/studio-audio/script";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const APP = resolve(ROOT, "..");
@@ -217,12 +217,12 @@ const BOXES: Record<string, BoxSpec> = {
   style: (p) => p.locator("fieldset").first().locator("label").filter({ has: p.locator("span", { hasText: "Style" }) }),
   styleArea: (p) => p.locator("fieldset").first(),
   speakerSummary: (p) => p.locator("details > summary"),
-  yanisGroup: (p) => p.locator("fieldset").nth(1),
-  yanisNotes: (p) => p.locator("fieldset").nth(1).locator("label").filter({ has: p.locator("span", { hasText: "Façon de s'exprimer" }) }),
+  secondGroup: (p) => p.locator("fieldset").nth(1),
+  secondNotes: (p) => p.locator("fieldset").nth(1).locator("label").filter({ has: p.locator("span", { hasText: "Façon de s'exprimer" }) }),
   scene: (p) => field(p, "Scène"),
   cards: (p) => p.locator('[aria-label="Attribution des voix"]'),
-  cardChloe: (p) => p.locator('[aria-label="Attribution des voix"]').getByRole("button").nth(0),
-  cardYanis: (p) => p.locator('[aria-label="Attribution des voix"]').getByRole("button").nth(1),
+  cardFirst: (p) => p.locator('[aria-label="Attribution des voix"]').getByRole("button").nth(0),
+  cardSecond: (p) => p.locator('[aria-label="Attribution des voix"]').getByRole("button").nth(1),
   filters: (p) => p.locator('[aria-labelledby="voice-filter-gender-label"]').locator(".."),
   filterWarm: (p) => p.getByRole("button", { name: "Chaleureuse", exact: true }),
   voiceList: (p) => p.locator('[aria-label="Catalogue de voix"]'),
@@ -287,6 +287,7 @@ const shots: Record<string, { file: string; width: number; height: number; boxes
 
 async function settle(page: Page) {
   await page.evaluate(() => document.fonts.ready);
+  await scrollReviewToTop(page);
   // The sidebar is as tall as the window; on a full-page capture its colour
   // carries on down the page, as it does while scrolling.
   await page.evaluate(() => {
@@ -308,6 +309,17 @@ async function fitEditor(page: Page) {
     const textarea = element as HTMLTextAreaElement;
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight + 4}px`;
+  });
+}
+
+// Clicking a suggestion low in the review scrolls its text; the shots show
+// it from the top, as the teacher first sees it.
+async function scrollReviewToTop(page: Page) {
+  if ((await review(page).count()) === 0) return;
+  await review(page).evaluate((section) => {
+    section.querySelectorAll("*").forEach((element) => {
+      if (element.scrollHeight > element.clientHeight + 2) element.scrollTop = 0;
+    });
   });
 }
 
@@ -360,10 +372,10 @@ async function walk(page: Page) {
   await page.keyboard.press("Escape");
 
   await page.locator("details > summary").click();
-  const chloe = page.locator("fieldset").nth(0);
-  await chloe.locator("select").nth(0).selectOption("Neutral");
-  await chloe.locator("select").nth(1).selectOption("Informal conversation");
-  await page.locator("fieldset").nth(1).locator('input[type="text"]').nth(1).fill(YANIS_NOTES);
+  const first = page.locator("fieldset").nth(0);
+  await first.locator("select").nth(0).selectOption("Neutral");
+  await first.locator("select").nth(1).selectOption("Informal conversation");
+  await page.locator("fieldset").nth(1).locator('input[type="text"]').nth(1).fill(SECOND_NOTES);
   await field(page, "Scène").locator("textarea").fill(DEMO_SCENE);
   await shoot(page, "speakers");
 

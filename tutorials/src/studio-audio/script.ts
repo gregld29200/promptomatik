@@ -38,21 +38,22 @@ export interface Chapter {
   before?: "result";
 }
 
-export const DEMO_SCRIPT = `Chloé : Excusez-moi… vous pouvez tenir la porte, s'il vous plaît ?
-Yanis : Bien sûr ! Oh là là, il a l'air lourd, ce carton. (il prend le carton) Je vous aide ?
-Chloé : Oh oui, merci beaucoup ! J'emménage aujourd'hui.
-Yanis : Ah, vous êtes la nouvelle voisine du troisième étage ? Moi, j'habite juste en dessous, depuis presque cinq ans.
-Chloé : Enchantée ! Je m'appelle Chloé.
-Yanis : Et moi, Yanis. Bienvenue dans l'immeuble ! (il rit) Mais attention, l'ascenseur est en panne une semaine sur deux.
-Chloé : (elle soupire) Ah… Et j'ai encore douze cartons dans la voiture.
-Yanis : Pas de problème, on va les monter ensemble. Et après, je vous offre un thé ?
-Chloé : Avec plaisir ! Vous êtes vraiment gentil.`;
+export const DEMO_SCRIPT = `Leïla : Antoine, tu peux m'aider ? Ce carton est trop lourd pour moi.
+Antoine : J'arrive ! Qu'est-ce que tu as mis dedans ? (il prend le carton) Je le pose où ?
+Leïla : Dans le salon, sous la fenêtre. Ce sont tous nos livres.
+Antoine : D'accord. Tu sais, il reste de la place à côté du canapé, on pourrait y mettre une petite bibliothèque.
+Leïla : Bonne idée ! Et la table, on la met où ?
+Antoine : Près de la cuisine, c'est plus pratique. (il rit) Enfin, quand on aura retrouvé les assiettes !
+Leïla : (elle soupire) Ah… Il reste encore une vingtaine de cartons à ouvrir.
+Antoine : Pas de panique, on a tout le week-end. Ce soir, on commande des pizzas ?
+Leïla : Avec plaisir ! Je suis tellement contente qu'on soit enfin chez nous.`;
 
-/** The line used to compare levels: Yanis, 4th line. */
-export const COMPARE_LINE = "Ah, vous êtes la nouvelle voisine du troisième étage ? Moi, j'habite juste en dessous, depuis presque cinq ans.";
+/** The line used to compare levels: Antoine, 4th line. */
+export const COMPARE_LINE = "D'accord. Tu sais, il reste de la place à côté du canapé, on pourrait y mettre une petite bibliothèque.";
 
-export const DEMO_SCENE = "Le hall d'un immeuble, un samedi matin, jour de déménagement.";
-export const YANIS_NOTES = "serviable, souriant";
+export const DEMO_SCENE = "Un salon encore plein de cartons, le jour de l'emménagement.";
+/** How the second character speaks, typed in the per-character settings. */
+export const SECOND_NOTES = "détendu, souriant";
 
 /** The settings the teacher picks on screen, as the studio sends them. */
 export const DEMO_DIRECTION = {
@@ -64,11 +65,11 @@ export const DEMO_DIRECTION = {
   scene: DEMO_SCENE,
   speakers: {
     "Speaker 1": { accent: "Neutral", style: "Informal conversation" },
-    "Speaker 2": { notes: YANIS_NOTES },
+    "Speaker 2": { notes: SECOND_NOTES },
   },
 } as const;
 
-/** Chloé speaks first, so she is Speaker 1: Rosa; Yanis gets Daniel. */
+/** Leïla speaks first, so she is Speaker 1: Rosa; Antoine gets Daniel. */
 export const DEMO_VOICES = { "Speaker 1": "Sulafat", "Speaker 2": "Charon" } as const;
 
 /** The two settings compared on the same line in chapter 3. */
@@ -137,7 +138,7 @@ export const CHAPTERS: Chapter[] = [
       },
       {
         id: "ch1-3",
-        text: "Je colle donc mon dialogue : Chloé et Yanis, le jour où Chloé emménage. Regardez juste sous le texte, le studio me confirme qu'il a bien compris : deux personnages, Chloé et Yanis, et environ cinquante-trois secondes d'écoute.",
+        text: "Je colle donc mon dialogue : Leïla et Antoine, un couple qui emménage dans son nouvel appartement. Regardez juste sous le texte, le studio me confirme qu'il a bien compris : deux personnages, Leïla et Antoine, et environ cinquante-huit secondes d'écoute.",
         beats: [
           { shot: "pasted", focus: "zoneScript", spotlight: "editor" },
           { at: 0.42, shot: "pasted", focus: "status", spotlight: "statusCast", callout: { target: "statusCast", text: "Le studio a compris", side: "above" } },
@@ -241,15 +242,15 @@ export const CHAPTERS: Chapter[] = [
       },
       {
         id: "ch3-4",
-        text: "Pour aller plus loin, on ouvre les réglages par personnage, parce que chacun peut avoir son accent et sa façon de s'exprimer. Pour Yanis, j'écris « serviable, souriant ». C'est aussi très utile pour un rôle d'apprenant, avec par exemple « hésite, cherche ses mots ».",
+        text: "Pour aller plus loin, on ouvre les réglages par personnage, parce que chacun peut avoir son accent et sa façon de s'exprimer. Pour Antoine, j'écris « détendu, souriant ». C'est aussi très utile pour un rôle d'apprenant, avec par exemple « hésite, cherche ses mots ».",
         beats: [
           { shot: "speakers", focus: "zoneDirection", spotlight: "speakerSummary", callout: { target: "speakerSummary", text: "Un réglage par personnage" } },
-          { at: 0.35, shot: "speakers", focus: "yanisGroup", spotlight: "yanisNotes", callout: { target: "yanisNotes", text: "Façon de s'exprimer" } },
+          { at: 0.35, shot: "speakers", focus: "secondGroup", spotlight: "secondNotes", callout: { target: "secondNotes", text: "Façon de s'exprimer" } },
         ],
       },
       {
         id: "ch3-5",
-        text: "Enfin, la Scène décrit le contexte. Ici, le hall d'un immeuble, un samedi matin, jour de déménagement.",
+        text: "Enfin, la Scène décrit le contexte. Ici, un salon encore plein de cartons, le jour de l'emménagement.",
         beats: [{ shot: "speakers", focus: "scene", spotlight: "scene" }],
       },
       {
@@ -274,9 +275,9 @@ export const CHAPTERS: Chapter[] = [
       },
       {
         id: "ch4-2",
-        text: "Je clique sur la carte de Chloé, puis je filtre : voix féminines, ton chaleureux. Le petit bouton de lecture me permet d'écouter chaque voix avant de choisir. Écoutons celle-ci, puis celle-là. Très bien, je prends Rosa.",
+        text: "Je clique sur la carte de Leïla, puis je filtre : voix féminines, ton chaleureux. Le petit bouton de lecture me permet d'écouter chaque voix avant de choisir. Écoutons celle-ci, puis celle-là. Très bien, je prends Rosa.",
         beats: [
-          { shot: "speakers", focus: "cards", spotlight: "cardChloe", click: "cardChloe" },
+          { shot: "speakers", focus: "cards", spotlight: "cardFirst", click: "cardFirst" },
           { at: 0.2, shot: "filtered", focus: "filters", spotlight: "filters", click: "filterWarm" },
           { at: 0.45, shot: "filtered", focus: "voiceList", spotlight: "previewFirst", click: "previewFirst", callout: { target: "previewFirst", text: "Écouter" } },
           { at: 0.8, shot: "filtered", focus: "voiceList", spotlight: "voiceRosa", click: "voiceRosa" },
@@ -284,8 +285,8 @@ export const CHAPTERS: Chapter[] = [
       },
       {
         id: "ch4-3",
-        text: "Même chose pour Yanis : je choisis Daniel, une voix masculine posée.",
-        beats: [{ shot: "cast", focus: "cards", spotlight: "cardYanis" }],
+        text: "Même chose pour Antoine : je choisis Daniel, une voix masculine posée.",
+        beats: [{ shot: "cast", focus: "cards", spotlight: "cardSecond" }],
       },
       {
         id: "ch4-4",

@@ -1,59 +1,59 @@
 {
-  "script": "Chloé : Excusez-moi… vous pouvez tenir la porte, s'il vous plaît ?\nYanis : Bien sûr ! Oh là là, il a l'air lourd, ce carton. (il prend le carton) Je vous aide ?\nChloé : Oh oui, merci beaucoup ! J'emménage aujourd'hui.\nYanis : Ah, vous êtes la nouvelle voisine du troisième étage ? Moi, j'habite juste en dessous, depuis presque cinq ans.\nChloé : Enchantée ! Je m'appelle Chloé.\nYanis : Et moi, Yanis. Bienvenue dans l'immeuble ! (il rit) Mais attention, l'ascenseur est en panne une semaine sur deux.\nChloé : (elle soupire) Ah… Et j'ai encore douze cartons dans la voiture.\nYanis : Pas de problème, on va les monter ensemble. Et après, je vous offre un thé ?\nChloé : Avec plaisir ! Vous êtes vraiment gentil.",
+  "script": "Leïla : Antoine, tu peux m'aider ? Ce carton est trop lourd pour moi.\nAntoine : J'arrive ! Qu'est-ce que tu as mis dedans ? (il prend le carton) Je le pose où ?\nLeïla : Dans le salon, sous la fenêtre. Ce sont tous nos livres.\nAntoine : D'accord. Tu sais, il reste de la place à côté du canapé, on pourrait y mettre une petite bibliothèque.\nLeïla : Bonne idée ! Et la table, on la met où ?\nAntoine : Près de la cuisine, c'est plus pratique. (il rit) Enfin, quand on aura retrouvé les assiettes !\nLeïla : (elle soupire) Ah… Il reste encore une vingtaine de cartons à ouvrir.\nAntoine : Pas de panique, on a tout le week-end. Ce soir, on commande des pizzas ?\nLeïla : Avec plaisir ! Je suis tellement contente qu'on soit enfin chez nous.",
   "suggestions": [
     {
-      "id": "paren-125",
+      "id": "paren-124",
       "kind": "fix",
-      "start": 125,
-      "end": 146,
+      "start": 124,
+      "end": 145,
       "insert": "",
       "fixType": "stage_direction",
       "reason": "Une action sans son : la voix la lirait à voix haute."
     },
     {
-      "id": "tag-194-[excited]",
+      "id": "tag-348-[excited]",
       "kind": "tag",
-      "start": 194,
-      "end": 194,
+      "start": 348,
+      "end": 348,
       "insert": "[excited] ",
       "tag": "[excited]",
-      "reason": "Chloé exprime sa gratitude et l'enthousiasme d'emménager."
+      "reason": "Leïla exprime son enthousiasme pour l'idée de la bibliothèque."
     },
     {
-      "id": "paren-429",
+      "id": "paren-440",
       "kind": "fix",
-      "start": 429,
-      "end": 437,
+      "start": 440,
+      "end": 448,
       "insert": "[laughs]",
       "tag": "[laughs]",
       "fixType": "stage_direction",
-      "reason": "Yanis rit vraiment au lieu de lire « il rit »."
+      "reason": "Antoine rit vraiment au lieu de lire « il rit »."
     },
     {
-      "id": "paren-509",
+      "id": "paren-503",
       "kind": "fix",
-      "start": 509,
-      "end": 523,
+      "start": 503,
+      "end": 517,
       "insert": "[sighs]",
       "tag": "[sighs]",
       "fixType": "stage_direction",
-      "reason": "Chloé soupire au lieu de lire « elle soupire »."
+      "reason": "Leïla soupire au lieu de lire « elle soupire »."
     },
     {
-      "id": "tag-626-[smiling]",
+      "id": "tag-664-[smiling]",
       "kind": "tag",
-      "start": 626,
-      "end": 626,
+      "start": 664,
+      "end": 664,
       "insert": "[smiling] ",
       "tag": "[smiling]",
-      "reason": "Yanis propose son aide et un thé, ce qui peut être accompagné d'un sourire amical."
+      "reason": "Leïla exprime sa satisfaction d'être enfin chez eux avec un ton joyeux."
     }
   ],
   "decisions": {
-    "paren-125": "accepted",
-    "tag-194-[excited]": "accepted",
-    "paren-429": "accepted",
-    "paren-509": "accepted",
-    "tag-626-[smiling]": "rejected"
+    "paren-124": "accepted",
+    "tag-348-[excited]": "accepted",
+    "paren-440": "accepted",
+    "paren-503": "accepted",
+    "tag-664-[smiling]": "rejected"
   }
 }

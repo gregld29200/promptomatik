@@ -43,7 +43,8 @@ export interface CompareTake {
 }
 
 export interface Demo {
-  cast: string[];
+  /** The characters in order of appearance, with the voice that plays each. */
+  cast: Array<{ name: string; voice: string }>;
   take: { file: string; seconds: number; estimatedSeconds: number; peaks: number[]; turns: Turn[] };
   compare: CompareTake[];
 }

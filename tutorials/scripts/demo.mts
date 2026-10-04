@@ -15,6 +15,7 @@ import { estimateAudioSeconds, normalizeSpeakerDirections, normalizeVoiceMap, sp
 import { generateBlock } from "../../worker/lib/tts-provider";
 import { concatPcmWithSilence, mp3FromPcm, peaksFromPcm } from "../../worker/lib/audio-assembly";
 import { PCM_BYTES_PER_SECOND, type AudioDirection } from "../../worker/lib/audio-config";
+import { AUDIO_VOICES } from "../../worker/lib/audio-voices";
 import { COMPARE_LINE, COMPARE_TAKES, DEMO_DIRECTION, DEMO_SCRIPT, DEMO_VOICES } from "../src/studio-audio/script";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -39,10 +40,11 @@ function env(name: string): string {
 // review on screen has to match it, whatever the model proposed this time.
 function curate(script: string, suggestions: InlineSuggestion[]): InlineSuggestion[] {
   const at = (text: string) => script.indexOf(text);
+  const speaker = (text: string) => script.slice(script.lastIndexOf("\n", at(text)) + 1).split(":")[0].trim();
   const expected: Array<{ text: string; tag?: string; reason: string }> = [
     { text: "(il prend le carton)", reason: "Une action sans son : la voix la lirait à voix haute." },
-    { text: "(il rit)", tag: "[laughs]", reason: "Yanis rit vraiment au lieu de lire « il rit »." },
-    { text: "(elle soupire)", tag: "[sighs]", reason: "Chloé soupire au lieu de lire « elle soupire »." },
+    { text: "(il rit)", tag: "[laughs]", reason: `${speaker("(il rit)")} rit vraiment au lieu de lire « il rit ».` },
+    { text: "(elle soupire)", tag: "[sighs]", reason: `${speaker("(elle soupire)")} soupire au lieu de lire « elle soupire ».` },
   ];
   const fixes = expected.map(({ text, tag, reason }) => {
     const found = at(text);
@@ -196,7 +198,10 @@ for (const setting of COMPARE_TAKES) {
 const demo = {
   script: fixture.script,
   applied,
-  cast: dialogueCast(applied).map((member) => member.label),
+  cast: dialogueCast(applied).map((member) => ({
+    name: member.label,
+    voice: AUDIO_VOICES.find((voice) => voice.name === DEMO_VOICES[member.slot as keyof typeof DEMO_VOICES])?.label ?? "",
+  })),
   suggestions: fixture.suggestions,
   decisions: fixture.decisions,
   direction: DEMO_DIRECTION,

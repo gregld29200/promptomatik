@@ -4,7 +4,7 @@ import { BODY, C, DISPLAY } from "../theme";
 import { Halftone, Tape, TornPaper, WaveScrap } from "./collage";
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
-const SPEAKER_COLORS: Record<string, string> = { Chloé: C.terracotta, Yanis: C.sageDeep };
+const SPEAKER_COLORS = [C.terracotta, C.sageDeep];
 
 function fade(frame: number, duration: number) {
   return interpolate(frame, [0, 8, duration - 12, duration], [0, 1, 1, 0], clamp);
@@ -16,13 +16,13 @@ function seconds(value: number) {
 
 // The take, heard before anything is explained: its lines appear as they
 // are spoken, over the waveform of what plays.
-export function ResultCard({ duration, audioFrom, turns, peaks, takeSeconds, voices }: {
+export function ResultCard({ duration, audioFrom, turns, peaks, takeSeconds, cast }: {
   duration: number;
   audioFrom: number;
   turns: Turn[];
   peaks: number[];
   takeSeconds: number;
-  voices: Record<string, string>;
+  cast: Array<{ name: string; voice: string }>;
 }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -39,13 +39,13 @@ export function ResultCard({ duration, audioFrom, turns, peaks, takeSeconds, voi
       <Halftone id="result-dots" width={700} height={560} style={{ right: -160, top: -160, opacity: 0.45 }} />
       <div style={{ position: "absolute", left: 160, top: 120, opacity: head }}>
         <div style={{ fontFamily: BODY, fontSize: 26, fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: C.terracotta }}>Écoutez le résultat</div>
-        <div style={{ marginTop: 12, fontFamily: DISPLAY, fontWeight: 600, fontSize: 68, color: C.ink }}>Chloé et Yanis · niveau B1</div>
+        <div style={{ marginTop: 12, fontFamily: DISPLAY, fontWeight: 600, fontSize: 68, color: C.ink }}>{cast.map((member) => member.name).join(" et ")} · niveau B1</div>
       </div>
       <div style={{ position: "absolute", right: 160, top: 150, display: "flex", gap: 16, opacity: head }}>
-        {Object.entries(voices).map(([name, voice]) => (
-          <div key={name} style={{ padding: "12px 22px", border: `2px solid ${C.sand}`, borderRadius: 6, background: C.paper, fontFamily: BODY, fontSize: 26 }}>
-            <span style={{ fontWeight: 700, color: SPEAKER_COLORS[name] ?? C.ink }}>{name}</span>
-            <span style={{ color: C.sageDeep }}> · voix {voice}</span>
+        {cast.map((member, index) => (
+          <div key={member.name} style={{ padding: "12px 22px", border: `2px solid ${C.sand}`, borderRadius: 6, background: C.paper, fontFamily: BODY, fontSize: 26 }}>
+            <span style={{ fontWeight: 700, color: SPEAKER_COLORS[index] ?? C.ink }}>{member.name}</span>
+            <span style={{ color: C.sageDeep }}> · voix {member.voice}</span>
           </div>
         ))}
       </div>
@@ -55,7 +55,7 @@ export function ResultCard({ duration, audioFrom, turns, peaks, takeSeconds, voi
         </div>
       )}
       <div style={{ position: "absolute", left: 160, top: 430, width: 1560, opacity: time > -0.4 ? enter : 0, transform: `translateY(${(1 - enter) * 26}px)` }}>
-        <div style={{ fontFamily: BODY, fontSize: 28, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: SPEAKER_COLORS[turn.speaker] ?? C.ink }}>{turn.speaker}</div>
+        <div style={{ fontFamily: BODY, fontSize: 28, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: SPEAKER_COLORS[cast.findIndex((member) => member.name === turn.speaker)] ?? C.ink }}>{turn.speaker}</div>
         <div style={{ marginTop: 12, fontFamily: DISPLAY, fontWeight: 500, fontSize: 64, lineHeight: 1.18, color: C.ink }}>{turn.text}</div>
       </div>
       <TornPaper width={1600} height={170} color={C.ink} seed={91} torn={{ top: 6, bottom: 4 }} style={{ left: 160, top: 790 }}>

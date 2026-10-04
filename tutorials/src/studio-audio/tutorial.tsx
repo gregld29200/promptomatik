@@ -37,7 +37,7 @@ function OverlayView({ overlay, data, cut }: { overlay: Overlay; data: TutorialD
           turns={data.demo.take.turns.slice(0, 3)}
           peaks={data.demo.take.peaks}
           takeSeconds={data.demo.take.seconds}
-          voices={{ Chloé: "Rosa", Yanis: "Daniel" }}
+          cast={data.demo.cast}
         />
       );
     case "compare":
