@@ -1,0 +1,71 @@
+.status {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.ready,
+.problem,
+.info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.ready svg,
+.problem svg,
+.info svg {
+  flex: none;
+}
+
+.info span,
+.problem span {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.ready {
+  color: #2f6b3a;
+  font-weight: 600;
+}
+
+.estimate {
+  margin-left: auto;
+  color: #4f6b6c;
+  font-weight: 500;
+}
+
+.problem {
+  padding: 0.55rem 0.7rem;
+  border-left: 3px solid #9d372a;
+  background: #fff3f1;
+  color: #8a2f24;
+}
+
+.info {
+  align-items: flex-start;
+  color: #4f6b6c;
+}
+
+.info svg {
+  margin-top: 0.15rem;
+}
+
+.action {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  border: 1px solid #8a2f24;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #8a2f24;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.action:focus-visible {
+  outline: 3px solid rgba(138, 47, 36, 0.35);
+  outline-offset: 1px;
+}

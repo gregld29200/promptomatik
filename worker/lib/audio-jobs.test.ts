@@ -335,6 +335,40 @@ describe("audio job lifecycle", () => {
     expect(await ledgerRows(job.id)).toEqual([]);
   });
 
+  it("voices a dialogue written with character names, and keeps the names in the transcript", async () => {
+    const userId = "names-user";
+    await seedParticipant(userId);
+    const script = "Léa : Bonjour !\nKarim : Salut.\nÇa va ?\nLéa : Très bien.";
+    const job = await createAudioJob(testEnv, {
+      userId,
+      mode: "dialogue",
+      quality: "final",
+      script,
+      direction: {
+        level: "A2",
+        accent: "Neutral",
+        pace: "Natural classroom speed",
+        style: "Informal conversation",
+      },
+      voices: { "Speaker 1": "Kore", "Speaker 2": "Puck" },
+    });
+
+    const segment = await testEnv.DB.prepare("SELECT text FROM audio_segments WHERE job_id = ? AND idx = 0")
+      .bind(job.id)
+      .first<{ text: string }>();
+    expect(segment?.text).toBe("Speaker 1: Bonjour !\nSpeaker 2: Salut. Ça va ?\nSpeaker 1: Très bien.");
+    expect(job.script).toBe(script);
+
+    const voiced: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        voiced.push(input.script);
+        return { pcm: pcm(1), durationSeconds: 1, retryCount: 0, model: "test-model" };
+      },
+    });
+    expect(voiced).toEqual(["Speaker 1: Bonjour !\nSpeaker 2: Salut. Ça va ?\nSpeaker 1: Très bien."]);
+  });
+
   it("fails malformed dialogue before any TTS provider call", async () => {
     const userId = "guard-user";
     await seedParticipant(userId);

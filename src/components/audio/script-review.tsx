@@ -18,7 +18,6 @@ export function tagLabel(tag: string): string {
 interface ScriptReviewProps {
   script: string;
   suggestions: InlineSuggestion[];
-  warnings: string[];
   decisions: Record<string, SuggestionDecision>;
   onDecide: (id: string, decision: SuggestionDecision | null) => void;
   onAcceptAll: () => void;
@@ -28,12 +27,11 @@ interface ScriptReviewProps {
 }
 
 // The studio script, frozen, with each suggestion shown where it applies:
-// emotion tags as chips, fixes as struck-out / inserted text. Nothing changes
-// in the script until the teacher applies the accepted suggestions.
+// emotions as chips, text in parentheses struck out with what replaces it.
+// Nothing changes in the script until the teacher applies what they kept.
 export function ScriptReview({
   script,
   suggestions,
-  warnings,
   decisions,
   onDecide,
   onAcceptAll,
@@ -47,8 +45,9 @@ export function ScriptReview({
 
   function describe(suggestion: InlineSuggestion, original: string): string {
     if (suggestion.kind === "tag" && suggestion.tag) return tagLabel(suggestion.tag);
+    if (suggestion.tag) return t("audio.review_fix", { before: original.trim(), after: tagLabel(suggestion.tag) });
     if (suggestion.scene) return t("audio.review_to_scene", { text: original.trim() });
-    return t("audio.review_fix", { before: original.trim() || "∅", after: suggestion.insert.trim() || "∅" });
+    return t("audio.review_remove", { text: original.trim() });
   }
 
   function actions(suggestion: InlineSuggestion, original: string) {
@@ -92,7 +91,7 @@ export function ScriptReview({
   }
 
   function reasonOf(suggestion: InlineSuggestion): string {
-    return suggestion.reason || (suggestion.fixType === "speaker_rename" ? t("audio.review_reason_speaker") : "");
+    return suggestion.reason;
   }
   const opened = suggestions.find((suggestion) => suggestion.id === openReason);
 
@@ -121,7 +120,7 @@ export function ScriptReview({
     if (decision === "accepted") {
       return (
         <span className={s.fixDone}>
-          {suggestion.insert}
+          {suggestion.tag ? <ins>{tagLabel(suggestion.tag)}</ins> : <del>{original.trim()}</del>}
           {actions(suggestion, original)}
         </span>
       );
@@ -137,10 +136,9 @@ export function ScriptReview({
     return (
       <span className={s.fix}>
         <button type="button" className={s.fixText} onClick={toggleReason} aria-expanded={openReason === suggestion.id}>
-          {original && <del>{original}</del>}
-          {suggestion.scene
-            ? <ins>{t("audio.review_scene_short")}</ins>
-            : suggestion.insert && <ins>{suggestion.insert}</ins>}
+          <del>{original.trim()}</del>
+          {suggestion.tag && <ins>{tagLabel(suggestion.tag)}</ins>}
+          {!suggestion.tag && suggestion.scene && <ins>{t("audio.review_scene_short")}</ins>}
         </button>
         {actions(suggestion, original)}
       </span>
@@ -152,18 +150,12 @@ export function ScriptReview({
       <header className={s.head}>
         <div>
           <h3>{t("audio.review_title")}</h3>
-          <p>{suggestions.length > 0 ? t("audio.review_hint") : t("audio.review_none")}</p>
+          <p>{t("audio.review_hint")}</p>
         </div>
         <span className={s.count} aria-live="polite">
           {t("audio.review_pending", { count: String(pending) })}
         </span>
       </header>
-
-      {warnings.length > 0 && (
-        <div className={s.warnings} role="alert">
-          {warnings.map((warning) => <p key={warning}>{warning}</p>)}
-        </div>
-      )}
 
       <div className={s.text}>
         {reviewSegments(script, suggestions).map((segment, index) => (

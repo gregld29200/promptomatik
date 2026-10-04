@@ -994,3 +994,142 @@
   font-size: 0.75rem;
   color: var(--color-text-muted);
 }
+
+/* Script zone actions: one clear suggestion button, the rest stays light. */
+.suggestAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 1.05rem;
+  border: 1px solid var(--studio-slate);
+  border-radius: 999px;
+  background: var(--studio-slate);
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.suggestAction:disabled {
+  border-color: #c9ccd1;
+  background: #e7e5dc;
+  color: #7d8a9a;
+  cursor: not-allowed;
+}
+
+.linkAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0 0.4rem;
+  border: 0;
+  background: none;
+  color: var(--studio-muted);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.suggestAction:focus-visible,
+.linkAction:focus-visible,
+.inlineRetry:focus-visible,
+.speakerDetails summary:focus-visible {
+  outline: 3px solid rgba(44, 61, 87, 0.4);
+  outline-offset: 2px;
+}
+
+.inlineRetry {
+  min-height: 32px;
+  margin-left: auto;
+  padding: 0 0.8rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: #ffffff;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Per-character direction stays folded until a teacher asks for it. */
+.speakerDetails {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.speakerDetails > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--studio-slate);
+  font-size: 0.9rem;
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+
+.speakerDetails > summary::-webkit-details-marker {
+  display: none;
+}
+
+.speakerDetails > summary::before {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 150ms ease-out;
+}
+
+.speakerDetails[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.speakerDetails[open] > summary {
+  margin-bottom: 0.7rem;
+}
+
+.speakerDetails .speakerGroup + .speakerGroup {
+  margin-top: 0.7rem;
+}
+
+/* The main action always says why it is unavailable, next to itself. */
+.generateDock {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.generateDock .primary {
+  width: 100%;
+}
+
+.generateHint {
+  margin: 0;
+  color: var(--studio-muted);
+  font-size: 0.86rem;
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  /* On a phone the action stays in reach while the teacher scrolls. */
+  .generateDock {
+    position: fixed;
+    z-index: 30;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    padding: 0.65rem 1rem calc(0.65rem + env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(133, 162, 163, 0.35);
+    background: rgba(255, 255, 255, 0.97);
+    box-shadow: 0 -8px 24px rgba(44, 61, 87, 0.1);
+  }
+
+  .audioPage {
+    padding-bottom: 7rem;
+  }
+}

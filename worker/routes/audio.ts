@@ -5,8 +5,7 @@ import { requireAdmin, requireAuth, requireParticipant } from "../lib/auth-middl
 import type { SessionData } from "../lib/session";
 import { getAudioQuotaBalance } from "../lib/audio-quota";
 import { getTtsModelConfig, type AudioMode } from "../lib/audio-config";
-import { isPrepareLanguage } from "../lib/audio-prepare";
-import { suggestAudioEdits } from "../lib/audio-suggest";
+import { isSuggestLanguage, suggestAudioEdits } from "../lib/audio-suggest";
 import {
   createAudioJob,
   deleteAudioJobForUser,
@@ -106,8 +105,8 @@ audio.get("/voices/:name/preview", requireParticipant, async (c) => {
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1"] as const;
 
-// Inline suggestions for the studio editor: emotion tags plus the prepare
-// pass's structural fixes, each positioned on the script as sent.
+// Inline suggestions for the studio editor: emotion tags, and what to do
+// with text in parentheses, each positioned on the script as sent.
 audio.post("/suggest", requireParticipant, async (c) => {
   const body = await c.req.json<{ script?: unknown; mode?: unknown; language?: unknown; level?: unknown }>();
   if (typeof body.script !== "string" || !body.script.trim()) {
@@ -127,13 +126,15 @@ audio.post("/suggest", requireParticipant, async (c) => {
       model: getTtsModelConfig(c.env).prepModel,
       script: body.script,
       mode: body.mode,
-      language: isPrepareLanguage(body.language) ? body.language : "fr",
+      language: isSuggestLanguage(body.language) ? body.language : "fr",
       level,
     });
-    return c.json(result);
+    // `warnings` stays for studio tabs opened before this release, which read it.
+    return c.json({ ...result, warnings: [] });
   } catch (error) {
+    // The studio shows its own friendly message for this code.
     const message = error instanceof Error ? error.message : "Unable to suggest edits.";
-    return c.json({ error: message }, 502);
+    return c.json({ error: message, code: "audio_suggest_failed" }, 502);
   }
 });
 

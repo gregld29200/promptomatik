@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lintAudioScript } from "../../src/lib/audio-script-rules";
+import { dialogueCast, lintAudioScript, normalizeDialogueLabels } from "../../src/lib/audio-script-rules";
 import fr from "../../src/lib/i18n/fr.json";
 import en from "../../src/lib/i18n/en.json";
 import es from "../../src/lib/i18n/es.json";
@@ -7,7 +7,6 @@ import es from "../../src/lib/i18n/es.json";
 const LINT_CODES = [
   "empty_script",
   "unbalanced_brackets",
-  "unknown_speaker",
   "speaker_label_in_monologue",
   "too_many_speakers",
   "narration_line",
@@ -24,14 +23,16 @@ describe("lintAudioScript", () => {
     ]);
   });
 
-  it("blocks unknown speaker labels after normalization", () => {
-    expect(lintAudioScript("Marie: Bonjour.\nSpeaker 2: Salut.", "dialogue"))
-      .toContainEqual(expect.objectContaining({ severity: "blocking", code: "unknown_speaker", line: 1 }));
+  it("accepts characters written by name", () => {
+    expect(lintAudioScript("Léa : Bonjour.\nKarim : Salut.\nLéa : Ça va ?", "dialogue")
+      .filter((finding) => finding.severity === "blocking")).toEqual([]);
   });
 
-  it("blocks more than two speakers", () => {
+  it("blocks more than two characters and names them", () => {
     expect(lintAudioScript("Speaker 1: A.\nSpeaker 2: B.\nSpeaker 3: C.", "dialogue"))
       .toContainEqual(expect.objectContaining({ severity: "blocking", code: "too_many_speakers" }));
+    expect(lintAudioScript("Léa : A.\nKarim : B.\nMarc : C.", "dialogue"))
+      .toContainEqual({ severity: "blocking", code: "too_many_speakers", names: ["Léa", "Karim", "Marc"] });
   });
 
   it("blocks unbalanced brackets", () => {
@@ -58,8 +59,9 @@ describe("lintAudioScript", () => {
     for (const code of LINT_CODES) {
       expect(audio[`lint_${code}`], `missing lint_${code}`).toBeTypeOf("string");
     }
-    expect(audio.lint_line).toContain("{{line}}");
     expect(audio.lint_unknown_tag).toContain("{{tag}}");
+    expect(audio.status_orphan).toContain("{{line}}");
+    expect(audio.status_too_many).toContain("{{names}}");
   });
 
   it("never returns prose, so the worker and the browser can both run it", () => {
@@ -107,6 +109,30 @@ describe("lintAudioScript", () => {
   it("blocks a line nobody can voice, before the first turn", () => {
     expect(lintAudioScript("Au café.\nSpeaker 1: Bonjour.", "dialogue")).toContainEqual(
       expect.objectContaining({ severity: "blocking", code: "orphan_line", line: 1 })
+    );
+  });
+});
+
+describe("dialogueCast", () => {
+  it("gives each name the next free voice, in order of appearance", () => {
+    expect(dialogueCast("Léa : A.\nKarim: B.\nléa : C.")).toEqual([
+      { label: "Léa", slot: "Speaker 1" },
+      { label: "Karim", slot: "Speaker 2" },
+    ]);
+  });
+
+  it("lets a numbered label keep its own voice", () => {
+    expect(dialogueCast("Locuteur 2 : A.\nMarc : B.")).toEqual([
+      { label: "Locuteur 2", slot: "Speaker 2" },
+      { label: "Marc", slot: "Speaker 1" },
+    ]);
+  });
+});
+
+describe("normalizeDialogueLabels", () => {
+  it("rewrites names to voice slots and leaves other lines alone", () => {
+    expect(normalizeDialogueLabels("Léa : Bonjour !\r\nKarim: Salut.\nIls partent.")).toBe(
+      "Speaker 1: Bonjour !\nSpeaker 2: Salut.\nIls partent."
     );
   });
 });

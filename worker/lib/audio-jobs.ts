@@ -12,7 +12,7 @@ import {
   type AudioQuality,
 } from "./audio-config";
 import { validateTranscriptForTts } from "./audio-direction";
-import { SPEAKER_LABEL_WORDS, lintAudioScript } from "../../src/lib/audio-script-rules";
+import { SPEAKER_LABEL_WORDS, lintAudioScript, normalizeDialogueLabels } from "../../src/lib/audio-script-rules";
 import { concatPcmWithSilence, durationFromPcmBytes, mp3FromPcm, peaksFromPcm, wavFromPcm } from "./audio-assembly";
 import {
   attachWaveform,
@@ -123,7 +123,8 @@ async function markJobFailed(db: D1Database, jobId: string, error: string): Prom
 export async function createAudioJob(env: Env, input: CreateAudioJobInput): Promise<AudioJobResponse> {
   const normalizedInput: CreateAudioJobInput = {
     ...input,
-    script: normalizeSpeakerLabels(input.script),
+    // Teachers name their characters ("Léa : …"); speech reads voice slots.
+    script: input.mode === "dialogue" ? normalizeDialogueLabels(input.script) : normalizeSpeakerLabels(input.script),
     voices: normalizeVoiceMap(input.voices),
     direction: normalizeSpeakerDirections(input.direction, input.mode),
   };
@@ -171,7 +172,9 @@ export async function createAudioJob(env: Env, input: CreateAudioJobInput): Prom
       normalizedInput.userId,
       normalizedInput.mode,
       normalizedInput.quality,
-      normalizedInput.script.trim(),
+      // Kept as written, names included: it is the transcript teachers
+      // download and the script "Duplicate" puts back in the editor.
+      input.script.trim(),
       JSON.stringify(normalizedInput.direction),
       JSON.stringify(normalizedInput.voices),
       estimatedSeconds,
