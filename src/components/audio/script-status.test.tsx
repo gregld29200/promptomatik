@@ -38,6 +38,17 @@ describe("ScriptStatus", () => {
     expect(markup).toContain(">Passer en mode Dialogue<");
   });
 
+  it("names only the characters, not the discourse markers, of a dialogue in monologue mode", () => {
+    const markup = render("Attention : écoutez bien.\nLéa : Bonjour.\nKarim : Salut.", "monologue");
+    expect(markup).toContain("Ce texte ressemble à un dialogue (Léa, Karim)");
+  });
+
+  it("lets a monologue open lines with « Attention : » or « Remarque : »", () => {
+    const markup = render("Attention : l'examen commence à 9 heures.\nRemarque : ce verbe est irrégulier.", "monologue");
+    expect(markup).not.toContain("Passer en mode Dialogue");
+    expect(markup).toContain("env. 10 s");
+  });
+
   it("stays silent on an empty script", () => {
     expect(render("   ")).toBe("");
   });

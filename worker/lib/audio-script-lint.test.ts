@@ -40,11 +40,32 @@ describe("lintAudioScript", () => {
       .toContainEqual(expect.objectContaining({ severity: "blocking", code: "unbalanced_brackets" }));
   });
 
-  it("blocks short speaker-style labels in monologue mode", () => {
-    expect(lintAudioScript("Sarah: Bonjour tout le monde.", "monologue"))
-      .toContainEqual(expect.objectContaining({ severity: "blocking", code: "speaker_label_in_monologue" }));
-    expect(lintAudioScript("M. Dupont : Bonjour.", "monologue"))
-      .toContainEqual(expect.objectContaining({ severity: "blocking", code: "speaker_label_in_monologue" }));
+  it("blocks a dialogue pasted in monologue mode and names its characters", () => {
+    expect(lintAudioScript("Léa : Bonjour.\nKarim : Salut.", "monologue")).toEqual([
+      { severity: "blocking", code: "speaker_label_in_monologue", line: 1, names: ["Léa", "Karim"] },
+      { severity: "blocking", code: "speaker_label_in_monologue", line: 2, names: ["Léa", "Karim"] },
+    ]);
+    expect(lintAudioScript("M. Dupont : Bonjour.\nIl fait beau.\nM. Dupont : Au revoir.", "monologue"))
+      .toContainEqual(expect.objectContaining({ severity: "blocking", code: "speaker_label_in_monologue", line: 1 }));
+  });
+
+  it("blocks numbered speaker labels in monologue mode, even alone", () => {
+    for (const script of ["Locuteur 1 : Bonjour.", "Speaker 2: Hello.", "Hablante 1: Hola."]) {
+      expect(lintAudioScript(script, "monologue"))
+        .toContainEqual(expect.objectContaining({ severity: "blocking", code: "speaker_label_in_monologue", line: 1 }));
+    }
+  });
+
+  it("accepts French typography colons in monologue mode", () => {
+    for (const script of [
+      "Attention : l'examen commence à 9 heures.",
+      "Remarque : ce verbe est irrégulier.",
+      "Un petit conseil : restez sobre.",
+      "Sarah: Bonjour tout le monde.",
+      "Attention : l'examen commence à 9 heures.\nRemarque : ce verbe est irrégulier.\nExemple : je suis allé.\nAttention : pas de dictionnaire.",
+    ]) {
+      expect(lintAudioScript(script, "monologue"), script).toEqual([]);
+    }
   });
 
   it("carries the offending tag so the UI can localize the message", () => {

@@ -114,6 +114,52 @@ function lineLabel(line: string): string | null {
   return speakerLabelPrefix(line.trim());
 }
 
+// Words that open a line of French typography ("Attention : …", "Un petit
+// conseil : …") rather than name a character. Compared without accents or case.
+const DISCOURSE_MARKER_WORDS = new Set([
+  "attention", "remarque", "remarques", "exemple", "exemples", "conseil", "conseils",
+  "consigne", "consignes", "question", "questions", "reponse", "reponses", "note", "notes",
+  "rappel", "astuce", "important", "n.b.", "nb", "definition", "resume", "conclusion",
+  "objectif", "regle", "exercice", "solution", "correction",
+  "warning", "tip", "example", "reminder", "answer", "rule", "summary", "hint", "caution",
+  "atencion", "nota", "ejemplo", "consejo", "pregunta", "respuesta", "recordatorio", "regla", "resumen", "ojo",
+]);
+
+function foldWord(word: string): string {
+  return word.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase();
+}
+
+function isDiscourseMarker(label: string): boolean {
+  return label.split(/\s+/).some((word) => DISCOURSE_MARKER_WORDS.has(foldWord(word)));
+}
+
+export interface MonologueLabelLine {
+  /** Index in the lines passed in. */
+  index: number;
+  label: string;
+}
+
+// In a monologue a short prefix before a colon is usually typography, not a
+// character. A line only reads as dialogue when its label is numbered
+// ("Locuteur 1 :"), or when the script has a cast: the same name opening two
+// lines, or two different names each opening one. Shared by the studio linter
+// and the worker backstop so both accept the same scripts.
+export function monologueSpeakerLabels(lines: readonly string[]): MonologueLabelLine[] {
+  const labelled: Array<MonologueLabelLine & { key: string; numbered: boolean }> = [];
+  lines.forEach((line, index) => {
+    const label = lineLabel(line);
+    if (!label) return;
+    const numbered = NUMBERED_LABEL_RE.test(label);
+    if (!numbered && isDiscourseMarker(label)) return;
+    labelled.push({ index, label, key: castKey(label), numbered });
+  });
+  const counts = new Map<string, number>();
+  for (const entry of labelled) counts.set(entry.key, (counts.get(entry.key) ?? 0) + 1);
+  return labelled
+    .filter((entry) => entry.numbered || counts.size >= 2 || (counts.get(entry.key) ?? 0) >= 2)
+    .map(({ index, label }) => ({ index, label }));
+}
+
 // The characters of a dialogue, in order of first appearance. Teachers write
 // names ("Léa : …"); a numbered label keeps its own slot and each name takes
 // the first free one, so "Léa" plays voice 1 and "Karim" voice 2.
@@ -162,15 +208,16 @@ export function lintAudioScript(script: string, mode: AudioModeForRules): Script
 
   const lines = script.split(/\r?\n/);
   let seenTurn = false;
+  const monologueLabels = mode === "monologue" ? monologueSpeakerLabels(lines) : [];
+  const monologueLabelLines = new Set(monologueLabels.map((entry) => entry.index));
+  const monologueNames = [...new Map(monologueLabels.map((entry) => [castKey(entry.label), entry.label])).values()];
 
   lines.forEach((rawLine, index) => {
     const line = rawLine.trim();
     if (!line) return;
     const lineNumber = index + 1;
-    const label = speakerLabelPrefix(line);
-
     if (mode === "dialogue") {
-      if (label) {
+      if (speakerLabelPrefix(line)) {
         seenTurn = true;
       } else if (!seenTurn) {
         // Nobody can voice a line before the first turn.
@@ -179,8 +226,8 @@ export function lintAudioScript(script: string, mode: AudioModeForRules): Script
         // Joined to the turn above and read by the same speaker.
         findings.push({ severity: "warning", code: "narration_line", line: lineNumber });
       }
-    } else if (label) {
-      findings.push({ severity: "blocking", code: "speaker_label_in_monologue", line: lineNumber });
+    } else if (monologueLabelLines.has(index)) {
+      findings.push({ severity: "blocking", code: "speaker_label_in_monologue", line: lineNumber, names: monologueNames });
     }
 
     if (/\([^)]*\)/.test(line)) {
