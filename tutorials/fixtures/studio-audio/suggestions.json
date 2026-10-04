@@ -1,0 +1,59 @@
+{
+  "script": "Chloé : Excusez-moi… vous pouvez tenir la porte, s'il vous plaît ?\nYanis : Bien sûr ! Oh là là, il a l'air lourd, ce carton. (il prend le carton) Je vous aide ?\nChloé : Oh oui, merci beaucoup ! J'emménage aujourd'hui.\nYanis : Ah, vous êtes la nouvelle voisine du troisième étage ? Moi, j'habite juste en dessous, depuis presque cinq ans.\nChloé : Enchantée ! Je m'appelle Chloé.\nYanis : Et moi, Yanis. Bienvenue dans l'immeuble ! (il rit) Mais attention, l'ascenseur est en panne une semaine sur deux.\nChloé : (elle soupire) Ah… Et j'ai encore douze cartons dans la voiture.\nYanis : Pas de problème, on va les monter ensemble. Et après, je vous offre un thé ?\nChloé : Avec plaisir ! Vous êtes vraiment gentil.",
+  "suggestions": [
+    {
+      "id": "paren-125",
+      "kind": "fix",
+      "start": 125,
+      "end": 146,
+      "insert": "",
+      "fixType": "stage_direction",
+      "reason": "Une action sans son : la voix la lirait à voix haute."
+    },
+    {
+      "id": "tag-194-[excited]",
+      "kind": "tag",
+      "start": 194,
+      "end": 194,
+      "insert": "[excited] ",
+      "tag": "[excited]",
+      "reason": "Chloé exprime sa gratitude et l'enthousiasme d'emménager."
+    },
+    {
+      "id": "paren-429",
+      "kind": "fix",
+      "start": 429,
+      "end": 437,
+      "insert": "[laughs]",
+      "tag": "[laughs]",
+      "fixType": "stage_direction",
+      "reason": "Yanis rit vraiment au lieu de lire « il rit »."
+    },
+    {
+      "id": "paren-509",
+      "kind": "fix",
+      "start": 509,
+      "end": 523,
+      "insert": "[sighs]",
+      "tag": "[sighs]",
+      "fixType": "stage_direction",
+      "reason": "Chloé soupire au lieu de lire « elle soupire »."
+    },
+    {
+      "id": "tag-626-[smiling]",
+      "kind": "tag",
+      "start": 626,
+      "end": 626,
+      "insert": "[smiling] ",
+      "tag": "[smiling]",
+      "reason": "Yanis propose son aide et un thé, ce qui peut être accompagné d'un sourire amical."
+    }
+  ],
+  "decisions": {
+    "paren-125": "accepted",
+    "tag-194-[excited]": "accepted",
+    "paren-429": "accepted",
+    "paren-509": "accepted",
+    "tag-626-[smiling]": "rejected"
+  }
+}

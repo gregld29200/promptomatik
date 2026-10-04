@@ -1,0 +1,32 @@
+{
+  "name": "teachinspire-tutorials",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Tutorial videos for TeachInspire Studio, rendered with Remotion from real screen states.",
+  "scripts": {
+    "demo": "tsx scripts/demo.mts",
+    "voice": "tsx scripts/voice.mts",
+    "capture": "tsx scripts/capture.mts",
+    "studio": "remotion studio",
+    "still": "remotion still",
+    "render:module": "remotion render StudioAudioModule out/studio-audio-module.mp4",
+    "render:site": "remotion render StudioAudioSite out/studio-audio-site.mp4",
+    "typecheck": "tsc --noEmit -p .",
+    "stills": "tsx scripts/stills.mts"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.532",
+    "@remotion/fonts": "4.0.532",
+    "@remotion/media-utils": "4.0.532",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "remotion": "4.0.532"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "playwright": "^1.63.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0"
+  }
+}
