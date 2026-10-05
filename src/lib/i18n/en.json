@@ -565,34 +565,42 @@
   },
   "documents": {
     "nav_label": "Documents",
-    "locked": "Documents is included in the TeachInspire training: format your own content into reading materials, worksheets, teacher guides, and lesson plans, with preview and PDF export.",
+    "locked": "Documents is included in the TeachInspire course: lay out your own content (worksheets, guides, lesson plans, role cards, calendars…) with preview, customisation and PDF export.",
     "eyebrow": "TeachInspire Documents",
     "title": "Documents",
     "guide": "Guide",
     "help_dot": "Field explanation",
-    "document_type_label": "What are you formatting?",
+    "document_type_label": "What are you laying out?",
     "document_types": {
+      "free": "Free document",
       "reading": "Reading material",
       "worksheet": "Student worksheet",
+      "role_cards": "Role cards",
+      "dialogue_script": "Script or transcript",
       "teacher_guide": "Teacher guide",
-      "lesson_plan": "Lesson plan"
+      "lesson_plan": "Lesson plan",
+      "session_plan": "Session plan",
+      "checklist": "Checklist or grid",
+      "learner_profile": "Learner profile",
+      "course_brief": "Course brief",
+      "course_calendar": "Course calendar"
     },
-    "help_document_type": "All four options format your own content — nothing is invented. Reading material is a clean handout. Student worksheet adds a name/date line and writing space under numbered exercises. Teacher guide uses a compact layout with a header badge. Lesson plan numbers your sections as stages and shows level and target language.",
+    "help_document_type": "Every type lays out your own content: nothing is rewritten or invented. The type only adds useful chrome (banner, name/date line, checkboxes, boxed answer key, cut-out cards, landscape).",
     "input_title": "Source content",
-    "input_intro": "Paste the text, lesson plan, or specification you want to work with.",
+    "input_intro": "Paste your text from Gemini, Google Docs or Word. Headings, bold, lists and tables are kept.",
     "content_label": "Content to transform",
-    "content_placeholder": "Paste an article, transcript, lesson plan, or instructions here...",
+    "content_placeholder": "Paste your worksheet, lesson plan, script or transcript here…",
     "word_count": "{{count}} words",
-    "char_count": "{{count}} / 15,000 characters",
-    "reason_too_short": "Add at least 30 words before generating.",
-    "reason_too_long": "The content is over 15,000 characters. Shorten it before generating.",
+    "char_count": "{{count}} / 30,000 characters",
+    "reason_too_short": "Add at least 8 words to lay out the document.",
+    "reason_too_long": "The content is over 30,000 characters. Split it into two documents.",
     "title_label": "Optional title",
     "title_placeholder": "E.g. B1 client meeting",
     "language_label": "Target language",
     "language_placeholder": "E.g. English",
     "level_label": "Level",
     "level_unspecified": "Unspecified",
-    "help_level": "The level guides the difficulty of instructions, vocabulary, and expected production.",
+    "help_level": "Shown in the document header. When you ask for an addition (word bank, questions…), it also guides its difficulty.",
     "emphasis_label": "Vocabulary to highlight",
     "emphasis_placeholder": "E.g. lead times, warranty claims, SLA",
     "emphasis_help": "Enter exact phrases separated by commas. Matching terms are guaranteed to appear in bold.",
@@ -612,8 +620,8 @@
         "description": "A denser, restrained layout for adult and business learners."
       }
     },
-    "simple_request": "Other formatting or optional addition",
-    "simple_request_placeholder": "E.g. add a word bank at the end. Activities are added only when you explicitly request them.",
+    "simple_request": "Optional addition",
+    "simple_request_placeholder": "E.g. add a word bank, 5 comprehension questions, a gap-fill, role cards. Nothing is added unless you ask.",
     "format_document": "Format document",
     "submitting": "Submitting",
     "retry": "Try again",
@@ -621,10 +629,10 @@
     "submit_error": "Generation could not start. Try again in a moment.",
     "failed_message": "Generation stopped before finishing. Your content is still here, so you can try again.",
     "waiting_eyebrow": "Generating",
-    "waiting_analysis": "Analyzing the content",
+    "waiting_analysis": "Reading the structure",
     "waiting_building_simple": "Formatting your document",
     "waiting_finalizing": "Finalizing the documents",
-    "waiting_expectation": "This usually takes 1 to 3 minutes.",
+    "waiting_expectation": "Usually a few seconds, up to a minute if you asked for an addition.",
     "waiting_long": "This is taking longer than expected, but we are still trying.",
     "results_eyebrow": "Ready to print",
     "results_title": "Your 3 materials",
@@ -653,15 +661,15 @@
     "deleted": "Document deleted.",
     "delete_error": "The document could not be deleted. Try again in a moment.",
     "guide_eyebrow": "Documents guide",
-    "guide_title": "Your content, formatted into the document you choose",
+    "guide_title": "Your content, laid out without being rewritten",
     "guide_paste_title": "What to paste",
-    "guide_paste_body": "Paste a source text, transcript, lesson plan, curriculum, or structured specification.",
+    "guide_paste_body": "Paste a worksheet, lesson plan, brief, script, transcript or table straight from Gemini, Google Docs or Word. Headings, bold, lists and tables are kept.",
     "guide_result_title": "What you get",
-    "guide_result_body": "Every document type preserves your wording and applies only the formatting or additions you request. Choose reading material, student worksheet, teacher guide, or lesson plan.",
-    "guide_timing_title": "Timing",
-    "guide_timing_body": "Generation often takes 1 to 3 minutes depending on length and complexity.",
+    "guide_result_body": "Pick the document type: it adds the useful chrome (banner, boxes, boxed answer key, cut-out cards). Your words do not change. Additions (word bank, questions…) only happen when you ask.",
+    "guide_timing_title": "Customise",
+    "guide_timing_body": "In the preview, “Customise” sets colour, fonts, density, header, logo, footer and orientation. Your settings carry over to your next documents.",
     "guide_pdf_title": "PDF",
-    "guide_pdf_body": "Preview the final layout, copy your clean text, or download each document as a PDF.",
+    "guide_pdf_body": "Preview the final layout: the PDF is identical, with clean page breaks. You can also copy the text.",
     "status": {
       "queued": "Queued",
       "processing": "Processing",
@@ -723,6 +731,129 @@
       "character_analysis_card": "Character analysis card",
       "prediction_exercise": "Prediction exercise",
       "clean_handout": "Clean handout"
+    },
+    "document_type_hints": {
+      "free": "Any content, laid out as it is, no banner. The right default.",
+      "reading": "Article or adapted text, reading layout.",
+      "worksheet": "Name/date line, answer space, true/false boxes.",
+      "role_cards": "Each section becomes a card to cut out.",
+      "dialogue_script": "Lines per speaker, or a timestamped transcript.",
+      "teacher_guide": "Teacher banner, boxed answer key, answers shown.",
+      "lesson_plan": "Numbered stages, procedure table, level and language.",
+      "session_plan": "Session framework or design plan.",
+      "checklist": "Lists become checkboxes.",
+      "learner_profile": "Profile, needs, communication situations.",
+      "course_brief": "Course objectives to share with the learner.",
+      "course_calendar": "Session table, landscape by default."
+    },
+    "document_type_groups": {
+      "learner": "For the learner",
+      "teacher": "For the teacher",
+      "course": "For the course"
+    },
+    "request_not_applied": "Your addition request was not applied: Documents can add a word bank, comprehension questions, a matching exercise, a gap-fill, role cards or instructions. Everything else about the layout comes from the document type and “Customise”.",
+    "add_image": "Add an image",
+    "syntax_toggle": "What Documents recognises",
+    "syntax": {
+      "headings": {
+        "code": "# Title · ## Section · ### Subsection",
+        "text": "Headings. A short bold line, or one without a full stop, also becomes a heading."
+      },
+      "lists": {
+        "code": "- point · 1. step",
+        "text": "Bulleted and numbered lists; indentation nests them."
+      },
+      "letters": {
+        "code": "a) … b) … c) …",
+        "text": "Lettered options under a question."
+      },
+      "checks": {
+        "code": "- [ ] criterion",
+        "text": "Checkboxes."
+      },
+      "table": {
+        "code": "| Stage | Time |",
+        "text": "Tables, including those copied from Docs or Gemini."
+      },
+      "fields": {
+        "code": "Level: B1+ · Time: 90 min",
+        "text": "Two or more “Label: value” lines form an information grid."
+      },
+      "word_bank": {
+        "code": "Word bank: adjust, priority",
+        "text": "Boxed words."
+      },
+      "dialogue": {
+        "code": "Katrin: Hello…",
+        "text": "Repeated speakers: dialogue. [00:12] Speaker: transcript."
+      },
+      "box": {
+        "code": "> Reminder: …",
+        "text": "Highlighted box."
+      },
+      "breaks": {
+        "code": "--- · [page break] · [lines: 6]",
+        "text": "Rule, page break, ruled answer space."
+      },
+      "image": {
+        "code": "Add an image",
+        "text": "Inserts the image at the cursor, with its caption."
+      }
+    },
+    "image_type_error": "This file is not a PNG, JPEG, WebP or GIF image.",
+    "image_too_large": "The image is over 5 MB. Shrink it and try again.",
+    "image_upload_error": "The image could not be uploaded. Try again in a moment.",
+    "guide_gemini_title": "The instruction to give Gemini",
+    "guide_gemini_body": "Add this sentence at the end of your request to get text ready for Documents:",
+    "guide_gemini_prompt": "Return the result as simple Markdown: # for the title, ## for sections, lists with - or 1., tables with |, and “Label: value” for information. No HTML or decorative formatting.",
+    "guide_gemini_copy": "Copy the instruction",
+    "guide_gemini_copied": "Instruction copied.",
+    "design": {
+      "title": "Customise",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "error": "Not saved, try again",
+      "orientation": "Orientation",
+      "orientations": {
+        "portrait": "Portrait",
+        "landscape": "Landscape"
+      },
+      "accent": "Colour",
+      "accent_choice": "Colour {{color}}",
+      "accent_custom": "Other colour",
+      "heading_font": "Heading font",
+      "body_font": "Body font",
+      "style_default": "The style's own",
+      "fonts": {
+        "cormorant": "Cormorant Garamond",
+        "fraunces": "Fraunces",
+        "playfair": "Playfair Display",
+        "space_grotesk": "Space Grotesk",
+        "inter": "Inter",
+        "manrope": "Manrope",
+        "source_sans": "Source Sans",
+        "nunito_sans": "Nunito Sans"
+      },
+      "density": "Density",
+      "densities": {
+        "airy": "Airy",
+        "standard": "Standard",
+        "compact": "Compact"
+      },
+      "header": "Header",
+      "headers": {
+        "default": "Style's",
+        "rule": "Rule",
+        "band": "Band",
+        "frame": "Frame"
+      },
+      "logo": "Logo",
+      "logo_add": "Add a logo",
+      "logo_remove": "Remove",
+      "logo_alt": "Document logo",
+      "footer": "Footer",
+      "footer_placeholder": "E.g. Your institute · Your name · your-site.com",
+      "reset": "Back to the original style"
     }
   },
   "upgrade": {

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { RefreshCcw, Trash2, X } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Copy, RefreshCcw, Trash2, X } from "lucide-react";
 import { getLanguage, t } from "@/lib/i18n";
 import type * as api from "@/lib/api";
 import s from "@/pages/documents.module.css";
@@ -89,6 +89,15 @@ export function RecentJobs(props: {
 }
 
 export function GuideOverlay(props: { onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  async function copyPrompt() {
+    try {
+      await navigator.clipboard.writeText(t("documents.guide_gemini_prompt"));
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
   return (
     <div className={guide.overlay} role="dialog" aria-modal="true" aria-labelledby="documents-guide-title">
       <div className={guide.panel}>
@@ -101,6 +110,15 @@ export function GuideOverlay(props: { onClose: () => void }) {
           <section><h3>{t("documents.guide_timing_title")}</h3><p>{t("documents.guide_timing_body")}</p></section>
           <section><h3>{t("documents.guide_pdf_title")}</h3><p>{t("documents.guide_pdf_body")}</p></section>
         </div>
+        <section className={guide.prompt}>
+          <h3>{t("documents.guide_gemini_title")}</h3>
+          <p>{t("documents.guide_gemini_body")}</p>
+          <blockquote>{t("documents.guide_gemini_prompt")}</blockquote>
+          <button type="button" className={s.iconText} onClick={() => void copyPrompt()}>
+            <Copy size={16} aria-hidden /> {t("documents.guide_gemini_copy")}
+          </button>
+          <span aria-live="polite" className={s.muted}>{copied ? t("documents.guide_gemini_copied") : ""}</span>
+        </section>
       </div>
     </div>
   );

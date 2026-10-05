@@ -565,34 +565,42 @@
   },
   "documents": {
     "nav_label": "Documents",
-    "locked": "Documents est inclus dans la formation TeachInspire : mettez votre propre contenu en forme en supports de lecture, fiches d'exercices, guides de l'enseignant et plans de cours, avec aperçu et export PDF.",
+    "locked": "Documents est inclus dans la formation TeachInspire : mettez votre propre contenu en forme (fiches, guides, plans de cours, cartes de rôle, calendriers…), avec aperçu, personnalisation et export PDF.",
     "eyebrow": "TeachInspire Documents",
     "title": "Documents",
     "guide": "Guide",
     "help_dot": "Explication du champ",
     "document_type_label": "Que mettez-vous en forme ?",
     "document_types": {
+      "free": "Document libre",
       "reading": "Support de lecture",
       "worksheet": "Fiche d'exercices",
+      "role_cards": "Cartes de rôle",
+      "dialogue_script": "Script ou transcription",
       "teacher_guide": "Guide de l'enseignant",
-      "lesson_plan": "Plan de cours"
+      "lesson_plan": "Plan de cours",
+      "session_plan": "Fiche de séance",
+      "checklist": "Grille ou checklist",
+      "learner_profile": "Fiche apprenant",
+      "course_brief": "Brief de formation",
+      "course_calendar": "Calendrier de formation"
     },
-    "help_document_type": "Les quatre options mettent en forme votre propre contenu — rien n'est inventé. Le support de lecture est un document propre à imprimer. La fiche d'exercices ajoute une ligne nom/date et un espace de réponse sous les exercices numérotés. Le guide de l'enseignant adopte une mise en page compacte avec un bandeau. Le plan de cours numérote vos sections en étapes et affiche le niveau et la langue cible.",
+    "help_document_type": "Tous les types mettent en forme votre propre contenu : rien n'est réécrit ni inventé. Le type ajoute seulement l'habillage utile (bandeau, ligne nom/date, cases à cocher, corrigé encadré, cartes à découper, paysage).",
     "input_title": "Contenu source",
-    "input_intro": "Collez le texte, le plan ou le cahier des charges avec lequel vous souhaitez travailler.",
+    "input_intro": "Collez votre texte depuis Gemini, Google Docs ou Word. Titres, gras, listes et tableaux sont conservés.",
     "content_label": "Contenu à transformer",
-    "content_placeholder": "Collez ici un article, une transcription, un plan de cours ou vos consignes...",
+    "content_placeholder": "Collez ici votre fiche, votre plan de cours, votre script ou votre transcription…",
     "word_count": "{{count}} mots",
-    "char_count": "{{count}} / 15 000 caractères",
-    "reason_too_short": "Ajoutez au moins 30 mots pour lancer la génération.",
-    "reason_too_long": "Le contenu dépasse 15 000 caractères. Raccourcissez-le avant de générer.",
+    "char_count": "{{count}} / 30 000 caractères",
+    "reason_too_short": "Ajoutez au moins 8 mots pour lancer la mise en forme.",
+    "reason_too_long": "Le contenu dépasse 30 000 caractères. Découpez-le en deux documents.",
     "title_label": "Titre optionnel",
     "title_placeholder": "Ex. : Réunion client B1",
     "language_label": "Langue cible",
     "language_placeholder": "Ex. : anglais",
     "level_label": "Niveau",
     "level_unspecified": "Non précisé",
-    "help_level": "Le niveau guide la difficulté des consignes, du lexique et de la production attendue.",
+    "help_level": "Affiché dans l'en-tête du document. Si vous demandez un ajout (banque de mots, questions…), il guide aussi sa difficulté.",
     "emphasis_label": "Vocabulaire à mettre en valeur",
     "emphasis_placeholder": "Ex. : lead times, warranty claims, SLA",
     "emphasis_help": "Saisissez les expressions exactes, séparées par des virgules. Les correspondances apparaîtront systématiquement en gras.",
@@ -612,8 +620,8 @@
         "description": "Une mise en page plus dense et sobre pour adultes et cours professionnels."
       }
     },
-    "simple_request": "Autre mise en forme ou ajout optionnel",
-    "simple_request_placeholder": "Ex. : ajouter une banque de mots à la fin. Les activités ne sont ajoutées que sur demande explicite.",
+    "simple_request": "Ajout optionnel",
+    "simple_request_placeholder": "Ex. : ajouter une banque de mots, 5 questions de compréhension, un texte à trous, des cartes de rôle. Rien n'est ajouté sans demande.",
     "format_document": "Mettre en forme",
     "submitting": "Envoi en cours",
     "retry": "Réessayer",
@@ -621,10 +629,10 @@
     "submit_error": "La génération n'a pas pu démarrer. Réessayez dans un instant.",
     "failed_message": "La génération s'est arrêtée avant la fin. Votre contenu est conservé : vous pouvez réessayer.",
     "waiting_eyebrow": "Génération en cours",
-    "waiting_analysis": "Analyse du contenu",
+    "waiting_analysis": "Lecture de la structure",
     "waiting_building_simple": "Mise en forme de votre document",
     "waiting_finalizing": "Finalisation des documents",
-    "waiting_expectation": "Cela prend généralement 1 à 3 minutes.",
+    "waiting_expectation": "Quelques secondes en général, jusqu'à une minute si vous avez demandé un ajout.",
     "waiting_long": "C'est plus long que prévu, mais on continue d'essayer.",
     "results_eyebrow": "Prêt à imprimer",
     "results_title": "Vos 3 supports",
@@ -653,15 +661,15 @@
     "deleted": "Document supprimé.",
     "delete_error": "Le document n'a pas pu être supprimé. Réessayez dans un instant.",
     "guide_eyebrow": "Guide Documents",
-    "guide_title": "Votre contenu, mis en forme dans le document de votre choix",
+    "guide_title": "Votre contenu, mis en page sans être réécrit",
     "guide_paste_title": "Quoi coller",
-    "guide_paste_body": "Collez un texte source, une transcription, un plan de cours, un programme ou une consigne structurée.",
+    "guide_paste_body": "Collez une fiche, un plan de cours, un brief, un script, une transcription ou un tableau, directement depuis Gemini, Google Docs ou Word. Titres, gras, listes et tableaux sont conservés.",
     "guide_result_title": "Ce que vous obtenez",
-    "guide_result_body": "Chaque type de document conserve vos mots et applique uniquement la mise en forme ou les ajouts demandés. Choisissez support de lecture, fiche d'exercices, guide de l'enseignant ou plan de cours.",
-    "guide_timing_title": "Délai",
-    "guide_timing_body": "La génération prend souvent 1 à 3 minutes selon la longueur et la complexité du contenu.",
+    "guide_result_body": "Choisissez le type de document : il ajoute l'habillage utile (bandeau, cases, corrigé encadré, cartes à découper). Vos mots ne changent pas. Les ajouts (banque de mots, questions…) se font uniquement sur demande.",
+    "guide_timing_title": "Personnaliser",
+    "guide_timing_body": "Dans l'aperçu, « Personnaliser » règle la couleur, les polices, la densité, l'en-tête, le logo, le pied de page et l'orientation. Vos réglages sont repris pour les documents suivants.",
     "guide_pdf_title": "PDF",
-    "guide_pdf_body": "Prévisualisez la mise en page finale, copiez le texte propre ou téléchargez chaque document en PDF.",
+    "guide_pdf_body": "Prévisualisez la mise en page finale : le PDF est identique, avec des sauts de page propres. Vous pouvez aussi copier le texte.",
     "status": {
       "queued": "En attente",
       "processing": "En cours",
@@ -723,6 +731,129 @@
       "character_analysis_card": "Fiche d'analyse de personnage",
       "prediction_exercise": "Exercice de prédiction",
       "clean_handout": "Document mis en forme"
+    },
+    "document_type_hints": {
+      "free": "Tout contenu, mis en page tel quel, sans bandeau. Le bon choix par défaut.",
+      "reading": "Article ou texte adapté, mise en page de lecture.",
+      "worksheet": "Ligne nom/date, espace de réponse, cases vrai/faux.",
+      "role_cards": "Chaque section devient une carte à découper.",
+      "dialogue_script": "Répliques par locuteur, ou transcription horodatée.",
+      "teacher_guide": "Bandeau enseignant, corrigé encadré, réponses visibles.",
+      "lesson_plan": "Étapes numérotées, tableau du déroulé, niveau et langue.",
+      "session_plan": "Fiche cadre ou plan de conception d'une séance.",
+      "checklist": "Les listes deviennent des cases à cocher.",
+      "learner_profile": "Profil, besoins, situations de communication.",
+      "course_brief": "Objectifs de formation à partager avec l'apprenant.",
+      "course_calendar": "Tableau des séances, en paysage par défaut."
+    },
+    "document_type_groups": {
+      "learner": "Pour l'apprenant",
+      "teacher": "Pour l'enseignant",
+      "course": "Pour le parcours"
+    },
+    "request_not_applied": "Votre demande d'ajout n'a pas été appliquée : Documents sait ajouter une banque de mots, des questions de compréhension, un appariement, un texte à trous, des cartes de rôle ou des consignes. Le reste de la mise en page vient du type de document et de « Personnaliser ».",
+    "add_image": "Ajouter une image",
+    "syntax_toggle": "Ce que Documents reconnaît",
+    "syntax": {
+      "headings": {
+        "code": "# Titre · ## Section · ### Sous-section",
+        "text": "Titres. Une ligne courte en gras ou sans point final devient aussi un titre."
+      },
+      "lists": {
+        "code": "- point · 1. étape",
+        "text": "Listes à puces et numérotées ; l'indentation crée des sous-listes."
+      },
+      "letters": {
+        "code": "a) … b) … c) …",
+        "text": "Choix lettrés sous une question."
+      },
+      "checks": {
+        "code": "- [ ] critère",
+        "text": "Cases à cocher."
+      },
+      "table": {
+        "code": "| Étape | Durée |",
+        "text": "Tableaux, y compris ceux copiés depuis Docs ou Gemini."
+      },
+      "fields": {
+        "code": "Niveau : B1+ · Durée : 90 min",
+        "text": "Deux lignes « Libellé : valeur » ou plus forment une grille d'informations."
+      },
+      "word_bank": {
+        "code": "Banque de mots : ajuster, priorité",
+        "text": "Encadré de mots."
+      },
+      "dialogue": {
+        "code": "Katrin : Bonjour…",
+        "text": "Locuteurs répétés : dialogue. [00:12] Intervenant : transcription."
+      },
+      "box": {
+        "code": "> Rappel : …",
+        "text": "Encadré de mise en avant."
+      },
+      "breaks": {
+        "code": "--- · [saut de page] · [lignes: 6]",
+        "text": "Filet, saut de page, espace de réponse ligné."
+      },
+      "image": {
+        "code": "Ajouter une image",
+        "text": "Insère l'image à l'endroit du curseur, avec sa légende."
+      }
+    },
+    "image_type_error": "Ce fichier n'est pas une image PNG, JPEG, WebP ou GIF.",
+    "image_too_large": "L'image dépasse 5 Mo. Réduisez-la puis réessayez.",
+    "image_upload_error": "L'image n'a pas pu être envoyée. Réessayez dans un instant.",
+    "guide_gemini_title": "La consigne à donner à Gemini",
+    "guide_gemini_body": "Ajoutez cette phrase à la fin de votre demande pour obtenir un texte prêt pour Documents :",
+    "guide_gemini_prompt": "Rends le résultat en Markdown simple : # pour le titre, ## pour les sections, des listes avec - ou 1., les tableaux avec |, et « Libellé : valeur » pour les informations. Pas de HTML ni de mise en forme décorative.",
+    "guide_gemini_copy": "Copier la consigne",
+    "guide_gemini_copied": "Consigne copiée.",
+    "design": {
+      "title": "Personnaliser",
+      "saving": "Enregistrement…",
+      "saved": "Enregistré",
+      "error": "Non enregistré, réessayez",
+      "orientation": "Orientation",
+      "orientations": {
+        "portrait": "Portrait",
+        "landscape": "Paysage"
+      },
+      "accent": "Couleur",
+      "accent_choice": "Couleur {{color}}",
+      "accent_custom": "Autre couleur",
+      "heading_font": "Police des titres",
+      "body_font": "Police du texte",
+      "style_default": "Celle du style",
+      "fonts": {
+        "cormorant": "Cormorant Garamond",
+        "fraunces": "Fraunces",
+        "playfair": "Playfair Display",
+        "space_grotesk": "Space Grotesk",
+        "inter": "Inter",
+        "manrope": "Manrope",
+        "source_sans": "Source Sans",
+        "nunito_sans": "Nunito Sans"
+      },
+      "density": "Densité",
+      "densities": {
+        "airy": "Aérée",
+        "standard": "Standard",
+        "compact": "Compacte"
+      },
+      "header": "En-tête",
+      "headers": {
+        "default": "Du style",
+        "rule": "Filet",
+        "band": "Bandeau",
+        "frame": "Encadré"
+      },
+      "logo": "Logo",
+      "logo_add": "Ajouter un logo",
+      "logo_remove": "Retirer",
+      "logo_alt": "Logo du document",
+      "footer": "Pied de page",
+      "footer_placeholder": "Ex. : Votre institut · Votre nom · votre-site.fr",
+      "reset": "Revenir au style d'origine"
     }
   },
   "upgrade": {

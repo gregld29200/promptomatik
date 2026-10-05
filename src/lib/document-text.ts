@@ -73,9 +73,31 @@ function blockToText(block: DocumentBlock, materialTitle: string): string {
   return stripInlineFormatting(lines.join("\n").trim());
 }
 
+const TABLE_SEPARATOR = /^\|?\s*:?-{1,}:?\s*(?:\|\s*:?-{1,}:?\s*)+\|?\s*$/;
+const LAYOUT_MARKER = /^\[\s*(?:saut de page|nouvelle page|page break|new page|salto de página|nueva página|lignes|espace de réponse|zone de réponse|lines|answer space|líneas|espacio de respuesta)(?:\s*[:=]\s*\d{1,2})?\s*\]$/i;
+
+/**
+ * Layout-only lines carry nothing to paste into Word/Docs: table rows become
+ * tab-separated (they paste back as table cells), separator rows, page-break
+ * and writing-space markers and uploaded-image references drop out.
+ */
+function plainSourceLine(line: string): string | null {
+  const trimmed = line.trim();
+  if (TABLE_SEPARATOR.test(trimmed) || LAYOUT_MARKER.test(trimmed)) return null;
+  if (/^!\[[^\]]*\]\(studio:[^)]+\)$/.test(trimmed)) return null;
+  if (/^\|.*\|$/.test(trimmed)) {
+    return trimmed.replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim()).join("\t");
+  }
+  return line.replace(/^(\s*)>\s?/, "$1");
+}
+
 export function materialToPlainText(material: DocumentMaterial): string {
   if (material.material_type === "clean_handout" && material.source_text?.trim()) {
-    const sourceLines = material.source_text.trim().split(/\r?\n/);
+    const sourceLines = material.source_text
+      .trim()
+      .split(/\r?\n/)
+      .map(plainSourceLine)
+      .filter((line): line is string => line !== null);
     if (sourceLines[0] && sameText(stripInlineFormatting(sourceLines[0]), material.title)) {
       sourceLines.shift();
       while (sourceLines[0]?.trim() === "") sourceLines.shift();

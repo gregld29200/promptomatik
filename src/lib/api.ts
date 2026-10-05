@@ -824,7 +824,32 @@ export function startCreditCheckout(packId: string) {
 // ---- Documents types ----
 
 export type DocumentJobStatus = "queued" | "processing" | "completed" | "failed";
-export type DocumentType = "reading" | "worksheet" | "teacher_guide" | "lesson_plan";
+export type DocumentType =
+  | "free"
+  | "reading"
+  | "worksheet"
+  | "role_cards"
+  | "dialogue_script"
+  | "teacher_guide"
+  | "lesson_plan"
+  | "session_plan"
+  | "checklist"
+  | "learner_profile"
+  | "course_brief"
+  | "course_calendar";
+export type DocumentOrientation = "portrait" | "landscape";
+export type DocumentHeadingFont = "cormorant" | "fraunces" | "playfair" | "space_grotesk" | "inter" | "manrope";
+export type DocumentBodyFont = "source_sans" | "nunito_sans" | "manrope" | "inter";
+/** Teacher design overrides on top of a style — presentation only. */
+export interface DocumentDesign {
+  accent?: string;
+  headingFont?: DocumentHeadingFont;
+  bodyFont?: DocumentBodyFont;
+  density?: "airy" | "standard" | "compact";
+  header?: "rule" | "band" | "frame";
+  logoImageId?: string;
+  footerText?: string;
+}
 export type DocumentPresetId = "studio_academic" | "modern_training" | "warm_coaching";
 export type SimpleDocumentTemplateId = "editorial_reader" | "classroom_handout" | "compact_professional";
 export type DocumentMaterialType =
@@ -885,6 +910,8 @@ export interface TransformDocumentPayload {
   emphasisTerms?: string[];
   templateId?: SimpleDocumentTemplateId;
   documentType?: DocumentType;
+  orientation?: DocumentOrientation;
+  design?: DocumentDesign;
   locale?: string;
 }
 
@@ -932,6 +959,9 @@ export interface SimpleDocumentMaterial extends DocumentMaterialBase {
   heading_phrases?: string[];
   template_id?: SimpleDocumentTemplateId;
   document_type?: DocumentType;
+  orientation?: DocumentOrientation;
+  design?: DocumentDesign;
+  request_status?: "applied" | "not_applied";
   level?: string;
   language_focus?: string;
 }
@@ -979,6 +1009,43 @@ export function deleteDocumentJob(id: string) {
   return request<{ ok: boolean }>(`/api/documents/jobs/${encodeURIComponent(id)}`, {
     method: "DELETE",
   });
+}
+
+export interface DocumentPresentation {
+  templateId?: SimpleDocumentTemplateId;
+  orientation?: DocumentOrientation;
+  design?: DocumentDesign;
+}
+
+/** Re-style a finished document in place (style, orientation, design). */
+export function updateDocumentPresentation(jobId: string, index: number, presentation: DocumentPresentation) {
+  return request<{ job: DocumentJob }>(
+    `/api/documents/jobs/${encodeURIComponent(jobId)}/materials/${index}/presentation`,
+    { method: "PATCH", body: JSON.stringify(presentation) },
+  );
+}
+
+export const DOCUMENT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+/** Upload an image for a document; returns its id for `![…](studio:id)`. */
+export async function uploadDocumentImage(file: File): Promise<{ id: string } | { error: string }> {
+  try {
+    const response = await fetch("/api/documents/images", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
+    const body = await response.json().catch(() => ({})) as { id?: string; error?: string };
+    if (!response.ok || !body.id) return { error: body.error ?? "image_upload" };
+    return { id: body.id };
+  } catch {
+    return { error: "image_upload" };
+  }
+}
+
+export function documentImageUrl(id: string) {
+  return `/api/documents/images/${encodeURIComponent(id)}`;
 }
 
 // ---- Audio Studio admin ----

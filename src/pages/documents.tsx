@@ -1,9 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Copy, Download, FileText, HelpCircle, Loader2, X } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent } from "react";
+import { Copy, Download, FileText, HelpCircle, ImagePlus, Loader2, X } from "lucide-react";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
 import { HelpDot, HelpPanel, helpPanelId } from "@/components/ui/help-disclosure";
-import { ChoiceButtons, GuideOverlay, RecentJobs } from "@/components/documents/documents-panels";
+import { GuideOverlay, RecentJobs } from "@/components/documents/documents-panels";
+import { DocumentTypePicker } from "@/components/documents/document-type-picker";
+import { htmlToMarkdown, isRichPaste } from "@/lib/paste-to-markdown";
 import { DocumentPreview } from "@/components/documents/document-preview";
 import { SimpleDocumentOptions } from "@/components/documents/simple-document-options";
 import { SimpleTemplatePicker } from "@/components/documents/simple-template-picker";
@@ -13,8 +15,8 @@ import * as api from "@/lib/api";
 import { materialToPlainText } from "@/lib/document-text";
 import { materialUrl, parseEmphasisTerms } from "@/lib/document-presentation";
 import {
-  DOCUMENT_TYPES, DRAFT_KEY, EMPTY_DRAFT, LEVELS,
-  documentErrorMessage, formatElapsed, presetLabel, wordCount,
+  DRAFT_KEY, EMPTY_DRAFT, LEVELS, MAX_CHARS, MIN_WORDS,
+  documentErrorMessage, formatElapsed, loadSavedDesign, presetLabel, wordCount,
   type DraftState, type ViewState,
 } from "@/lib/documents-page";
 import s from "./documents.module.css";
@@ -39,8 +41,12 @@ export function DocumentsPage() {
   const pollingStartedAt = useRef<number>(0);
   const words = useMemo(() => wordCount(draft.content), [draft.content]);
   const chars = draft.content.length;
-  const isTooShort = words < 30;
-  const isTooLong = chars > 15_000;
+  const isTooShort = words < MIN_WORDS;
+  const isTooLong = chars > MAX_CHARS;
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [syntaxOpen, setSyntaxOpen] = useState(false);
   const canSubmit = !submitting && !isTooShort && !isTooLong;
   const materials = job?.result?.materials ?? [];
   useEffect(() => {
@@ -149,12 +155,15 @@ export function DocumentsPage() {
     if (!canSubmit) return;
     setSubmitting(true);
     setError(null);
-    const isLessonPlan = draft.documentType === "lesson_plan";
+    const savedDesign = loadSavedDesign();
     const payload: api.TransformDocumentPayload = {
       content: draft.content,
       title: draft.title.trim() || undefined,
-      level: isLessonPlan ? draft.level || undefined : undefined,
-      languageFocus: isLessonPlan ? draft.languageFocus.trim() || undefined : undefined,
+      level: draft.level || undefined,
+      languageFocus: draft.languageFocus.trim() || undefined,
+      orientation: draft.orientation || undefined,
+      // The teacher's last look carries over to every new document.
+      design: Object.keys(savedDesign).length > 0 ? savedDesign : undefined,
       customRequest: customRequest.trim() || undefined,
       emphasisTerms: parseEmphasisTerms(draft.emphasisInput),
       templateId: draft.templateId,
@@ -215,12 +224,59 @@ export function DocumentsPage() {
         emphasisInput: material.bold_phrases?.join(", ") ?? "",
         templateId: material.template_id ?? "editorial_reader",
         documentType: material.document_type ?? "reading",
+        orientation: material.orientation ?? "",
       });
     }
     setError(null);
     setView("input");
     window.history.replaceState(null, "", window.location.pathname);
   }
+  /** Inserts text at the cursor (or the end) of the content area. */
+  function insertIntoContent(snippet: string) {
+    const area = contentRef.current;
+    const start = area?.selectionStart ?? draft.content.length;
+    const end = area?.selectionEnd ?? draft.content.length;
+    const next = `${draft.content.slice(0, start)}${snippet}${draft.content.slice(end)}`;
+    updateDraft("content", next);
+    window.requestAnimationFrame(() => {
+      if (!area) return;
+      const cursor = start + snippet.length;
+      area.focus();
+      area.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  // Google Docs, Word and Gemini put HTML on the clipboard: keep its
+  // headings, bold, nested lists and tables as Markdown.
+  function handleContentPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+    const html = event.clipboardData.getData("text/html");
+    if (!html || !isRichPaste(html)) return;
+    const parsed = new DOMParser().parseFromString(html, "text/html");
+    const markdown = htmlToMarkdown(parsed.body);
+    if (!markdown) return;
+    event.preventDefault();
+    insertIntoContent(markdown);
+  }
+
+  async function addImage(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > api.DOCUMENT_IMAGE_MAX_BYTES) {
+      setError(t("documents.image_too_large"));
+      return;
+    }
+    setImageUploading(true);
+    const result = await api.uploadDocumentImage(file);
+    setImageUploading(false);
+    if ("error" in result) {
+      setError(documentErrorMessage(result.error));
+      return;
+    }
+    const caption = file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ").trim();
+    insertIntoContent(`\n\n![${caption}](studio:${result.id})\n\n`);
+  }
+
   async function downloadPdf(index: number) {
     if (!job) return;
     setDownloadingIndex(index);
@@ -302,54 +358,70 @@ export function DocumentsPage() {
               <button type="button" onClick={() => setError(null)}>{t("documents.retry")}</button>
             </div>
           )}
-          <ChoiceButtons
-            label={t("documents.document_type_label")}
-            help={helpDot("documentType")}
-            value={draft.documentType}
-            options={DOCUMENT_TYPES}
-            keyPrefix="documents.document_types"
-            onChange={(documentType) => updateDraft("documentType", documentType)}
-          />
-          {helpText("documentType", "documents.help_document_type")}
+
           <label className={s.field}>
             <span>{t("documents.content_label")}</span>
             <textarea
+              ref={contentRef}
               className={s.contentArea}
               value={draft.content}
               onChange={(event: ChangeEvent<HTMLTextAreaElement>) => updateDraft("content", event.target.value)}
+              onPaste={handleContentPaste}
               placeholder={t("documents.content_placeholder")}
             />
           </label>
+          <div className={s.contentTools}>
+            <button type="button" className={s.iconText} onClick={() => imageInput.current?.click()} disabled={imageUploading}>
+              {imageUploading ? <Loader2 size={16} className={s.spin} aria-hidden /> : <ImagePlus size={16} aria-hidden />}
+              {t("documents.add_image")}
+            </button>
+            <button type="button" className={s.iconText} aria-expanded={syntaxOpen} onClick={() => setSyntaxOpen((open) => !open)}>
+              {t("documents.syntax_toggle")}
+            </button>
+            <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={(event) => void addImage(event)} />
+          </div>
+          {syntaxOpen && (
+            <dl className={s.syntaxHelp}>
+              {["headings", "lists", "letters", "checks", "table", "fields", "word_bank", "dialogue", "box", "breaks", "image"].map((key) => (
+                <div key={key}>
+                  <dt><code>{t(`documents.syntax.${key}.code`)}</code></dt>
+                  <dd>{t(`documents.syntax.${key}.text`)}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
           <div className={s.counterRow} aria-live="polite">
             <span className={isTooShort ? s.counterWarn : ""}>{t("documents.word_count", { count: String(words) })}</span>
             <span className={isTooLong ? s.counterWarn : ""}>{t("documents.char_count", { count: String(chars) })}</span>
           </div>
           {disabledReason && <p className={s.reason}>{disabledReason}</p>}
-          <div className={draft.documentType === "lesson_plan" ? s.formGrid : ""}>
+          <DocumentTypePicker
+            help={helpDot("documentType")}
+            value={draft.documentType}
+            onChange={(documentType) => updateDraft("documentType", documentType)}
+          />
+          {helpText("documentType", "documents.help_document_type")}
+          <div className={s.formGrid}>
             <label className={s.field}>
               <span>{t("documents.title_label")}</span>
               <input value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} placeholder={t("documents.title_placeholder")} />
             </label>
-            {draft.documentType === "lesson_plan" && (
-              <label className={s.field}>
-                <span>{t("documents.language_label")}</span>
-                <input value={draft.languageFocus} onChange={(event) => updateDraft("languageFocus", event.target.value)} placeholder={t("documents.language_placeholder")} />
-              </label>
-            )}
+            <label className={s.field}>
+              <span>{t("documents.language_label")}</span>
+              <input value={draft.languageFocus} onChange={(event) => updateDraft("languageFocus", event.target.value)} placeholder={t("documents.language_placeholder")} />
+            </label>
           </div>
-          {draft.documentType === "lesson_plan" && (
-            <fieldset className={s.choiceGroup}>
-              <legend>{t("documents.level_label")} {helpDot("level")}</legend>
-              <div className={s.chips}>
-                {LEVELS.map((level) => (
-                  <button key={level || "unspecified"} type="button" className={draft.level === level ? s.chipActive : ""} onClick={() => updateDraft("level", level)}>
-                    {level || t("documents.level_unspecified")}
-                  </button>
-                ))}
-              </div>
-              {helpText("level", "documents.help_level")}
-            </fieldset>
-          )}
+          <fieldset className={s.choiceGroup}>
+            <legend>{t("documents.level_label")} {helpDot("level")}</legend>
+            <div className={s.chips}>
+              {LEVELS.map((level) => (
+                <button key={level || "unspecified"} type="button" className={draft.level === level ? s.chipActive : ""} onClick={() => updateDraft("level", level)}>
+                  {level || t("documents.level_unspecified")}
+                </button>
+              ))}
+            </div>
+            {helpText("level", "documents.help_level")}
+          </fieldset>
           <SimpleDocumentOptions
             emphasisInput={draft.emphasisInput}
             customRequest={customRequest}
@@ -398,6 +470,9 @@ export function DocumentsPage() {
             <article key={material.id} className={s.materialCard} style={{ animationDelay: `${index * 80}ms` }}>
               {material.material_type !== "clean_handout" && <span className={s.cardNumber}>{t("documents.material_n", { n: String(index + 1) })}</span>}
               <h3>{material.title}</h3>
+              {material.material_type === "clean_handout" && material.request_status === "not_applied" && (
+                <p className={s.notice} role="status">{t("documents.request_not_applied")}</p>
+              )}
               {material.material_type === "clean_handout" && (
                 <SimpleTemplatePicker
                   compact
@@ -471,6 +546,7 @@ export function DocumentsPage() {
             onBack={() => setView("results")}
             onCopy={(index) => void copyMaterialText(index)}
             onDownload={(index) => void downloadPdf(index)}
+            onJobUpdated={setJob}
           />
         )}
         {guideOpen && <GuideOverlay onClose={() => setGuideOpen(false)} />}

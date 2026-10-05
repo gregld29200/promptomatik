@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { ArrowLeft, Copy, Download, Loader2 } from "lucide-react";
-import type { DocumentMaterial, SimpleDocumentTemplateId } from "@/lib/api";
+import type { DocumentJob, DocumentMaterial, SimpleDocumentTemplateId } from "@/lib/api";
 import { materialUrl } from "@/lib/document-presentation";
 import { t } from "@/lib/i18n";
 import { SimpleTemplatePicker } from "./simple-template-picker";
+import { DocumentDesignPanel } from "./document-design-panel";
 import s from "@/pages/documents.module.css";
 
 interface DocumentPreviewProps {
@@ -16,6 +18,7 @@ interface DocumentPreviewProps {
   onBack: () => void;
   onCopy: (index: number) => void;
   onDownload: (index: number) => void;
+  onJobUpdated: (job: DocumentJob) => void;
 }
 
 export function DocumentPreview({
@@ -29,10 +32,14 @@ export function DocumentPreview({
   onBack,
   onCopy,
   onDownload,
+  onJobUpdated,
 }: DocumentPreviewProps) {
+  // Bumped after every saved design change so the preview reloads.
+  const [version, setVersion] = useState(0);
   const material = materials[selectedIndex];
   if (!material) return null;
   const simpleTemplate = material.material_type === "clean_handout" ? templateId : undefined;
+  const simple = material.material_type === "clean_handout" ? material : undefined;
 
   return (
     <section className={s.previewPanel}>
@@ -67,13 +74,28 @@ export function DocumentPreview({
       {simpleTemplate && (
         <SimpleTemplatePicker compact value={simpleTemplate} onChange={onTemplateChange} />
       )}
-      <iframe
-        key={simpleTemplate}
-        title={material.title}
-        className={s.previewFrame}
-        src={materialUrl(jobId, selectedIndex, "html", simpleTemplate)}
-        sandbox="allow-same-origin"
-      />
+      <div className={simple ? s.previewWithDesign : ""}>
+        <iframe
+          key={`${simpleTemplate}-${version}`}
+          title={material.title}
+          className={s.previewFrame}
+          src={`${materialUrl(jobId, selectedIndex, "html", simpleTemplate)}${version ? `${simpleTemplate ? "&" : "?"}v=${version}` : ""}`}
+          sandbox="allow-same-origin"
+        />
+        {simple && (
+          <DocumentDesignPanel
+            key={material.id}
+            jobId={jobId}
+            index={selectedIndex}
+            design={simple.design ?? {}}
+            orientation={simple.orientation ?? (simple.document_type === "course_calendar" ? "landscape" : "portrait")}
+            onSaved={(job) => {
+              onJobUpdated(job);
+              setVersion((value) => value + 1);
+            }}
+          />
+        )}
+      </div>
     </section>
   );
 }

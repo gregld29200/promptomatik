@@ -55,3 +55,25 @@
   .grid { grid-template-columns: 1fr; }
   .panel { padding: var(--space-4); }
 }
+
+.prompt {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.prompt h3,
+.prompt p {
+  margin: 0;
+}
+
+.prompt blockquote {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--color-accent);
+  background: var(--color-cream-100);
+  font-size: var(--text-sm);
+}
