@@ -469,6 +469,24 @@ describe("document formatting engine", () => {
     });
   });
 
+  it("turns ticked additions into one precise request, and validates them", async () => {
+    const requests: string[] = [];
+    const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(String(init?.body ?? ""));
+      return llmResponse(JSON.stringify({ additions: [
+        { type: "reference_list", heading: "Mots", items: [{ term: "trainer", detail: "Formateur." }] },
+        { type: "matching", heading: "Associez", pairs: [{ left: "a", right: "b" }, { left: "c", right: "d" }] },
+      ] }));
+    }) as typeof fetch;
+    const result = await buildDocument({ apiKey: "k", fetcher }, REQUEST_CONTENT, { additions: ["word_bank"], customRequest: "ignored" });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toContain("a word bank of the key vocabulary");
+    expect(result.materials[0].blocks.map((block) => block.type)).toEqual(["reference_list"]);
+    expect(result.materials[0]).toMatchObject({ request_status: "applied" });
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, additions: ["questions", "role_cards"] })).toBeNull();
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, additions: ["answer_key"] })).toBe("invalid_request");
+  });
+
   it("filters model additions the teacher did not ask for", async () => {
     const wordBank = {
       type: "reference_list",
@@ -672,7 +690,7 @@ describe("document jobs lifecycle", () => {
       {
         id: "newer",
         status: "queued",
-        label: "Remote work has changed how language trainers organise",
+        label: "Remote work has changed how language trainers organise their weeks",
         createdAt: "2026-07-04 11:00:00",
       },
       {
@@ -682,6 +700,16 @@ describe("document jobs lifecycle", () => {
         createdAt: "2026-07-04 09:00:00",
       },
     ]);
+  });
+  it("labels history entries without Markdown marks or emoji", async () => {
+    await seedUser("writer", "participant");
+    await insertDocumentJob({
+      id: "md-job",
+      userId: "writer",
+      request: { content: "# **📋 FICHE CADRE DE SÉANCE – SÉANCE 3**\n\n**Apprenante :** Katrin Vogel" },
+    });
+    const [job] = await listDocumentJobsForUser(testEnv, "writer");
+    expect(job.label).toBe("FICHE CADRE DE SÉANCE – SÉANCE 3");
   });
   it("respects the recent jobs limit", async () => {
     await seedUser("writer", "participant");
@@ -772,7 +800,7 @@ describe("documents routes", () => {
         {
           id: "new-job",
           status: "completed",
-          label: "Remote work has changed how language trainers organise",
+          label: "Remote work has changed how language trainers organise their weeks",
           createdAt: "2026-07-04 10:00:00",
         },
         {

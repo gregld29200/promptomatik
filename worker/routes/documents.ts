@@ -92,7 +92,8 @@ documents.get("/jobs/:id/materials/:file", requireParticipant, async (c) => {
   return new Response(pdf, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      // `?inline=1` shows the exact pages in the preview instead of downloading.
+      "Content-Disposition": `${c.req.query("inline") === "1" ? "inline" : "attachment"}; filename="${filename}"`,
     },
   });
 });

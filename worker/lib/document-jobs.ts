@@ -4,7 +4,7 @@
 
 import { nanoid } from "nanoid";
 import type { Env } from "../env";
-import { buildDocument, type DocumentsLlmConfig } from "./documents/generate";
+import { buildDocument, isDocumentAddition, type DocumentsLlmConfig } from "./documents/generate";
 import {
   DocumentDesignSchema,
   DocumentOrientationSchema,
@@ -20,6 +20,7 @@ export interface DocumentRequest {
   level?: string;
   languageFocus?: string;
   customRequest?: string;
+  additions?: string[];
   emphasisTerms?: string[];
   templateId?: string;
   documentType?: string;
@@ -66,6 +67,7 @@ const DEFAULT_GENERATOR: DocumentGenerator = (config, request) =>
     level: request.level,
     languageFocus: request.languageFocus,
     customRequest: request.customRequest,
+    additions: (request.additions ?? []).filter(isDocumentAddition),
     emphasisTerms: request.emphasisTerms ?? [],
     templateId: SimpleTemplateSchema.catch("editorial_reader").parse(request.templateId),
     // Legacy queued jobs (mode: "simple"/"lesson") fall back to "reading":
@@ -98,6 +100,11 @@ export function validateDocumentRequest(request: DocumentRequest): string | null
     return "invalid_request";
   }
   if (request.templateId !== undefined && !SimpleTemplateSchema.safeParse(request.templateId).success) {
+    return "invalid_request";
+  }
+  if (request.additions !== undefined && (
+    !Array.isArray(request.additions) || request.additions.length > 6 || !request.additions.every(isDocumentAddition)
+  )) {
     return "invalid_request";
   }
   if (request.orientation !== undefined && !DocumentOrientationSchema.safeParse(request.orientation).success) {
@@ -159,12 +166,24 @@ export async function getDocumentJobForUser(
   return row ? rowToResponse(row) : null;
 }
 
+/** Markdown marks and emoji have no place in a history label. */
+function plainLabel(value: string): string {
+  return value
+    .replace(/^\s*(?:#{1,6}|>|[-*+•]|\d{1,3}[.)])\s+/gm, "")
+    .replace(/\*\*|__|`|\|/g, "")
+    .replace(/\\([\\`*_{}[\]()#+\-.!])/g, "$1")
+    .replace(/[\p{Extended_Pictographic}\u{FE0F}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function summaryLabel(payload: string): string {
   const request = JSON.parse(payload) as Partial<DocumentRequest>;
   const title = request.title?.trim();
-  if (title) return title;
+  if (title) return plainLabel(title);
 
-  const words = request.content?.trim().split(/\s+/).filter(Boolean).slice(0, 8) ?? [];
+  const firstLine = request.content?.split(/\r?\n/).find((line) => plainLabel(line)) ?? "";
+  const words = plainLabel(firstLine).split(/\s+/).filter(Boolean).slice(0, 10);
   return words.length > 0 ? words.join(" ") : "Document";
 }
 

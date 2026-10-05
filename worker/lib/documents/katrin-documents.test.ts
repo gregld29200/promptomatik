@@ -57,7 +57,7 @@ describe("fiche cadre de séance", () => {
     ]);
     const { material, html } = render(ficheCadre, "session_plan");
     expect(material.title).toBe("FICHE CADRE DE SÉANCE – SÉANCE 3");
-    expect(html).toContain("Fiche de séance");
+    expect(html).toContain("Cadre de séance");
     expect(count(html, /<dt>/g)).toBe(3);
     expect(html).toMatch(/<li><strong>Objectifs langagiers &amp; pragmatiques :<\/strong><ul><li>Saluer/);
     expect(count(html, /<th>/g)).toBe(3);

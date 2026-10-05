@@ -122,6 +122,42 @@ async function requestCompletion(
   }
 }
 
+// The additions a teacher can tick (Documents › Ajouter au document). Each
+// maps to the block types the model may return, and to the plain request
+// sent to it — a checkbox can never ask for something Documents cannot do.
+export const DOCUMENT_ADDITIONS = ['word_bank', 'questions', 'matching', 'fill_blanks', 'role_cards', 'instructions'] as const;
+export type DocumentAddition = typeof DOCUMENT_ADDITIONS[number];
+
+const ADDITION_BLOCKS: Record<DocumentAddition, Array<MaterialBlock['type']>> = {
+  word_bank: ['reference_list'],
+  questions: ['questions'],
+  matching: ['matching'],
+  fill_blanks: ['fill_blanks'],
+  role_cards: ['role_cards'],
+  instructions: ['instructions', 'notes'],
+};
+
+const ADDITION_REQUESTS: Record<DocumentAddition, string> = {
+  word_bank: 'a word bank of the key vocabulary, with short definitions',
+  questions: '5 comprehension questions, each with its answer',
+  matching: 'a matching exercise',
+  fill_blanks: 'a gap-fill exercise with a word bank',
+  role_cards: 'a pair of role-play cards',
+  instructions: 'short instructions for the learner',
+};
+
+export function isDocumentAddition(value: unknown): value is DocumentAddition {
+  return typeof value === 'string' && (DOCUMENT_ADDITIONS as readonly string[]).includes(value);
+}
+
+export function additionsRequest(additions: DocumentAddition[]): string {
+  return `Add, at the end of the document: ${additions.map((addition) => ADDITION_REQUESTS[addition]).join('; ')}.`;
+}
+
+export function additionsAllowedTypes(additions: DocumentAddition[]): Set<MaterialBlock['type']> {
+  return new Set(additions.flatMap((addition) => ADDITION_BLOCKS[addition]));
+}
+
 export function allowedSimpleAdditionTypes(request?: string): Set<MaterialBlock['type']> {
   const text = request?.toLocaleLowerCase() ?? '';
   const allowed = new Set<MaterialBlock['type']>();
@@ -229,6 +265,8 @@ export interface BuildDocumentOptions {
   level?: string;
   languageFocus?: string;
   customRequest?: string;
+  /** Ticked additions; when present they replace the free-text request. */
+  additions?: DocumentAddition[];
   emphasisTerms?: string[];
   templateId?: SimpleTemplateId;
   documentType?: DocumentType;
@@ -245,7 +283,9 @@ export async function buildDocument(
   content: string,
   options: BuildDocumentOptions = {},
 ): Promise<TransformResponse> {
-  const { title, level, languageFocus, customRequest } = options;
+  const { title, level, languageFocus } = options;
+  const ticked = (options.additions ?? []).filter(isDocumentAddition);
+  const customRequest = ticked.length > 0 ? additionsRequest(ticked) : options.customRequest;
   const material = buildSimpleMaterial(content.trim(), {
     title,
     emphasisTerms: options.emphasisTerms,
@@ -272,7 +312,7 @@ export async function buildDocument(
     }
   }
 
-  const allowed = allowedSimpleAdditionTypes(customRequest);
+  const allowed = ticked.length > 0 ? additionsAllowedTypes(ticked) : allowedSimpleAdditionTypes(customRequest);
   // Say so when the request names nothing Documents can add, instead of
   // silently returning the document without it.
   if (customRequest?.trim()) material.request_status = allowed.size > 0 ? 'applied' : 'not_applied';

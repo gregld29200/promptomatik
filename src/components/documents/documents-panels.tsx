@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Copy, RefreshCcw, Trash2, X } from "lucide-react";
 import { getLanguage, t } from "@/lib/i18n";
 import type * as api from "@/lib/api";
@@ -90,6 +91,27 @@ export function RecentJobs(props: {
 
 export function GuideOverlay(props: { onClose: () => void }) {
   const [copied, setCopied] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const { onClose } = props;
+
+  // A dialog the teacher can always leave: Escape, a click outside, or the
+  // close button, which takes focus on open and stays pinned while scrolling.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = overflow;
+      previous?.focus();
+    };
+  }, [onClose]);
+
   async function copyPrompt() {
     try {
       await navigator.clipboard.writeText(t("documents.guide_gemini_prompt"));
@@ -98,18 +120,29 @@ export function GuideOverlay(props: { onClose: () => void }) {
       setCopied(false);
     }
   }
-  return (
-    <div className={guide.overlay} role="dialog" aria-modal="true" aria-labelledby="documents-guide-title">
-      <div className={guide.panel}>
-        <button type="button" className={guide.closeButton} onClick={props.onClose} aria-label={t("common.close")}><X size={18} /></button>
-        <p className={s.eyebrow}>{t("documents.guide_eyebrow")}</p>
-        <h2 id="documents-guide-title">{t("documents.guide_title")}</h2>
-        <div className={guide.grid}>
-          <section><h3>{t("documents.guide_paste_title")}</h3><p>{t("documents.guide_paste_body")}</p></section>
-          <section><h3>{t("documents.guide_result_title")}</h3><p>{t("documents.guide_result_body")}</p></section>
-          <section><h3>{t("documents.guide_timing_title")}</h3><p>{t("documents.guide_timing_body")}</p></section>
-          <section><h3>{t("documents.guide_pdf_title")}</h3><p>{t("documents.guide_pdf_body")}</p></section>
+
+  // Rendered at the top of the page so no sticky header can cover it.
+  return createPortal(
+    <div
+      className={guide.overlay}
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className={guide.panel} role="dialog" aria-modal="true" aria-labelledby="documents-guide-title">
+        <div className={guide.panelHead}>
+          <p className={s.eyebrow}>{t("documents.guide_eyebrow")}</p>
+          <button ref={closeRef} type="button" className={guide.closeButton} onClick={onClose} aria-label={t("common.close")}>
+            <X size={18} aria-hidden />
+          </button>
         </div>
+        <h2 id="documents-guide-title">{t("documents.guide_title")}</h2>
+        <ol className={guide.steps}>
+          <li><h3>{t("documents.guide_step1_title")}</h3><p>{t("documents.guide_step1_body")}</p></li>
+          <li><h3>{t("documents.guide_step2_title")}</h3><p>{t("documents.guide_step2_body")}</p></li>
+          <li><h3>{t("documents.guide_step3_title")}</h3><p>{t("documents.guide_step3_body")}</p></li>
+        </ol>
         <section className={guide.prompt}>
           <h3>{t("documents.guide_gemini_title")}</h3>
           <p>{t("documents.guide_gemini_body")}</p>
@@ -120,6 +153,7 @@ export function GuideOverlay(props: { onClose: () => void }) {
           <span aria-live="polite" className={s.muted}>{copied ? t("documents.guide_gemini_copied") : ""}</span>
         </section>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

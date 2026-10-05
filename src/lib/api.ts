@@ -912,8 +912,12 @@ export interface TransformDocumentPayload {
   documentType?: DocumentType;
   orientation?: DocumentOrientation;
   design?: DocumentDesign;
+  additions?: DocumentAddition[];
   locale?: string;
 }
+
+/** What Documents can add on request — offered as checkboxes. */
+export type DocumentAddition = "word_bank" | "questions" | "matching" | "fill_blanks" | "role_cards" | "instructions";
 
 export interface DocumentBlockItem {
   prompt?: string;

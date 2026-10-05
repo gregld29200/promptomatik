@@ -11,12 +11,14 @@ export interface DraftState {
   languageFocus: string;
   emphasisInput: string;
   templateId: api.SimpleDocumentTemplateId;
-  documentType: api.DocumentType;
+  /** Empty until the teacher picks: no card is preselected. */
+  documentType: "" | api.DocumentType;
   /** Empty means "the type's default" (landscape for calendars). */
   orientation: "" | api.DocumentOrientation;
+  additions: api.DocumentAddition[];
 }
 
-export const DRAFT_KEY = "ti-docs-draft-v2";
+export const DRAFT_KEY = "ti-docs-draft-v3";
 /** The teacher's last design, reused for every new document. */
 export const DESIGN_KEY = "ti-docs-design-v1";
 export const LEVELS: LevelValue[] = ["", "A1", "A2", "B1", "B2", "C1", "C2"];
@@ -24,12 +26,14 @@ export const MIN_WORDS = 8;
 export const MAX_CHARS = 30_000;
 
 // The catalogue mirrors what the course produces, grouped by who reads it.
+// "Document libre" comes last, as the fallback when nothing else fits.
 export const DOCUMENT_TYPE_GROUPS: Array<{ id: string; types: api.DocumentType[] }> = [
-  { id: "learner", types: ["reading", "worksheet", "role_cards", "dialogue_script"] },
+  { id: "learner", types: ["worksheet", "reading", "role_cards", "dialogue_script"] },
   { id: "teacher", types: ["teacher_guide", "lesson_plan", "session_plan", "checklist"] },
   { id: "course", types: ["learner_profile", "course_brief", "course_calendar"] },
 ];
-export const DOCUMENT_TYPES: api.DocumentType[] = ["free", ...DOCUMENT_TYPE_GROUPS.flatMap((group) => group.types)];
+export const DOCUMENT_TYPES: api.DocumentType[] = [...DOCUMENT_TYPE_GROUPS.flatMap((group) => group.types), "free"];
+export const DOCUMENT_ADDITIONS: api.DocumentAddition[] = ["word_bank", "questions", "fill_blanks", "matching", "role_cards", "instructions"];
 
 export const EMPTY_DRAFT: DraftState = {
   content: "",
@@ -38,8 +42,9 @@ export const EMPTY_DRAFT: DraftState = {
   languageFocus: "",
   emphasisInput: "",
   templateId: "editorial_reader",
-  documentType: "free",
+  documentType: "",
   orientation: "",
+  additions: [],
 };
 
 export function defaultOrientation(documentType: api.DocumentType): api.DocumentOrientation {
