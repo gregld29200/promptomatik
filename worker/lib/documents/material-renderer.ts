@@ -1,4 +1,5 @@
 import type {
+  DocumentDesign,
   MaterialBlock,
   LessonTransformMaterial,
   SimpleTemplateId,
@@ -1000,10 +1001,10 @@ function buildCss(preset: PresetConfig, harness = false): string {
 
 export function renderMaterialHtml(
   material: TransformMaterial,
-  options?: { markers?: boolean; simpleTemplate?: SimpleTemplateId },
+  options?: { markers?: boolean; simpleTemplate?: SimpleTemplateId; images?: Record<string, string>; design?: DocumentDesign },
 ): string {
   if (material.material_type === 'clean_handout') {
-    return renderSimpleMaterialHtml(material, options?.simpleTemplate);
+    return renderSimpleMaterialHtml(material, options?.simpleTemplate, { images: options?.images, design: options?.design });
   }
 
   const lessonMaterial = material as LessonTransformMaterial;
