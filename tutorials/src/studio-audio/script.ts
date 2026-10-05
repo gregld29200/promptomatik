@@ -1,42 +1,5 @@
-// "Prise en main du Studio audio" — narration and shot list.
-//
-// Each paragraph is one voice-over take. Its beats say what the screen shows
-// while it is spoken: which captured state (shot), what the camera frames,
-// what is spotlit, where the cursor clicks and which label appears. `at` is
-// the share of the paragraph already spoken when the beat starts.
-
-export type BoxId = string;
-
-export interface Beat {
-  at?: number;
-  shot: string;
-  /** Box to frame; "page" shows the whole studio. */
-  focus: BoxId | "page";
-  spotlight?: BoxId;
-  click?: BoxId;
-  callout?: { target: BoxId; text: string; side?: "above" | "below" };
-}
-
-export interface Paragraph {
-  id: string;
-  text: string;
-  beats: Beat[];
-  /** A sound inserted after the paragraph, with its own visual. */
-  after?: "compare";
-  /** The recap steps appear over this paragraph. */
-  recap?: boolean;
-}
-
-export interface Chapter {
-  id: string;
-  label?: string;
-  title: string;
-  /** Only in the module 5 cut, not in the site cut. */
-  moduleOnly?: boolean;
-  paragraphs: Paragraph[];
-  /** A sound played before the first paragraph. */
-  before?: "result";
-}
+// "Prise en main du Studio audio": narration, shots and demo dialogue.
+import type { Chapter, TutorialScript } from "../tutorial/types";
 
 export const DEMO_SCRIPT = `Leïla : Antoine, tu peux m'aider ? Ce carton est trop lourd pour moi.
 Antoine : J'arrive ! Qu'est-ce que tu as mis dedans ? (il prend le carton) Je le pose où ?
@@ -400,3 +363,30 @@ export const CHAPTERS: Chapter[] = [
 /** The recap shown over chapter 7: each step appears on its cue. */
 export const RECAP = ["Écrire", "Émotions", "Niveau", "Voix", "Générer"];
 export const RECAP_CUES = ["on écrit", "on ajoute", "on règle", "on choisit", "un clic"];
+
+export const TUTORIAL: TutorialScript = {
+  id: "studio-audio",
+  title: {
+    lead: "Prise en main du",
+    name: "Studio audio",
+    subtitle: "Du texte à l'écoute prête pour la classe.",
+    kicker: { module: "TeachInspire Studio · Module 5 · Vidéo 1", site: "TeachInspire Studio · Tutoriel" },
+    scrap: "wave",
+  },
+  chapters: CHAPTERS,
+  recap: { labels: RECAP, cues: RECAP_CUES },
+  end: {
+    module: { kicker: "À suivre · Module 5 · Vidéo 2", title: "La génération de leçons", line: "Gardez vos premiers audios sous la main." },
+    site: { kicker: "À vous de jouer", title: "studio.teachinspire.me", line: "Le Guide du studio reste accessible sous le texte." },
+  },
+  appendix: {
+    title: "Le dialogue de démonstration",
+    lines: [
+      ...DEMO_SCRIPT.split("\n"),
+      "",
+      `Réplique comparée en A1 et en B1 : « ${COMPARE_LINE} »`,
+      `Scène : ${DEMO_SCENE}`,
+      "Voix : Leïla, Rosa · Antoine, Daniel. Niveau B1, rythme naturel de classe.",
+    ],
+  },
+};

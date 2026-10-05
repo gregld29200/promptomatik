@@ -1,28 +1,36 @@
 // The narration as plain text, chapter by chapter, with each chapter's start
 // time in both cuts: for course pages, chapter markers and rewrites.
 //
-//   npm run transcript      writes out/prise-en-main-studio-audio-script.txt
+//   npm run transcript                  Studio audio
+//   npm run transcript -- documents     another tutorial
+//
+// Writes out/prise-en-main-<tutorial>-script.txt.
 //
 // Run after demo, voice and capture: the times come from the edit itself.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FPS } from "../src/theme";
-import type { TutorialData } from "../src/studio-audio/data";
-import { CHAPTERS, COMPARE_LINE, DEMO_SCENE, DEMO_SCRIPT, type Chapter } from "../src/studio-audio/script";
-import { buildTimeline, type Timeline } from "../src/studio-audio/timeline";
+import { tutorialScript } from "../src/tutorial/catalog";
+import type { TutorialData } from "../src/tutorial/data";
+import { buildTimeline, type Timeline } from "../src/tutorial/timeline";
+import type { Chapter, Cut } from "../src/tutorial/types";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const OUT = resolve(ROOT, "out/prise-en-main-studio-audio-script.txt");
+const script = tutorialScript(process.argv[2] ?? "studio-audio");
+const OUT = resolve(ROOT, `out/prise-en-main-${script.id}-script.txt`);
 const RULE = "─".repeat(48);
 
 const read = <T,>(path: string): T => JSON.parse(readFileSync(resolve(ROOT, "public", path), "utf8")) as T;
 const data: TutorialData = {
-  shots: read("studio-audio/shots/shots.json"),
-  voice: read("studio-audio/voice/manifest.json"),
-  demo: read("studio-audio/demo.json"),
+  shots: read(`${script.id}/shots/shots.json`),
+  voice: read(`${script.id}/voice/manifest.json`),
+  demo: read(`${script.id}/demo.json`),
 };
-const cuts = { module: buildTimeline(data, "module"), site: buildTimeline(data, "site") };
+// A tutorial with nothing reserved for the module has a single cut.
+const hasModuleCut = script.chapters.some((chapter) => chapter.moduleOnly) || Boolean(script.title.kicker.module);
+const cutNames: Cut[] = hasModuleCut ? ["module", "site"] : ["site"];
+const cuts = Object.fromEntries(cutNames.map((cut) => [cut, buildTimeline(script, data, cut)])) as Partial<Record<Cut, Timeline>>;
 
 function clock(frames: number): string {
   const seconds = Math.round(frames / FPS);
@@ -44,42 +52,33 @@ function name(chapter: Chapter): string {
   return chapter.label === undefined ? chapter.title : `${chapter.label} · ${chapter.title}`;
 }
 
-const width = Math.max(...CHAPTERS.map((chapter) => name(chapter).length)) + 4;
+const CUT_NAMES: Record<Cut, string> = { module: "Module", site: "Site" };
+const width = Math.max(...script.chapters.map((chapter) => name(chapter).length)) + 4;
 const lines: string[] = [
-  "Prise en main du Studio audio",
-  "Script de la voix off · TeachInspire Studio, Module 5, vidéo 1",
+  `${script.title.lead} ${script.title.name}`,
+  `Script de la voix off · ${script.title.kicker.module ?? script.title.kicker.site}`,
   "",
-  `Durée : ${length(cuts.module.duration)} (version module) · ${length(cuts.site.duration)} (version site)`,
+  `Durée : ${cutNames.map((cut) => `${length(cuts[cut]!.duration)} (version ${cut})`).join(" · ")}`,
   "",
   "CHAPITRES",
-  `${"".padEnd(width)}Module   Site`,
-  ...CHAPTERS.map((chapter) => `${name(chapter).padEnd(width)}${start(cuts.module, chapter).padEnd(9)}${start(cuts.site, chapter)}`),
+  `${"".padEnd(width)}${cutNames.map((cut) => CUT_NAMES[cut].padEnd(9)).join("").trimEnd()}`,
+  ...script.chapters.map((chapter) => `${name(chapter).padEnd(width)}${cutNames.map((cut) => start(cuts[cut]!, chapter).padEnd(9)).join("").trimEnd()}`),
 ];
 
-for (const chapter of CHAPTERS) {
-  const where = chapter.moduleOnly ? "version module uniquement" : `module ${start(cuts.module, chapter)} · site ${start(cuts.site, chapter)}`;
+for (const chapter of script.chapters) {
+  const where = chapter.moduleOnly
+    ? "version module uniquement"
+    : cutNames.map((cut) => `${cutNames.length > 1 ? `${cut} ` : ""}${start(cuts[cut]!, chapter)}`).join(" · ");
   lines.push("", RULE, "", `${name(chapter).toUpperCase()}   (${where})`);
   if (chapter.before === "result") lines.push("", "[On écoute le début du dialogue de démonstration.]");
   for (const paragraph of chapter.paragraphs) {
+    if (paragraph.scene === "result") lines.push("", "[À l'écran : le document terminé.]");
     lines.push("", paragraph.text);
     if (paragraph.after === "compare") lines.push("", "[On écoute la même réplique en A1, rythme lent, puis en B1.]");
   }
 }
 
-const [first, second] = data.demo.cast;
-lines.push(
-  "",
-  RULE,
-  "",
-  "LE DIALOGUE DE DÉMONSTRATION",
-  "",
-  DEMO_SCRIPT,
-  "",
-  `Réplique comparée en A1 et en B1 : « ${COMPARE_LINE} »`,
-  `Scène : ${DEMO_SCENE}`,
-  `Voix : ${first.name}, ${first.voice} · ${second.name}, ${second.voice}. Niveau B1, rythme naturel de classe.`,
-  "",
-);
+lines.push("", RULE, "", script.appendix.title.toUpperCase(), "", ...script.appendix.lines, "");
 
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, lines.join("\n"));

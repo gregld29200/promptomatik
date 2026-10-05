@@ -2,14 +2,18 @@ import { AbsoluteFill, Html5Audio, Sequence, interpolate, staticFile, type Calcu
 import { ChapterCard, EndCard, TitleCard } from "../components/cards";
 import { CompareCard, ResultCard } from "../components/listening";
 import { Captions, ChapterTag, Recap } from "../components/overlays";
+import { DocumentResult } from "../components/pages";
 import { Stage } from "../components/stage";
+import { COMPARE_LINE } from "../studio-audio/script";
 import { fontsReady } from "../fonts";
 import { C } from "../theme";
-import { loadTutorialData, type TutorialData } from "./data";
-import { COMPARE_LINE, RECAP } from "./script";
-import { buildTimeline, type Cut, type Overlay, type Sound, type Timeline } from "./timeline";
+import { tutorialScript } from "./catalog";
+import { audioDemo, documentsDemo, loadTutorialData, type TutorialData } from "./data";
+import { buildTimeline, type Overlay, type Sound, type Timeline } from "./timeline";
+import type { Cut, TutorialScript } from "./types";
 
 export type TutorialProps = {
+  tutorial: string;
   cut: Cut;
   captions: boolean;
   data?: TutorialData;
@@ -18,34 +22,45 @@ export type TutorialProps = {
 
 export const tutorialMetadata: CalculateMetadataFunction<TutorialProps> = async ({ props, abortSignal }) => {
   await fontsReady;
-  const data = await loadTutorialData(abortSignal);
-  const timeline = buildTimeline(data, props.cut);
+  const script = tutorialScript(props.tutorial);
+  const data = await loadTutorialData(script.id, abortSignal);
+  const timeline = buildTimeline(script, data, props.cut);
   return { durationInFrames: timeline.duration, props: { ...props, data, timeline } };
 };
 
-function OverlayView({ overlay, data, cut }: { overlay: Overlay; data: TutorialData; cut: Cut }) {
+// A tutorial's own full-screen scenes, by the name its script gives them.
+function SceneView({ name, duration, data }: { name: string; duration: number; data: TutorialData }) {
+  if (name === "result") return <DocumentResult duration={duration} demo={documentsDemo(data)} />;
+  throw new Error(`Unknown scene "${name}".`);
+}
+
+function OverlayView({ overlay, data, cut, script }: { overlay: Overlay; data: TutorialData; cut: Cut; script: TutorialScript }) {
   switch (overlay.kind) {
     case "title":
-      return <TitleCard duration={overlay.duration} cut={cut} />;
+      return <TitleCard duration={overlay.duration} cut={cut} title={script.title} />;
     case "card":
-      return <ChapterCard duration={overlay.duration} chapter={overlay.chapter} />;
-    case "result":
+      return <ChapterCard duration={overlay.duration} chapter={overlay.chapter} count={script.chapters.filter((chapter) => chapter.label !== undefined).length} />;
+    case "result": {
+      const demo = audioDemo(data);
       return (
         <ResultCard
           duration={overlay.duration}
           audioFrom={overlay.audioFrom - overlay.from}
-          turns={data.demo.take.turns.slice(0, 3)}
-          peaks={data.demo.take.peaks}
-          takeSeconds={data.demo.take.seconds}
-          cast={data.demo.cast}
+          turns={demo.take.turns.slice(0, 3)}
+          peaks={demo.take.peaks}
+          takeSeconds={demo.take.seconds}
+          cast={demo.cast}
         />
       );
+    }
     case "compare":
-      return <CompareCard duration={overlay.duration} starts={overlay.starts.map((start) => start - overlay.from)} takes={data.demo.compare} line={COMPARE_LINE} />;
+      return <CompareCard duration={overlay.duration} starts={overlay.starts.map((start) => start - overlay.from)} takes={audioDemo(data).compare} line={COMPARE_LINE} />;
     case "recap":
-      return <Recap duration={overlay.duration} steps={overlay.steps.map((step) => step - overlay.from)} labels={RECAP} />;
+      return <Recap duration={overlay.duration} steps={overlay.steps.map((step) => step - overlay.from)} labels={script.recap.labels} />;
+    case "scene":
+      return <SceneView name={overlay.name} duration={overlay.duration} data={data} />;
     case "end":
-      return <EndCard duration={overlay.duration} cut={cut} />;
+      return <EndCard duration={overlay.duration} end={script.end[cut] ?? script.end.site} />;
   }
 }
 
@@ -64,8 +79,9 @@ function Sounds({ sounds, fadeOut = 0 }: { sounds: Sound[]; fadeOut?: number }) 
   );
 }
 
-export function Tutorial({ cut, captions, data, timeline }: TutorialProps) {
+export function Tutorial({ tutorial, cut, captions, data, timeline }: TutorialProps) {
   if (!data || !timeline) return <AbsoluteFill style={{ background: C.cream }} />;
+  const script = tutorialScript(tutorial);
   return (
     <AbsoluteFill style={{ background: C.cream }}>
       <Stage keys={timeline.keys} shots={data.shots} />
@@ -73,7 +89,7 @@ export function Tutorial({ cut, captions, data, timeline }: TutorialProps) {
       {captions && <Captions captions={timeline.captions} />}
       {timeline.overlays.map((overlay) => (
         <Sequence key={`${overlay.kind}-${overlay.from}`} from={overlay.from} durationInFrames={overlay.duration}>
-          <OverlayView overlay={overlay} data={data} cut={cut} />
+          <OverlayView overlay={overlay} data={data} cut={cut} script={script} />
         </Sequence>
       ))}
       <Sounds sounds={timeline.voices} />

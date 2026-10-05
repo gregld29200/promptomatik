@@ -1,5 +1,5 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import type { CompareTake, Turn } from "../studio-audio/data";
+import type { CompareTake, Turn } from "../tutorial/data";
 import { BODY, C, DISPLAY } from "../theme";
 import { Halftone, Tape, TornPaper, WaveScrap } from "./collage";
 

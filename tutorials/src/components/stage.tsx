@@ -1,7 +1,7 @@
 import { AbsoluteFill, Img, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { boxToScreen, stageAt, toScreen } from "../studio-audio/camera";
-import type { Box, ShotSet } from "../studio-audio/data";
-import type { StageKey } from "../studio-audio/timeline";
+import { boxToScreen, stageAt, toScreen } from "../tutorial/camera";
+import type { Box, ShotSet } from "../tutorial/data";
+import type { StageKey } from "../tutorial/timeline";
 import { BODY, C, HEIGHT, WIDTH } from "../theme";
 
 const SPOT_PAD = 9;

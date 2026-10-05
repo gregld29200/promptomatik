@@ -1,5 +1,5 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import type { Caption, ChapterSpan, Overlay } from "../studio-audio/timeline";
+import type { Caption, ChapterSpan, Overlay } from "../tutorial/timeline";
 import { BODY, C, DISPLAY } from "../theme";
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;

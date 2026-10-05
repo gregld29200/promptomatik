@@ -12,6 +12,7 @@
     "still": "remotion still",
     "render:module": "remotion render StudioAudioModule out/studio-audio-module.mp4",
     "render:site": "remotion render StudioAudioSite out/studio-audio-site.mp4",
+    "render:documents": "remotion render DocumentsSite out/documents-site.mp4",
     "typecheck": "tsc --noEmit -p .",
     "stills": "tsx scripts/stills.mts",
     "transcript": "tsx scripts/transcript.mts"

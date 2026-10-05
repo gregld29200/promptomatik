@@ -139,7 +139,10 @@ export function stageAt(keys: StageKey[], shots: Record<string, Shot>, viewportW
   let layers = [{ shot: key.shot, opacity: 1 }];
   if (moving && previous && previous.shot !== key.shot) {
     const start = key.click ? key.frame + CLICK_AT + 2 : key.frame + Math.round(MOVE * 0.3);
-    layers = [{ shot: previous.shot, opacity: 1 }, { shot: key.shot, opacity: clamp01((frame - start) / SHOT_FADE) }];
+    const fade = clamp01((frame - start) / SHOT_FADE);
+    // Once faded in, the new shot stands alone: a shorter page must not show
+    // the previous one below its edge.
+    if (fade < 1) layers = [{ shot: previous.shot, opacity: 1 }, { shot: key.shot, opacity: fade }];
   }
 
   let spotlight: StageState["spotlight"] = null;

@@ -1,8 +1,8 @@
 import { FPS } from "../theme";
-import type { Box, TutorialData } from "./data";
-import { CHAPTERS, RECAP_CUES, type Beat, type Chapter } from "./script";
+import { audioDemo, type Box, type TutorialData } from "./data";
+import type { Beat, Chapter, Cut, TutorialScript } from "./types";
 
-export type Cut = "module" | "site";
+export type { Cut };
 
 const sec = (seconds: number) => Math.round(seconds * FPS);
 
@@ -39,6 +39,7 @@ export type Overlay =
   | { kind: "result"; from: number; duration: number; audioFrom: number }
   | { kind: "compare"; from: number; duration: number; starts: number[] }
   | { kind: "recap"; from: number; duration: number; steps: number[] }
+  | { kind: "scene"; from: number; duration: number; name: string }
   | { kind: "end"; from: number; duration: number };
 
 export interface Sound {
@@ -72,14 +73,14 @@ export type Timeline = {
 };
 
 // A box missing from a shot (a button that disappeared once clicked) is
-// taken from the shot where it was last seen: the layout around it is the same.
-const SHOT_ORDER = ["empty", "pasted", "third", "review", "reviewReason", "reviewDecided", "applied", "menu", "speakers", "filtered", "cast", "generating", "ready", "block", "variant", "library"];
-
+// taken from the shot where it was last seen: the layout around it is the
+// same. Shots are in the order they were captured.
 function findBox(data: TutorialData, shot: string, id: string): Box {
   const own = data.shots.shots[shot]?.boxes[id];
   if (own) return own;
-  const index = SHOT_ORDER.indexOf(shot);
-  const nearest = [...SHOT_ORDER.slice(0, index).reverse(), ...SHOT_ORDER.slice(index + 1)];
+  const order = Object.keys(data.shots.shots);
+  const index = order.indexOf(shot);
+  const nearest = [...order.slice(0, index).reverse(), ...order.slice(index + 1)];
   for (const other of nearest) {
     const box = data.shots.shots[other]?.boxes[id];
     if (box) return box;
@@ -139,15 +140,15 @@ function captionsFor(text: string, from: number, frames: number): Caption[] {
 }
 
 // Each recap step appears as the narration reaches it.
-function recapSteps(text: string, from: number, frames: number): number[] {
-  return RECAP_CUES.map((cue) => {
+function recapSteps(cues: string[], text: string, from: number, frames: number): number[] {
+  return cues.map((cue) => {
     const at = text.indexOf(cue);
     if (at < 0) throw new Error(`Recap cue "${cue}" is not in the narration.`);
     return from + Math.round((at / text.length) * frames);
   });
 }
 
-export function buildTimeline(data: TutorialData, cut: Cut): Timeline {
+export function buildTimeline(script: TutorialScript, data: TutorialData, cut: Cut): Timeline {
   const overlays: Overlay[] = [];
   const keys: StageKey[] = [];
   const voices: Sound[] = [];
@@ -159,7 +160,7 @@ export function buildTimeline(data: TutorialData, cut: Cut): Timeline {
   let t = TIMING.title;
   let covered = true;
 
-  for (const chapter of CHAPTERS) {
+  for (const chapter of script.chapters) {
     if (chapter.moduleOnly && cut !== "module") continue;
     const chapterFrom = t;
     if (chapter.label !== undefined) {
@@ -168,17 +169,18 @@ export function buildTimeline(data: TutorialData, cut: Cut): Timeline {
       covered = true;
     }
     if (chapter.before === "result") {
-      const turns = data.demo.take.turns.slice(0, TIMING.resultTurns);
+      const take = audioDemo(data).take;
+      const turns = take.turns.slice(0, TIMING.resultTurns);
       const frames = sec(turns[turns.length - 1].end + 0.3);
       const audioFrom = t + TIMING.resultPad;
       overlays.push({ kind: "result", from: t, duration: frames + TIMING.resultPad * 2, audioFrom });
-      sounds.push({ from: audioFrom, frames, file: data.demo.take.file });
+      sounds.push({ from: audioFrom, frames, file: take.file });
       t += frames + TIMING.resultPad * 2;
       covered = true;
     }
     for (const paragraph of chapter.paragraphs) {
       const voice = data.voice[paragraph.id];
-      if (!voice) throw new Error(`No narration for "${paragraph.id}": run npm run voice.`);
+      if (!voice) throw new Error(`No narration for "${paragraph.id}": run npm run voice -- ${script.id}.`);
       const frames = sec(voice.seconds);
       const voiceFrom = t + TIMING.lead;
       voices.push({ from: voiceFrom, frames, file: voice.file });
@@ -189,15 +191,16 @@ export function buildTimeline(data: TutorialData, cut: Cut): Timeline {
       });
       captions.push(...captionsFor(paragraph.text, voiceFrom, frames));
       if (paragraph.recap) {
-        overlays.push({ kind: "recap", from: voiceFrom, duration: frames + TIMING.tail, steps: recapSteps(paragraph.text, voiceFrom, frames) });
+        overlays.push({ kind: "recap", from: voiceFrom, duration: frames + TIMING.tail, steps: recapSteps(script.recap.cues, paragraph.text, voiceFrom, frames) });
       }
+      if (paragraph.scene) overlays.push({ kind: "scene", from: t, duration: TIMING.lead + frames + TIMING.tail, name: paragraph.scene });
       t = voiceFrom + frames + TIMING.tail;
-      covered = false;
+      covered = Boolean(paragraph.scene);
 
       if (paragraph.after === "compare") {
         const starts: number[] = [];
         let cursor = t + TIMING.comparePad;
-        for (const take of data.demo.compare) {
+        for (const take of audioDemo(data).compare) {
           const takeFrames = sec(take.seconds);
           starts.push(cursor);
           sounds.push({ from: cursor, frames: takeFrames, file: take.file });

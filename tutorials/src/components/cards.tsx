@@ -1,6 +1,6 @@
 import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import type { Chapter } from "../studio-audio/script";
-import type { Cut } from "../studio-audio/timeline";
+import type { Chapter, TutorialScript } from "../tutorial/types";
+import type { Cut } from "../tutorial/timeline";
 import { BODY, C, DISPLAY } from "../theme";
 import { Arrow, Halftone, Tape, TornPaper, WaveScrap } from "./collage";
 
@@ -26,7 +26,19 @@ const KICKER = {
 // A calm, fixed waveform for the collage scraps.
 const SCRAP_PEAKS = Array.from({ length: 34 }, (_, i) => 0.25 + 0.7 * Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.45)));
 
-export function TitleCard({ duration, cut }: { duration: number; cut: Cut }) {
+// A sheet of paper with ruled lines: Documents' scrap, as the waveform is the audio's.
+function PageScrap() {
+  return (
+    <div style={{ position: "absolute", left: 92, top: 26, width: 146, height: 150, background: C.paper, boxShadow: "0 6px 14px rgba(11, 23, 38, 0.18)", padding: "16px 14px" }}>
+      <div style={{ width: 70, height: 9, background: C.terracotta, marginBottom: 12 }} />
+      {[1, 0.9, 1, 0.7, 0.95, 0.8].map((width, index) => (
+        <div key={index} style={{ width: `${width * 100}%`, height: 6, borderRadius: 3, background: C.sand, marginBottom: 10 }} />
+      ))}
+    </div>
+  );
+}
+
+export function TitleCard({ duration, cut, title }: { duration: number; cut: Cut; title: TutorialScript["title"] }) {
   const { fps } = useVideoConfig();
   const { frame, opacity, scale } = useCardFade(duration, 1, 14);
   const strip = spring({ frame: frame - 2, fps, config: { damping: 18, stiffness: 120 } });
@@ -37,7 +49,7 @@ export function TitleCard({ duration, cut }: { duration: number; cut: Cut }) {
     <AbsoluteFill style={{ background: C.cream, opacity, transform: `scale(${scale})` }}>
       <Halftone id="title-dots" width={760} height={620} style={{ right: -120, top: -140, opacity: 0.55 }} />
       <div style={{ position: "absolute", left: 236, top: 250, ...KICKER, opacity: text }}>
-        {cut === "module" ? "TeachInspire Studio · Module 5 · Vidéo 1" : "TeachInspire Studio · Tutoriel"}
+        {title.kicker[cut] ?? title.kicker.site}
       </div>
       <TornPaper
         width={1260}
@@ -48,8 +60,8 @@ export function TitleCard({ duration, cut }: { duration: number; cut: Cut }) {
         style={{ left: 200, top: 320, transform: `translateX(${(1 - strip) * -1500}px) rotate(-2.2deg)` }}
       >
         <div style={{ position: "absolute", left: 64, top: 46, opacity: text, transform: `translateY(${(1 - text) * 18}px)` }}>
-          <div style={{ fontFamily: DISPLAY, fontStyle: "italic", fontWeight: 400, fontSize: 64, color: C.goldSoft, lineHeight: 1 }}>Prise en main du</div>
-          <div style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: 156, color: C.paper, lineHeight: 1.08, letterSpacing: "-0.01em" }}>Studio audio</div>
+          <div style={{ fontFamily: DISPLAY, fontStyle: "italic", fontWeight: 400, fontSize: 64, color: C.goldSoft, lineHeight: 1 }}>{title.lead}</div>
+          <div style={{ fontFamily: DISPLAY, fontWeight: 600, fontSize: 156, color: C.paper, lineHeight: 1.08, letterSpacing: "-0.01em" }}>{title.name}</div>
         </div>
       </TornPaper>
       <Tape width={190} rotate={-14} style={{ left: 168, top: 300, opacity: tape, transform: `rotate(-14deg) scale(${1.3 - 0.3 * tape})` }} />
@@ -60,21 +72,23 @@ export function TitleCard({ duration, cut }: { duration: number; cut: Cut }) {
         seed={21}
         style={{ left: 1330, top: 560, opacity: scrap, transform: `rotate(${6 - 2 * scrap}deg) translateY(${(1 - scrap) * 40}px)` }}
       >
-        <div style={{ position: "absolute", left: 36, top: 50 }}>
-          <WaveScrap width={258} height={100} peaks={SCRAP_PEAKS} color={C.paper} gap={3} />
-        </div>
+        {title.scrap === "wave" ? (
+          <div style={{ position: "absolute", left: 36, top: 50 }}>
+            <WaveScrap width={258} height={100} peaks={SCRAP_PEAKS} color={C.paper} gap={3} />
+          </div>
+        ) : (
+          <PageScrap />
+        )}
       </TornPaper>
       <Tape width={120} rotate={10} style={{ left: 1560, top: 538, opacity: scrap }} />
       <div style={{ position: "absolute", left: 236, top: 720, fontFamily: BODY, fontSize: 34, color: C.inkSoft, opacity: text }}>
-        Du texte à l'écoute prête pour la classe.
+        {title.subtitle}
       </div>
     </AbsoluteFill>
   );
 }
 
-const CHAPTER_COUNT = 8;
-
-export function ChapterCard({ duration, chapter }: { duration: number; chapter: Chapter }) {
+export function ChapterCard({ duration, chapter, count }: { duration: number; chapter: Chapter; count: number }) {
   const { fps } = useVideoConfig();
   const { frame, opacity, scale } = useCardFade(duration, 7, 12);
   const paper = spring({ frame, fps, config: { damping: 16, stiffness: 140 } });
@@ -100,7 +114,7 @@ export function ChapterCard({ duration, chapter }: { duration: number; chapter: 
         <div style={{ marginTop: 16, fontFamily: DISPLAY, fontWeight: 600, fontSize: 112, lineHeight: 1.05, color: C.ink, maxWidth: 980 }}>{chapter.title}</div>
       </div>
       <div style={{ position: "absolute", left: 790, top: 820, display: "flex", gap: 12, opacity: title }}>
-        {Array.from({ length: CHAPTER_COUNT }, (_, i) => (
+        {Array.from({ length: count }, (_, i) => (
           <div key={i} style={{ display: "grid", gap: 10, justifyItems: "center" }}>
             <div style={{ width: i === index ? 86 : 48, height: 8, borderRadius: 4, background: i < index ? C.ink : i === index ? C.gold : C.sand }} />
             <div style={{ fontFamily: BODY, fontSize: 20, fontWeight: 600, color: i === index ? C.ink : C.sageDeep }}>{i}</div>
@@ -111,17 +125,16 @@ export function ChapterCard({ duration, chapter }: { duration: number; chapter: 
   );
 }
 
-export function EndCard({ duration, cut }: { duration: number; cut: Cut }) {
+export function EndCard({ duration, end }: { duration: number; end: { kicker: string; title: string; line: string } }) {
   const { fps } = useVideoConfig();
   const frame = useCurrentFrame();
   const opacity = interpolate(frame, [0, 10, duration - 16, duration], [0, 1, 1, 0], clamp);
   const paper = spring({ frame: frame - 4, fps, config: { damping: 18, stiffness: 120 } });
   const arrow = interpolate(frame, [18, 40], [0, 1], clamp);
-  const module = cut === "module";
   return (
     <AbsoluteFill style={{ background: C.cream, opacity }}>
       <Halftone id="end-dots" width={700} height={600} style={{ right: -140, bottom: -180, opacity: 0.5 }} />
-      <div style={{ position: "absolute", left: 236, top: 300, ...KICKER, opacity: paper }}>{module ? "À suivre · Module 5 · Vidéo 2" : "À vous de jouer"}</div>
+      <div style={{ position: "absolute", left: 236, top: 300, ...KICKER, opacity: paper }}>{end.kicker}</div>
       <TornPaper
         width={1400}
         height={250}
@@ -131,13 +144,13 @@ export function EndCard({ duration, cut }: { duration: number; cut: Cut }) {
         style={{ left: 200, top: 370, transform: `translateX(${(1 - paper) * -1400}px) rotate(-1.6deg)` }}
       >
         <div style={{ position: "absolute", left: 64, top: 62, fontFamily: DISPLAY, fontWeight: 600, fontSize: 96, color: C.paper, lineHeight: 1.1, whiteSpace: "nowrap" }}>
-          {module ? "La génération de leçons" : "studio.teachinspire.me"}
+          {end.title}
         </div>
       </TornPaper>
       <Tape width={170} rotate={-12} style={{ left: 170, top: 350, opacity: paper }} />
       <Arrow width={190} draw={arrow} style={{ left: 1630, top: 560 }} />
       <div style={{ position: "absolute", left: 236, top: 680, fontFamily: BODY, fontSize: 34, color: C.inkSoft, opacity: paper }}>
-        {module ? "Gardez vos premiers audios sous la main." : "Le Guide du studio reste accessible sous le texte."}
+        {end.line}
       </div>
     </AbsoluteFill>
   );
