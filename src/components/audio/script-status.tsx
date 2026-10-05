@@ -36,7 +36,9 @@ export function ScriptStatus({ mode, script, findings, cast, estimate, onSwitchT
     if (finding.code === "speaker_label_in_monologue") {
       problems.push({
         key: finding.code,
-        text: t("audio.status_monologue_names", { names: joinNames(dialogueCast(script).map((member) => member.label)) }),
+        text: t("audio.status_monologue_names", {
+          names: joinNames(finding.names ?? dialogueCast(script).map((member) => member.label)),
+        }),
         action: { label: t("audio.switch_to_dialogue"), onClick: onSwitchToDialogue },
       });
     } else if (finding.code === "too_many_speakers") {

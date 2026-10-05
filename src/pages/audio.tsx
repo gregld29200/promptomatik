@@ -858,7 +858,7 @@ export function AudioStudioPage() {
             {notice && <p className={s.notice}>{notice}</p>}
             {error && <p className={s.error}>{error}</p>}
 
-            <GenerationConsole job={activeJob} elapsedSeconds={elapsed} />
+            <GenerationConsole job={activeJob} elapsedSeconds={elapsed} slotNames={names} />
 
             {activeJob?.status === "ready" && (
               <WaveformPlayer

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { ListItemKind, SimpleBlockType } from './simple-structure';
 
 export const MaterialTypeSchema = z.enum([
   'gap_fill',
@@ -213,9 +214,17 @@ export type SimpleTransformMaterial = {
   language_focus?: string;
   /** UI language at generation time; drives print chrome labels. */
   locale?: string;
+  /** Defaults to portrait; calendars default to landscape. */
+  orientation?: DocumentOrientation;
+  design?: DocumentDesign;
+  /** Set when the teacher asked for something the additions step cannot do. */
+  request_status?: 'applied' | 'not_applied';
   structure?: Array<{
-    type: 'heading' | 'paragraph' | 'bullet_list' | 'numbered_list';
+    type: SimpleBlockType;
     line_ids: number[];
+    level?: 2 | 3;
+    depths?: number[];
+    kinds?: ListItemKind[];
   }>;
   blocks: MaterialBlock[];
   id: string;
@@ -229,8 +238,42 @@ export type TransformResponse = {
 export type AppStep = 'input' | 'transforming' | 'picking' | 'preview';
 
 // Every document type formats the teacher's own content deterministically;
-// none of them generate teaching content. "reading" is the original simple
-// document; the other three add purpose-specific print chrome.
-export const DocumentTypeSchema = z.enum(['reading', 'worksheet', 'teacher_guide', 'lesson_plan']);
+// none of them generate teaching content. "free" and "reading" carry no print
+// chrome; the others add purpose-specific chrome (badge, name/date line,
+// meta strip, cut lines, checkboxes) around the same teacher-owned text.
+// The catalogue mirrors what the TeachInspire course actually produces.
+export const DOCUMENT_TYPES = [
+  'free',
+  'reading',
+  'worksheet',
+  'role_cards',
+  'dialogue_script',
+  'teacher_guide',
+  'lesson_plan',
+  'session_plan',
+  'checklist',
+  'learner_profile',
+  'course_brief',
+  'course_calendar',
+] as const;
+export const DocumentTypeSchema = z.enum(DOCUMENT_TYPES);
 
 export type DocumentType = z.infer<typeof DocumentTypeSchema>;
+
+export const DocumentOrientationSchema = z.enum(['portrait', 'landscape']);
+export type DocumentOrientation = z.infer<typeof DocumentOrientationSchema>;
+
+// Teacher design overrides on top of a style (Documents › Personnaliser).
+// Presentation only: none of these touch the teacher's words.
+export const HEADING_FONTS = ['cormorant', 'fraunces', 'playfair', 'space_grotesk', 'inter', 'manrope'] as const;
+export const BODY_FONTS = ['source_sans', 'nunito_sans', 'manrope', 'inter'] as const;
+export const DocumentDesignSchema = z.object({
+  accent: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  headingFont: z.enum(HEADING_FONTS).optional(),
+  bodyFont: z.enum(BODY_FONTS).optional(),
+  density: z.enum(['airy', 'standard', 'compact']).optional(),
+  header: z.enum(['rule', 'band', 'frame']).optional(),
+  logoImageId: z.string().regex(/^[A-Za-z0-9_-]{6,40}$/).optional(),
+  footerText: z.string().trim().max(120).optional(),
+}).strict();
+export type DocumentDesign = z.infer<typeof DocumentDesignSchema>;

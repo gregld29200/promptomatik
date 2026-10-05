@@ -23,6 +23,9 @@ const FONTS = [
   { family: 'Manrope', pkg: 'manrope', weights: [400, 600, 700] },
   { family: 'Fraunces', pkg: 'fraunces', weights: [600, 700] },
   { family: 'Nunito Sans', pkg: 'nunito-sans', weights: [400, 600, 700] },
+  // Teacher-selectable faces (Documents › Personnaliser).
+  { family: 'Inter', pkg: 'inter', weights: [400, 600, 700] },
+  { family: 'Playfair Display', pkg: 'playfair-display', weights: [600, 700] },
 ];
 
 const entries = [];

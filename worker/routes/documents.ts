@@ -3,13 +3,23 @@ import type { Env } from "../env";
 import type { SessionData } from "../lib/session";
 import { requireAuth, requireParticipant } from "../lib/auth-middleware";
 import { renderMaterialHtml } from "../lib/documents/material-renderer";
+import { referencedImageIds } from "../lib/documents/simple-material-renderer";
 import { renderMaterialPdf } from "../lib/documents/pdf";
-import { SimpleTemplateSchema, type SimpleTemplateId, type TransformMaterial } from "../lib/documents/types";
+import {
+  MAX_DOCUMENT_IMAGE_BYTES,
+  getDocumentImage,
+  isDocumentImageType,
+  loadDocumentImages,
+  sniffImageType,
+  storeDocumentImage,
+} from "../lib/document-images";
+import { SimpleTemplateSchema, type SimpleTemplateId, type SimpleTransformMaterial, type TransformMaterial } from "../lib/documents/types";
 import {
   createDocumentJob,
   deleteDocumentJobForUser,
   getDocumentJobForUser,
   listDocumentJobsForUser,
+  updateDocumentPresentation,
   validateDocumentRequest,
   type DocumentRequest,
 } from "../lib/document-jobs";
@@ -52,9 +62,12 @@ documents.get("/jobs/:id/materials/:file", requireParticipant, async (c) => {
   if (material instanceof Response) return material;
   const template = resolveSimpleTemplate(c, material);
   if (template instanceof Response) return template;
+  const images = material.material_type === "clean_handout"
+    ? await loadDocumentImages(c.env, c.get("session").userId, referencedImageIds(material))
+    : {};
 
   if (parsed.extension === "html") {
-    return new Response(renderMaterialHtml(material, { simpleTemplate: template }), {
+    return new Response(renderMaterialHtml(material, { simpleTemplate: template, images }), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "X-Frame-Options": "SAMEORIGIN",
@@ -66,16 +79,59 @@ documents.get("/jobs/:id/materials/:file", requireParticipant, async (c) => {
     return c.json({ error: "documents_pdf_unavailable" }, 503);
   }
 
-  const html = renderMaterialHtml(material, { simpleTemplate: template });
+  const html = renderMaterialHtml(material, { simpleTemplate: template, images });
+  const simple = material.material_type === "clean_handout" ? material as SimpleTransformMaterial : undefined;
+  const footerText = simple?.design?.footerText;
   const pdf = await renderMaterialPdf(c.env, html, {
     title: material.title,
-    pageNumbers: material.material_type === "clean_handout" ? "multiple-only" : false,
+    pageNumbers: material.material_type === "clean_handout" ? (footerText ? true : "multiple-only") : false,
+    landscape: simple?.orientation === "landscape",
+    footerText,
   });
   const filename = `${slugify(material.title)}-${parsed.idx + 1}.pdf`;
   return new Response(pdf, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      // `?inline=1` shows the exact pages in the preview instead of downloading.
+      "Content-Disposition": `${c.req.query("inline") === "1" ? "inline" : "attachment"}; filename="${filename}"`,
+    },
+  });
+});
+
+documents.patch("/jobs/:id/materials/:idx/presentation", requireParticipant, async (c) => {
+  const idx = Number(c.req.param("idx"));
+  if (!Number.isInteger(idx) || idx < 0 || idx > 2) return c.json({ error: "Material not found." }, 404);
+  const body = await c.req.json<{ templateId?: string; design?: unknown; orientation?: string }>().catch(() => null);
+  if (!body || typeof body !== "object") return c.json({ error: "invalid_request" }, 400);
+  const result = await updateDocumentPresentation(c.env, c.req.param("id"), c.get("session").userId, idx, body);
+  if (result === "invalid") return c.json({ error: "invalid_request" }, 400);
+  if (!result) return c.json({ error: "Job not found." }, 404);
+  return c.json({ job: result });
+});
+
+// Images a teacher places in a document: `![légende](studio:<id>)`, or a logo.
+documents.post("/images", requireParticipant, async (c) => {
+  const declared = (c.req.header("content-type") ?? "").split(";")[0].trim().toLowerCase();
+  if (!isDocumentImageType(declared)) return c.json({ error: "image_type" }, 415);
+  const length = Number(c.req.header("content-length") ?? 0);
+  if (length > MAX_DOCUMENT_IMAGE_BYTES) return c.json({ error: "image_too_large" }, 413);
+  const bytes = new Uint8Array(await c.req.arrayBuffer());
+  if (bytes.length === 0) return c.json({ error: "image_type" }, 415);
+  if (bytes.length > MAX_DOCUMENT_IMAGE_BYTES) return c.json({ error: "image_too_large" }, 413);
+  const sniffed = sniffImageType(bytes);
+  if (!sniffed) return c.json({ error: "image_type" }, 415);
+  const id = await storeDocumentImage(c.env, c.get("session").userId, bytes, sniffed);
+  return c.json({ id }, 201);
+});
+
+documents.get("/images/:id", requireParticipant, async (c) => {
+  const object = await getDocumentImage(c.env, c.get("session").userId, c.req.param("id"));
+  if (!object) return c.json({ error: "Image not found." }, 404);
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
+      "Cache-Control": "private, max-age=86400",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 });

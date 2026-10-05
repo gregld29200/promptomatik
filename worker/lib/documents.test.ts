@@ -438,6 +438,8 @@ describe("document formatting engine", () => {
       { customRequest: "Make it look modern and airy." },
     );
     expect(result.materials[0].blocks).toEqual([]);
+    // The teacher is told the request was not applied, instead of silence.
+    expect(result.materials[0]).toMatchObject({ request_status: "not_applied" });
   });
 
   it("an explicit addition request triggers one additions-only call and keeps local structure", async () => {
@@ -467,6 +469,24 @@ describe("document formatting engine", () => {
     });
   });
 
+  it("turns ticked additions into one precise request, and validates them", async () => {
+    const requests: string[] = [];
+    const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(String(init?.body ?? ""));
+      return llmResponse(JSON.stringify({ additions: [
+        { type: "reference_list", heading: "Mots", items: [{ term: "trainer", detail: "Formateur." }] },
+        { type: "matching", heading: "Associez", pairs: [{ left: "a", right: "b" }, { left: "c", right: "d" }] },
+      ] }));
+    }) as typeof fetch;
+    const result = await buildDocument({ apiKey: "k", fetcher }, REQUEST_CONTENT, { additions: ["word_bank"], customRequest: "ignored" });
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toContain("a word bank of the key vocabulary");
+    expect(result.materials[0].blocks.map((block) => block.type)).toEqual(["reference_list"]);
+    expect(result.materials[0]).toMatchObject({ request_status: "applied" });
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, additions: ["questions", "role_cards"] })).toBeNull();
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, additions: ["answer_key"] })).toBe("invalid_request");
+  });
+
   it("filters model additions the teacher did not ask for", async () => {
     const wordBank = {
       type: "reference_list",
@@ -492,11 +512,20 @@ describe("document request validation", () => {
   it("rejects short and oversized content, accepts normal content", () => {
     expect(validateDocumentRequest({ content: "too short" })).toBe("content_too_short");
     expect(validateDocumentRequest({ content: Array.from({ length: 40 }, () => "word").join(" ") })).toBeNull();
-    expect(validateDocumentRequest({ content: "word ".repeat(31).padEnd(15_001, "x") })).toBe("content_too_long");
+    // A full teacher guide with answer keys fits; beyond 30,000 it does not.
+    expect(validateDocumentRequest({ content: "word ".repeat(31).padEnd(15_001, "x") })).toBeNull();
+    expect(validateDocumentRequest({ content: "word ".repeat(31).padEnd(30_001, "x") })).toBe("content_too_long");
   });
 
-  it("accepts the four document types and rejects unknown ones", () => {
-    for (const documentType of ["reading", "worksheet", "teacher_guide", "lesson_plan"]) {
+  it("accepts a short checklist or a pair of role cards", () => {
+    expect(validateDocumentRequest({ content: "- [ ] Priorités annoncées\n- [ ] Deux indicateurs\n- [ ] Date obtenue\n- [ ] Relance faite" })).toBeNull();
+  });
+
+  it("accepts every catalogue document type and rejects unknown ones", () => {
+    for (const documentType of [
+      "free", "reading", "worksheet", "role_cards", "dialogue_script", "teacher_guide", "lesson_plan",
+      "session_plan", "checklist", "learner_profile", "course_brief", "course_calendar",
+    ]) {
       expect(validateDocumentRequest({ content: REQUEST_CONTENT, documentType })).toBeNull();
     }
     expect(validateDocumentRequest({ content: REQUEST_CONTENT, documentType: "surprise_me" })).toBe("invalid_request");
@@ -526,6 +555,17 @@ describe("document request validation", () => {
       content: REQUEST_CONTENT,
       templateId: "make_it_pop",
     })).toBe("invalid_request");
+  });
+
+  it("validates orientation and design overrides", () => {
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, orientation: "landscape" })).toBeNull();
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, orientation: "sideways" })).toBe("invalid_request");
+    expect(validateDocumentRequest({
+      content: REQUEST_CONTENT,
+      design: { accent: "#2C5F7C", headingFont: "playfair", density: "airy", header: "band", footerText: "Kintail · Greg" },
+    })).toBeNull();
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, design: { accent: "navy" } })).toBe("invalid_request");
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, design: { css: "body{}" } })).toBe("invalid_request");
   });
 });
 const TEST_SCHEMA = [
@@ -650,7 +690,7 @@ describe("document jobs lifecycle", () => {
       {
         id: "newer",
         status: "queued",
-        label: "Remote work has changed how language trainers organise",
+        label: "Remote work has changed how language trainers organise their weeks",
         createdAt: "2026-07-04 11:00:00",
       },
       {
@@ -660,6 +700,16 @@ describe("document jobs lifecycle", () => {
         createdAt: "2026-07-04 09:00:00",
       },
     ]);
+  });
+  it("labels history entries without Markdown marks or emoji", async () => {
+    await seedUser("writer", "participant");
+    await insertDocumentJob({
+      id: "md-job",
+      userId: "writer",
+      request: { content: "# **📋 FICHE CADRE DE SÉANCE – SÉANCE 3**\n\n**Apprenante :** Katrin Vogel" },
+    });
+    const [job] = await listDocumentJobsForUser(testEnv, "writer");
+    expect(job.label).toBe("FICHE CADRE DE SÉANCE – SÉANCE 3");
   });
   it("respects the recent jobs limit", async () => {
     await seedUser("writer", "participant");
@@ -750,7 +800,7 @@ describe("documents routes", () => {
         {
           id: "new-job",
           status: "completed",
-          label: "Remote work has changed how language trainers organise",
+          label: "Remote work has changed how language trainers organise their weeks",
           createdAt: "2026-07-04 10:00:00",
         },
         {
@@ -915,5 +965,91 @@ describe("documents routes", () => {
     });
     const response = await fetchAs("free-user", "/api/documents/jobs/free-history-job", { method: "DELETE" });
     expect(response.status).toBe(403);
+  });
+});
+describe("documents presentation and images", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+  async function call(userId: string, path: string, init: RequestInit = {}, contentType = "application/json") {
+    const session: SessionData = {
+      userId,
+      email: `${userId}@example.com`,
+      role: "teacher",
+      languagePreference: "fr",
+      createdAt: Date.now(),
+    };
+    const sessionId = await createSession(testEnv, session);
+    const request = new Request(`https://promptomatik.test${path}`, {
+      ...init,
+      headers: { Cookie: `promptomatik_session=${sessionId}`, "Content-Type": contentType },
+    });
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, testEnv, ctx);
+    await waitOnExecutionContext(ctx);
+    return response;
+  }
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
+
+  it("stores an uploaded image for its owner only and embeds it in the document", async () => {
+    await seedUser("writer", "participant");
+    await seedUser("other", "participant");
+    const upload = await call("writer", "/api/documents/images", { method: "POST", body: PNG }, "image/png");
+    expect(upload.status).toBe(201);
+    const { id } = await upload.json() as { id: string };
+
+    const own = await call("writer", `/api/documents/images/${id}`);
+    expect(own.status).toBe(200);
+    expect(own.headers.get("content-type")).toBe("image/png");
+    expect((await call("other", `/api/documents/images/${id}`)).status).toBe(404);
+
+    const material = {
+      ...SIMPLE_RESULT.materials[0],
+      source_text: `Article\n\n![Le camion](studio:${id})\n\nUn paragraphe sur la route.`,
+      structure: [
+        { type: "heading", line_ids: [1] },
+        { type: "image", line_ids: [2] },
+        { type: "paragraph", line_ids: [3] },
+      ],
+    };
+    await insertDocumentJob({ id: "img-job", userId: "writer", status: "completed", result: { materials: [material] } as unknown as TransformResponse });
+    const html = await (await call("writer", "/api/documents/jobs/img-job/materials/0.html")).text();
+    expect(html).toContain('<img src="data:image/png;base64,');
+  });
+
+  it("refuses files that are not images, whatever their declared type", async () => {
+    await seedUser("writer", "participant");
+    const fake = await call("writer", "/api/documents/images", { method: "POST", body: new TextEncoder().encode("<svg onload=alert(1)>") }, "image/png");
+    expect(fake.status).toBe(415);
+    const svg = await call("writer", "/api/documents/images", { method: "POST", body: new TextEncoder().encode("<svg/>") }, "image/svg+xml");
+    expect(svg.status).toBe(415);
+  });
+
+  it("keeps uploads behind the participant tier", async () => {
+    await seedUser("free-user", "free");
+    const response = await call("free-user", "/api/documents/images", { method: "POST", body: PNG }, "image/png");
+    expect(response.status).toBe(403);
+  });
+
+  it("re-styles a finished document in place and validates the design", async () => {
+    await seedUser("writer", "participant");
+    await seedUser("other", "participant");
+    await insertDocumentJob({ id: "style-job", userId: "writer", status: "completed", result: SIMPLE_RESULT });
+    const path = "/api/documents/jobs/style-job/materials/0/presentation";
+
+    const updated = await call("writer", path, {
+      method: "PATCH",
+      body: JSON.stringify({ templateId: "classroom_handout", orientation: "landscape", design: { accent: "#2C5F7C", header: "band" } }),
+    });
+    expect(updated.status).toBe(200);
+    const html = await (await call("writer", "/api/documents/jobs/style-job/materials/0.html")).text();
+    expect(html).toContain('data-template="classroom_handout"');
+    expect(html).toContain('data-orientation="landscape"');
+    expect(html).toContain('data-header="band"');
+
+    const invalid = await call("writer", path, { method: "PATCH", body: JSON.stringify({ design: { accent: "red" } }) });
+    expect(invalid.status).toBe(400);
+    const foreign = await call("other", path, { method: "PATCH", body: JSON.stringify({ templateId: "editorial_reader" }) });
+    expect(foreign.status).toBe(404);
   });
 });

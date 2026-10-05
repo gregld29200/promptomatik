@@ -12,6 +12,15 @@ const BASE_MATERIAL: DocumentMaterial = {
 };
 
 describe("document plain-text serialization", () => {
+  it("copies tables as tab-separated rows and drops layout-only lines", () => {
+    const text = materialToPlainText({
+      ...BASE_MATERIAL,
+      title: "Plan",
+      source_text: "Plan\n\n| Étape | Durée |\n|---|---|\n| Écoute | 20 min |\n\n[saut de page]\n![Camion](studio:abc123)\n> **Rappel :** reformulez.",
+    } as DocumentMaterial);
+    expect(text).toBe("Plan\n\nÉtape\tDurée\nÉcoute\t20 min\n\nRappel : reformulez.");
+  });
+
   it("copies a simple handout without duplicating its title", () => {
     const text = materialToPlainText({
       ...BASE_MATERIAL,

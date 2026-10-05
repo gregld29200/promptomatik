@@ -5,6 +5,8 @@ import s from "./generation-console.module.css";
 interface GenerationConsoleProps {
   job: AudioJob | null;
   elapsedSeconds: number;
+  /** Character names by voice slot ("Speaker 1" → "Chloé"), as the voice cards show them. */
+  slotNames?: Partial<Record<string, string>>;
 }
 
 function formatDuration(seconds: number) {
@@ -21,15 +23,19 @@ function currentBlock(job: AudioJob) {
   return active ?? null;
 }
 
-function speakerLabel(text: string) {
+// The worker stores segments with names already rewritten to slots
+// ("Speaker 1: …"), so the teacher's names come back through `slotNames`.
+function speakerLabel(text: string, slotNames: Partial<Record<string, string>>) {
   const match = text.match(/^([^:\n]{1,40}):/);
   const label = match?.[1]?.trim();
   if (!label) return t("audio.console_generic_voice");
+  const name = slotNames[label];
+  if (name) return name;
   const n = label.match(/^Speaker\s+(\d+)$/i)?.[1];
   return n ? t("audio.console_speaker_n", { n }) : label;
 }
 
-export function GenerationConsole({ job, elapsedSeconds }: GenerationConsoleProps) {
+export function GenerationConsole({ job, elapsedSeconds, slotNames = {} }: GenerationConsoleProps) {
   if (!job || job.status === "ready") return null;
 
   const segments = job.segments ?? [];
@@ -64,7 +70,7 @@ export function GenerationConsole({ job, elapsedSeconds }: GenerationConsoleProp
             : t("audio.console_block_line", {
                 current: String(activeIndex),
                 total: String(total),
-                speaker: speakerLabel(active?.text ?? ""),
+                speaker: speakerLabel(active?.text ?? "", slotNames),
               })}
       </div>
 

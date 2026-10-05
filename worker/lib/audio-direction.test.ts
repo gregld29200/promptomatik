@@ -186,8 +186,23 @@ describe("validateTranscriptForTts", () => {
     )).toThrow(TranscriptValidationError);
     expect(() => validateTranscriptForTts(
       "monologue",
-      "Sarah: Bonjour tout le monde."
+      "Locuteur 1 : Bonjour tout le monde."
     )).toThrow(TranscriptValidationError);
+    expect(() => validateTranscriptForTts(
+      "monologue",
+      "Léa : Bonjour.\nKarim : Salut."
+    )).toThrow(/Invalid line: Léa : Bonjour\./);
+  });
+
+  it("accepts French typography colons in monologue mode, as the studio does", () => {
+    for (const script of [
+      "Attention : l'examen commence à 9 heures.",
+      "Remarque : ce verbe est irrégulier.",
+      "Un petit conseil : restez sobre.",
+      "Attention : l'examen commence à 9 heures.\nRemarque : ce verbe est irrégulier.",
+    ]) {
+      expect(() => validateTranscriptForTts("monologue", script), script).not.toThrow();
+    }
   });
 
   it("accepts prose colons in monologue mode (phase 7 harness finding)", () => {
