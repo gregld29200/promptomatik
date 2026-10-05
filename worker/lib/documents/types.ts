@@ -167,10 +167,13 @@ export const MaterialSchema = z.object({
 
 // Simple mode is deterministic: the worker parses structure, title, and bold
 // phrases locally (simple-structure.ts). The model is only consulted for
-// explicitly requested additions, and returns just those blocks.
-export const SimpleAdditionsResponseSchema = z.object({
-  additions: z.array(MaterialBlockSchema).min(1).max(4),
-});
+// explicitly requested additions, and returns just those blocks. `block` is
+// MaterialBlockSchema narrowed to the block types the request asked for.
+export function simpleAdditionsResponseSchema(block: z.ZodType<MaterialBlock>) {
+  return z.object({
+    additions: z.array(block).min(1).max(4),
+  });
+}
 
 // Structure rescue: when the local parser detects its own failure (a paste so
 // mangled it collapses into a blob), a light model may re-classify lines —
