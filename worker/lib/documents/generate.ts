@@ -14,6 +14,8 @@ import {
 import {
   SimpleAdditionsResponseSchema,
   SimpleStructureRescueResponseSchema,
+  type DocumentDesign,
+  type DocumentOrientation,
   type DocumentType,
   type MaterialBlock,
   type SimpleTemplateId,
@@ -123,11 +125,11 @@ async function requestCompletion(
 export function allowedSimpleAdditionTypes(request?: string): Set<MaterialBlock['type']> {
   const text = request?.toLocaleLowerCase() ?? '';
   const allowed = new Set<MaterialBlock['type']>();
-  if (/word bank|glossary|vocabulary list|banque de mots|lexique/.test(text)) allowed.add('reference_list');
-  if (/questions?|quiz|comprehension|compréhension/.test(text)) allowed.add('questions');
-  if (/matching|match exercise|appariement|associer/.test(text)) allowed.add('matching');
-  if (/gap[- ]?fill|fill[- ]?in|texte à trous|phrases? à trous/.test(text)) allowed.add('fill_blanks');
-  if (/role[- ]?play|role cards?|jeu de rôles?/.test(text)) allowed.add('role_cards');
+  if (/word bank|glossary|vocabulary list|banque de mots|lexique|glossaire|banco de palabras|glosario/.test(text)) allowed.add('reference_list');
+  if (/questions?|quiz|comprehension|compréhension|preguntas|comprensión/.test(text)) allowed.add('questions');
+  if (/matching|match exercise|appariement|associer|relier|emparejar|relacionar/.test(text)) allowed.add('matching');
+  if (/gap[- ]?fill|fill[- ]?in|texte à trous|phrases? à trous|textos? a completar|huecos/.test(text)) allowed.add('fill_blanks');
+  if (/role[- ]?play|role cards?|jeu de rôles?|cartes? de rôles?|juego de roles|tarjetas de rol/.test(text)) allowed.add('role_cards');
   if (/instructions?|consignes?|notes?/.test(text)) {
     allowed.add('instructions');
     allowed.add('notes');
@@ -230,6 +232,8 @@ export interface BuildDocumentOptions {
   emphasisTerms?: string[];
   templateId?: SimpleTemplateId;
   documentType?: DocumentType;
+  orientation?: DocumentOrientation;
+  design?: DocumentDesign;
   locale?: string;
 }
 
@@ -247,10 +251,12 @@ export async function buildDocument(
     emphasisTerms: options.emphasisTerms,
     templateId: options.templateId,
     documentType: options.documentType,
+    orientation: options.orientation,
     level,
     languageFocus,
     locale: options.locale,
   });
+  if (options.design && Object.keys(options.design).length > 0) material.design = options.design;
   const documentType = options.documentType ?? 'reading';
 
   // Safety net for mangled pastes only: if the local parse collapsed into a
@@ -267,6 +273,9 @@ export async function buildDocument(
   }
 
   const allowed = allowedSimpleAdditionTypes(customRequest);
+  // Say so when the request names nothing Documents can add, instead of
+  // silently returning the document without it.
+  if (customRequest?.trim()) material.request_status = allowed.size > 0 ? 'applied' : 'not_applied';
   if (customRequest?.trim() && allowed.size > 0) {
     material.blocks = await generateSimpleAdditions(
       config,

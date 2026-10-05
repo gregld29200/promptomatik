@@ -34,10 +34,18 @@ QUALITY GATES
 4. Return valid JSON only.`;
 
 const DOCUMENT_TYPE_CONTEXT: Record<DocumentType, string> = {
+  free: 'a free-form teaching document',
   reading: 'a reading material handout',
   worksheet: 'a student worksheet',
+  role_cards: 'a set of role-play cards',
+  dialogue_script: 'a dialogue script or transcript',
   teacher_guide: 'a teacher guide',
   lesson_plan: 'a lesson plan',
+  session_plan: 'a session design sheet',
+  checklist: 'a checklist or evaluation grid',
+  learner_profile: 'a learner profile sheet',
+  course_brief: 'a course brief for the learner',
+  course_calendar: 'a course calendar',
 };
 
 export function buildSimpleAdditionsUserPrompt(

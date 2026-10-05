@@ -6,8 +6,11 @@ import { nanoid } from "nanoid";
 import type { Env } from "../env";
 import { buildDocument, type DocumentsLlmConfig } from "./documents/generate";
 import {
+  DocumentDesignSchema,
+  DocumentOrientationSchema,
   DocumentTypeSchema,
   SimpleTemplateSchema,
+  type SimpleTransformMaterial,
   type TransformResponse,
 } from "./documents/types";
 
@@ -20,6 +23,8 @@ export interface DocumentRequest {
   emphasisTerms?: string[];
   templateId?: string;
   documentType?: string;
+  orientation?: string;
+  design?: unknown;
   locale?: string;
   /** Legacy field from the retired simple/lesson mode split; still present in old stored payloads. */
   mode?: string;
@@ -66,8 +71,15 @@ const DEFAULT_GENERATOR: DocumentGenerator = (config, request) =>
     // Legacy queued jobs (mode: "simple"/"lesson") fall back to "reading":
     // formatting the content is always safe, unlike failing the job.
     documentType: DocumentTypeSchema.catch("reading").parse(request.documentType),
+    orientation: DocumentOrientationSchema.optional().catch(undefined).parse(request.orientation),
+    design: DocumentDesignSchema.optional().catch(undefined).parse(request.design),
     locale: request.locale,
   });
+
+/** A full teacher guide with answer keys runs past 15,000 characters. */
+export const MAX_DOCUMENT_CHARS = 30_000;
+/** Short enough for a checklist or a pair of role cards. */
+export const MIN_DOCUMENT_WORDS = 8;
 
 function countWords(input: string): number {
   return input.trim().split(/\s+/).filter(Boolean).length;
@@ -88,10 +100,16 @@ export function validateDocumentRequest(request: DocumentRequest): string | null
   if (request.templateId !== undefined && !SimpleTemplateSchema.safeParse(request.templateId).success) {
     return "invalid_request";
   }
-  if (countWords(content) < 30) {
+  if (request.orientation !== undefined && !DocumentOrientationSchema.safeParse(request.orientation).success) {
+    return "invalid_request";
+  }
+  if (request.design !== undefined && !DocumentDesignSchema.safeParse(request.design).success) {
+    return "invalid_request";
+  }
+  if (countWords(content) < MIN_DOCUMENT_WORDS) {
     return "content_too_short";
   }
-  if (content.length > 15_000) {
+  if (content.length > MAX_DOCUMENT_CHARS) {
     return "content_too_long";
   }
   return null;
@@ -240,4 +258,55 @@ export async function handleDocumentJobBatch(
       message.ack();
     }
   }
+}
+
+export interface PresentationUpdate {
+  templateId?: string;
+  design?: unknown;
+  orientation?: string;
+}
+
+/**
+ * Re-styles a finished document in place: style, design overrides and page
+ * orientation are presentation only, so no regeneration is needed and the
+ * teacher's text is never touched. Returns the updated job, or null when the
+ * job or material does not belong to the user.
+ */
+export async function updateDocumentPresentation(
+  env: Env,
+  jobId: string,
+  userId: string,
+  materialIndex: number,
+  update: PresentationUpdate,
+): Promise<DocumentJobResponse | "invalid" | null> {
+  const template = update.templateId === undefined ? undefined : SimpleTemplateSchema.safeParse(update.templateId);
+  const design = update.design === undefined ? undefined : DocumentDesignSchema.safeParse(update.design);
+  const orientation = update.orientation === undefined ? undefined : DocumentOrientationSchema.safeParse(update.orientation);
+  if ((template && !template.success) || (design && !design.success) || (orientation && !orientation.success)) {
+    return "invalid";
+  }
+
+  const row = await env.DB.prepare("SELECT * FROM document_jobs WHERE id = ? AND user_id = ?")
+    .bind(jobId, userId)
+    .first<DocumentJobRow>();
+  if (!row || row.status !== "completed" || !row.result_payload) return null;
+  const result = JSON.parse(row.result_payload) as TransformResponse;
+  const found = result.materials[materialIndex];
+  if (!found || found.material_type !== "clean_handout") return null;
+  const material = found as SimpleTransformMaterial;
+
+  if (template?.success) material.template_id = template.data;
+  if (orientation?.success) material.orientation = orientation.data;
+  if (design?.success) {
+    const cleaned = Object.fromEntries(
+      Object.entries(design.data).filter(([, value]) => value !== undefined && value !== ""),
+    );
+    if (Object.keys(cleaned).length > 0) material.design = cleaned;
+    else delete material.design;
+  }
+
+  await env.DB.prepare(
+    "UPDATE document_jobs SET result_payload = ?, updated_at = datetime('now') WHERE id = ? AND user_id = ?"
+  ).bind(JSON.stringify(result), jobId, userId).run();
+  return rowToResponse({ ...row, result_payload: JSON.stringify(result) });
 }

@@ -492,11 +492,20 @@ describe("document request validation", () => {
   it("rejects short and oversized content, accepts normal content", () => {
     expect(validateDocumentRequest({ content: "too short" })).toBe("content_too_short");
     expect(validateDocumentRequest({ content: Array.from({ length: 40 }, () => "word").join(" ") })).toBeNull();
-    expect(validateDocumentRequest({ content: "word ".repeat(31).padEnd(15_001, "x") })).toBe("content_too_long");
+    // A full teacher guide with answer keys fits; beyond 30,000 it does not.
+    expect(validateDocumentRequest({ content: "word ".repeat(31).padEnd(15_001, "x") })).toBeNull();
+    expect(validateDocumentRequest({ content: "word ".repeat(31).padEnd(30_001, "x") })).toBe("content_too_long");
   });
 
-  it("accepts the four document types and rejects unknown ones", () => {
-    for (const documentType of ["reading", "worksheet", "teacher_guide", "lesson_plan"]) {
+  it("accepts a short checklist or a pair of role cards", () => {
+    expect(validateDocumentRequest({ content: "- [ ] Priorités annoncées\n- [ ] Deux indicateurs\n- [ ] Date obtenue\n- [ ] Relance faite" })).toBeNull();
+  });
+
+  it("accepts every catalogue document type and rejects unknown ones", () => {
+    for (const documentType of [
+      "free", "reading", "worksheet", "role_cards", "dialogue_script", "teacher_guide", "lesson_plan",
+      "session_plan", "checklist", "learner_profile", "course_brief", "course_calendar",
+    ]) {
       expect(validateDocumentRequest({ content: REQUEST_CONTENT, documentType })).toBeNull();
     }
     expect(validateDocumentRequest({ content: REQUEST_CONTENT, documentType: "surprise_me" })).toBe("invalid_request");
@@ -526,6 +535,17 @@ describe("document request validation", () => {
       content: REQUEST_CONTENT,
       templateId: "make_it_pop",
     })).toBe("invalid_request");
+  });
+
+  it("validates orientation and design overrides", () => {
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, orientation: "landscape" })).toBeNull();
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, orientation: "sideways" })).toBe("invalid_request");
+    expect(validateDocumentRequest({
+      content: REQUEST_CONTENT,
+      design: { accent: "#2C5F7C", headingFont: "playfair", density: "airy", header: "band", footerText: "Kintail · Greg" },
+    })).toBeNull();
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, design: { accent: "navy" } })).toBe("invalid_request");
+    expect(validateDocumentRequest({ content: REQUEST_CONTENT, design: { css: "body{}" } })).toBe("invalid_request");
   });
 });
 const TEST_SCHEMA = [
