@@ -12,8 +12,9 @@ import {
   buildStructureRescueUserPrompt,
 } from './system-prompt';
 import {
-  SimpleAdditionsResponseSchema,
+  MaterialBlockSchema,
   SimpleStructureRescueResponseSchema,
+  simpleAdditionsResponseSchema,
   type DocumentDesign,
   type DocumentOrientation,
   type DocumentType,
@@ -62,8 +63,16 @@ function extractJSON(raw: string): string {
   return text;
 }
 
-function additionsResponseFormat(): Record<string, unknown> {
-  const schema = z.toJSONSchema(SimpleAdditionsResponseSchema, { target: 'draft-7' }) as Record<string, unknown>;
+// The block schema for one additions request: only the types it may return.
+// Offered the union of all eight, Gemini mixes their fields (an article's
+// title and paragraphs under "type": "matching") and every attempt fails.
+function allowedBlockSchema(allowed: Set<MaterialBlock['type']>): z.ZodType<MaterialBlock> {
+  const [first, ...rest] = MaterialBlockSchema.options.filter((option) => allowed.has(option.shape.type.value));
+  return rest.length === 0 ? first : z.discriminatedUnion('type', [first, ...rest]);
+}
+
+function additionsResponseFormat(block: z.ZodType<MaterialBlock>): Record<string, unknown> {
+  const schema = z.toJSONSchema(simpleAdditionsResponseSchema(block), { target: 'draft-7' }) as Record<string, unknown>;
   delete schema.$schema;
   return {
     type: 'json_schema',
@@ -78,7 +87,7 @@ function additionsResponseFormat(): Record<string, unknown> {
 async function requestCompletion(
   config: DocumentsLlmConfig,
   messages: ChatMessage[],
-  overrides?: { model?: string; responseFormat?: Record<string, unknown> },
+  options: { responseFormat: Record<string, unknown>; model?: string },
 ): Promise<unknown> {
   const fetcher = config.fetcher ?? fetch;
   const response = await fetcher('https://openrouter.ai/api/v1/chat/completions', {
@@ -90,11 +99,11 @@ async function requestCompletion(
       'X-Title': 'TeachInspire Documents',
     },
     body: JSON.stringify({
-      model: overrides?.model ?? resolveModel(config),
+      model: options.model ?? resolveModel(config),
       messages,
       temperature: 0.15,
       max_tokens: 24000,
-      response_format: overrides?.responseFormat ?? additionsResponseFormat(),
+      response_format: options.responseFormat,
     }),
     signal: AbortSignal.timeout(180000),
   });
@@ -212,10 +221,28 @@ async function rescueSimpleStructure(
   }
 }
 
+const AdditionsEnvelopeSchema = z.object({ additions: z.array(z.unknown()) });
+
+// Each addition is checked on its own, so one malformed or unrequested block
+// does not cost the teacher the valid ones beside it.
+function validAdditions(payload: unknown, block: z.ZodType<MaterialBlock>): MaterialBlock[] {
+  const envelope = AdditionsEnvelopeSchema.safeParse(payload);
+  if (!envelope.success) {
+    console.error('[llm] Invalid additions shape:', envelope.error.flatten());
+    return [];
+  }
+  return envelope.data.additions.flatMap((candidate) => {
+    const result = block.safeParse(candidate);
+    if (result.success) return [result.data];
+    console.warn('[llm] Dropped an invalid addition:', result.error.flatten());
+    return [];
+  });
+}
+
 /**
  * Additions-only LLM call. The document body is already built locally; the
- * model only produces the explicitly requested extra blocks, which are then
- * filtered to the recognized addition types.
+ * model only produces the explicitly requested extra blocks, constrained to
+ * the allowed block types both in the response schema and on validation.
  */
 async function generateSimpleAdditions(
   config: DocumentsLlmConfig,
@@ -226,6 +253,8 @@ async function generateSimpleAdditions(
   level?: string,
   languageFocus?: string,
 ): Promise<MaterialBlock[]> {
+  const block = allowedBlockSchema(allowed);
+  const responseFormat = additionsResponseFormat(block);
   const baseMessages: ChatMessage[] = [
     { role: 'system', content: SIMPLE_ADDITIONS_SYSTEM_PROMPT },
     { role: 'user', content: buildSimpleAdditionsUserPrompt(content, customRequest, documentType, level, languageFocus) },
@@ -234,13 +263,10 @@ async function generateSimpleAdditions(
   const attempts: ChatMessage[][] = [baseMessages];
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const payload = await requestCompletion(config, attempts[attempt]);
-    const result = SimpleAdditionsResponseSchema.safeParse(payload);
-    if (result.success) {
-      return result.data.additions.filter((block) => allowed.has(block.type));
-    }
+    const payload = await requestCompletion(config, attempts[attempt], { responseFormat });
+    const additions = validAdditions(payload, block);
+    if (additions.length > 0) return additions;
 
-    console.error('[llm] Invalid additions shape:', result.error.flatten());
     if (attempt === 1) {
       throw new Error('AI returned an unexpected structure. Try again.');
     }
@@ -251,7 +277,7 @@ async function generateSimpleAdditions(
         content: [
           'Your previous output did not match the required JSON structure.',
           'Return only valid JSON: { "additions": [ ...blocks ] }.',
-          'Use only the allowed block types.',
+          `Use only these block types: ${[...allowed].join(', ')}.`,
         ].join('\n'),
       },
     ]);

@@ -507,6 +507,51 @@ describe("document formatting engine", () => {
 
     expect(result.materials[0].blocks).toEqual([wordBank]);
   });
+
+  // What Gemini returned for a ticked matching exercise: an article's fields
+  // under "type": "matching", with no pairs.
+  const GARBLED_MATCHING = { type: "matching", title: "Activité 6 — Association", paragraphs: ["Reliez chaque élément…"] };
+  const MATCHING = { type: "matching", heading: "Associez", pairs: [{ left: "fatigue", right: "tiredness" }, { left: "batch", right: "group" }] };
+
+  it("keeps the valid additions when the model garbles one of them", async () => {
+    let calls = 0;
+    const fetcher = (async () => {
+      calls += 1;
+      return llmResponse(JSON.stringify({ additions: [GARBLED_MATCHING, MATCHING] }));
+    }) as typeof fetch;
+
+    const result = await buildDocument({ apiKey: "k", fetcher }, REQUEST_CONTENT, { additions: ["matching"] });
+
+    expect(calls).toBe(1);
+    expect(result.materials[0].blocks).toEqual([MATCHING]);
+  });
+
+  it("retries once, naming the allowed block types, when no addition is usable", async () => {
+    const requests: string[] = [];
+    const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(String(init?.body ?? ""));
+      const additions = requests.length === 1 ? [GARBLED_MATCHING] : [MATCHING];
+      return llmResponse(JSON.stringify({ additions }));
+    }) as typeof fetch;
+
+    const result = await buildDocument({ apiKey: "k", fetcher }, REQUEST_CONTENT, { additions: ["matching"] });
+
+    expect(requests).toHaveLength(2);
+    expect(requests[1]).toContain("Use only these block types: matching.");
+    expect(result.materials[0].blocks).toEqual([MATCHING]);
+  });
+
+  it("fails the generation when the retry still returns no usable addition", async () => {
+    let calls = 0;
+    const fetcher = (async () => {
+      calls += 1;
+      return llmResponse(JSON.stringify({ additions: [GARBLED_MATCHING] }));
+    }) as typeof fetch;
+
+    await expect(buildDocument({ apiKey: "k", fetcher }, REQUEST_CONTENT, { additions: ["matching"] }))
+      .rejects.toThrow("AI returned an unexpected structure. Try again.");
+    expect(calls).toBe(2);
+  });
 });
 describe("document request validation", () => {
   it("rejects short and oversized content, accepts normal content", () => {
