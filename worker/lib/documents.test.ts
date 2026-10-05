@@ -438,6 +438,8 @@ describe("document formatting engine", () => {
       { customRequest: "Make it look modern and airy." },
     );
     expect(result.materials[0].blocks).toEqual([]);
+    // The teacher is told the request was not applied, instead of silence.
+    expect(result.materials[0]).toMatchObject({ request_status: "not_applied" });
   });
 
   it("an explicit addition request triggers one additions-only call and keeps local structure", async () => {
@@ -935,5 +937,91 @@ describe("documents routes", () => {
     });
     const response = await fetchAs("free-user", "/api/documents/jobs/free-history-job", { method: "DELETE" });
     expect(response.status).toBe(403);
+  });
+});
+describe("documents presentation and images", () => {
+  beforeEach(async () => {
+    await resetDb();
+  });
+  async function call(userId: string, path: string, init: RequestInit = {}, contentType = "application/json") {
+    const session: SessionData = {
+      userId,
+      email: `${userId}@example.com`,
+      role: "teacher",
+      languagePreference: "fr",
+      createdAt: Date.now(),
+    };
+    const sessionId = await createSession(testEnv, session);
+    const request = new Request(`https://promptomatik.test${path}`, {
+      ...init,
+      headers: { Cookie: `promptomatik_session=${sessionId}`, "Content-Type": contentType },
+    });
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, testEnv, ctx);
+    await waitOnExecutionContext(ctx);
+    return response;
+  }
+  const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]);
+
+  it("stores an uploaded image for its owner only and embeds it in the document", async () => {
+    await seedUser("writer", "participant");
+    await seedUser("other", "participant");
+    const upload = await call("writer", "/api/documents/images", { method: "POST", body: PNG }, "image/png");
+    expect(upload.status).toBe(201);
+    const { id } = await upload.json() as { id: string };
+
+    const own = await call("writer", `/api/documents/images/${id}`);
+    expect(own.status).toBe(200);
+    expect(own.headers.get("content-type")).toBe("image/png");
+    expect((await call("other", `/api/documents/images/${id}`)).status).toBe(404);
+
+    const material = {
+      ...SIMPLE_RESULT.materials[0],
+      source_text: `Article\n\n![Le camion](studio:${id})\n\nUn paragraphe sur la route.`,
+      structure: [
+        { type: "heading", line_ids: [1] },
+        { type: "image", line_ids: [2] },
+        { type: "paragraph", line_ids: [3] },
+      ],
+    };
+    await insertDocumentJob({ id: "img-job", userId: "writer", status: "completed", result: { materials: [material] } as unknown as TransformResponse });
+    const html = await (await call("writer", "/api/documents/jobs/img-job/materials/0.html")).text();
+    expect(html).toContain('<img src="data:image/png;base64,');
+  });
+
+  it("refuses files that are not images, whatever their declared type", async () => {
+    await seedUser("writer", "participant");
+    const fake = await call("writer", "/api/documents/images", { method: "POST", body: new TextEncoder().encode("<svg onload=alert(1)>") }, "image/png");
+    expect(fake.status).toBe(415);
+    const svg = await call("writer", "/api/documents/images", { method: "POST", body: new TextEncoder().encode("<svg/>") }, "image/svg+xml");
+    expect(svg.status).toBe(415);
+  });
+
+  it("keeps uploads behind the participant tier", async () => {
+    await seedUser("free-user", "free");
+    const response = await call("free-user", "/api/documents/images", { method: "POST", body: PNG }, "image/png");
+    expect(response.status).toBe(403);
+  });
+
+  it("re-styles a finished document in place and validates the design", async () => {
+    await seedUser("writer", "participant");
+    await seedUser("other", "participant");
+    await insertDocumentJob({ id: "style-job", userId: "writer", status: "completed", result: SIMPLE_RESULT });
+    const path = "/api/documents/jobs/style-job/materials/0/presentation";
+
+    const updated = await call("writer", path, {
+      method: "PATCH",
+      body: JSON.stringify({ templateId: "classroom_handout", orientation: "landscape", design: { accent: "#2C5F7C", header: "band" } }),
+    });
+    expect(updated.status).toBe(200);
+    const html = await (await call("writer", "/api/documents/jobs/style-job/materials/0.html")).text();
+    expect(html).toContain('data-template="classroom_handout"');
+    expect(html).toContain('data-orientation="landscape"');
+    expect(html).toContain('data-header="band"');
+
+    const invalid = await call("writer", path, { method: "PATCH", body: JSON.stringify({ design: { accent: "red" } }) });
+    expect(invalid.status).toBe(400);
+    const foreign = await call("other", path, { method: "PATCH", body: JSON.stringify({ templateId: "editorial_reader" }) });
+    expect(foreign.status).toBe(404);
   });
 });
