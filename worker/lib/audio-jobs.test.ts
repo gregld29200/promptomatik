@@ -697,3 +697,115 @@ describe("audio job lifecycle", () => {
     expect(new Set(body.voices.map((voice) => voice.tone))).toEqual(new Set(["energetic", "warm", "composed"]));
   });
 });
+
+describe("accented takes", () => {
+  beforeEach(resetDb);
+
+  async function createAccentJob(userId: string, accentDetail: string) {
+    return createAudioJob(testEnv, {
+      userId,
+      mode: "monologue",
+      quality: "final",
+      script: "Bonjour tout le monde.",
+      direction: {
+        level: "B1",
+        accent: "Neutral",
+        accentDetail,
+        pace: "Natural classroom speed",
+        style: "Informal conversation",
+      },
+      voices: { solo: "Kore" },
+    });
+  }
+
+  it("starts an accented take on the accent model, which performs the accent", async () => {
+    const userId = "accent-user";
+    await seedParticipant(userId);
+    const job = await createAccentJob(userId, "accent du midi");
+
+    const attempted: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(attempted).toEqual(["gemini-3.1-flash-tts-preview"]);
+  });
+
+  it("tries 2.5 Pro, then 3.8, when the accent model is out of quota", async () => {
+    const userId = "accent-quota-user";
+    await seedParticipant(userId);
+    const job = await createAccentJob(userId, "accent marseillais prononcé");
+
+    const config = getTtsModelConfig(testEnv);
+    const attempted: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        if (input.model !== config.monologueModel) throw new TtsProviderError("Quota exceeded.", true, 429);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(attempted).toEqual(["gemini-3.1-flash-tts-preview", config.finalModel, config.monologueModel]);
+  });
+
+  it("hands the models the accent as an explicit brief", async () => {
+    const userId = "accent-brief-user";
+    await seedParticipant(userId);
+    const job = await createAccentJob(userId, "accent du midi");
+
+    const briefed: string[] = [];
+    const accents: Array<string | undefined> = [];
+    await processAudioJob(testEnv, job.id, {
+      async briefAccent(accent) {
+        briefed.push(accent);
+        return "A broad southern French accent of Marseille.";
+      },
+      async generateBlock(input) {
+        accents.push(input.direction?.accentDetail);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(briefed).toEqual(["accent du midi"]);
+    expect(accents).toEqual(["A broad southern French accent of Marseille."]);
+  });
+
+  it("keeps the teacher's words when the brief fails", async () => {
+    const userId = "accent-brief-fail-user";
+    await seedParticipant(userId);
+    const job = await createAccentJob(userId, "accent du midi");
+
+    const accents: Array<string | undefined> = [];
+    await processAudioJob(testEnv, job.id, {
+      async briefAccent() {
+        throw new Error("model down");
+      },
+      async generateBlock(input) {
+        accents.push(input.direction?.accentDetail);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(accents).toEqual(["accent du midi"]);
+  });
+
+  it("keeps 3.8 first for a native accent", async () => {
+    const userId = "native-accent-user";
+    await seedParticipant(userId);
+    const job = await createBasicJob(userId);
+
+    const attempted: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(attempted).toEqual([getTtsModelConfig(testEnv).monologueModel]);
+  });
+});
