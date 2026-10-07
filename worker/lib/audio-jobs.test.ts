@@ -754,6 +754,47 @@ describe("accented takes", () => {
     expect(attempted).toEqual([config.finalModel, config.monologueModel]);
   });
 
+  it("hands the models the accent as an explicit brief", async () => {
+    const userId = "accent-brief-user";
+    await seedParticipant(userId);
+    const job = await createAccentJob(userId, "accent du midi");
+
+    const briefed: string[] = [];
+    const accents: Array<string | undefined> = [];
+    await processAudioJob(testEnv, job.id, {
+      async briefAccent(accent) {
+        briefed.push(accent);
+        return "A broad southern French accent of Marseille.";
+      },
+      async generateBlock(input) {
+        accents.push(input.direction?.accentDetail);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(briefed).toEqual(["accent du midi"]);
+    expect(accents).toEqual(["A broad southern French accent of Marseille."]);
+  });
+
+  it("keeps the teacher's words when the brief fails", async () => {
+    const userId = "accent-brief-fail-user";
+    await seedParticipant(userId);
+    const job = await createAccentJob(userId, "accent du midi");
+
+    const accents: Array<string | undefined> = [];
+    await processAudioJob(testEnv, job.id, {
+      async briefAccent() {
+        throw new Error("model down");
+      },
+      async generateBlock(input) {
+        accents.push(input.direction?.accentDetail);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(accents).toEqual(["accent du midi"]);
+  });
+
   it("keeps 3.8 first for a native accent", async () => {
     const userId = "native-accent-user";
     await seedParticipant(userId);

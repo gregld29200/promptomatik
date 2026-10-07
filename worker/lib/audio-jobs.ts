@@ -12,7 +12,8 @@ import {
   type AudioMode,
   type AudioQuality,
 } from "./audio-config";
-import { hasRegionalAccent, validateTranscriptForTts } from "./audio-direction";
+import { hasRegionalAccent, validateTranscriptForTts, withAccentBriefs } from "./audio-direction";
+import { briefAccent } from "./accent-brief";
 import { SPEAKER_LABEL_WORDS, lintAudioScript, normalizeDialogueLabels } from "../../src/lib/audio-script-rules";
 import { concatPcmWithSilence, durationFromPcmBytes, mp3FromPcm, peaksFromPcm, wavFromPcm } from "./audio-assembly";
 import {
@@ -31,9 +32,28 @@ export type { CreateAudioJobInput } from "./audio-job-response";
 
 export interface AudioGenerationProvider {
   generateBlock(input: GenerateBlockInput): Promise<GenerateBlockResult>;
+  /** Rewrites the teacher's accent words into an explicit brief (accent-brief.ts). */
+  briefAccent?(accent: string, env: Env): Promise<string>;
 }
 
-const DEFAULT_PROVIDER: AudioGenerationProvider = { generateBlock };
+const DEFAULT_PROVIDER: AudioGenerationProvider = {
+  generateBlock,
+  briefAccent: async (accent, env) => {
+    const apiKey = env.GEMINI_API_KEY?.trim();
+    if (!apiKey) return accent;
+    return briefAccent({ apiKey, model: getTtsModelConfig(env).prepModel, accent, cache: env.SESSIONS });
+  },
+};
+
+// "accent du midi" alone reads as standard French to 2.5 Pro; the same accent
+// spelled out (region, features, strength) is performed. Briefed once per
+// phrase and cached, so a take pays for it only the first time.
+async function takeDirection(env: Env, row: AudioJobRow, provider: AudioGenerationProvider): Promise<AudioDirection> {
+  const direction = JSON.parse(row.direction_json) as AudioDirection;
+  if (!provider.briefAccent || !hasRegionalAccent(direction, row.mode)) return direction;
+  const brief = provider.briefAccent.bind(provider);
+  return withAccentBriefs(direction, row.mode, (accent) => brief(accent, env).catch(() => accent));
+}
 const DOWNLOAD_FILES = ["final.mp3", "final.wav", "transcript.txt"] as const;
 export type AudioDownloadFile = (typeof DOWNLOAD_FILES)[number];
 
@@ -245,13 +265,13 @@ async function generateSegment(
   env: Env,
   row: AudioJobRow,
   segment: AudioSegmentRow,
-  provider: AudioGenerationProvider
+  provider: AudioGenerationProvider,
+  direction: AudioDirection
 ): Promise<void> {
   if (segment.status === "ok") return;
   // A malformed transcript fails before any provider is paid for it.
   validateTranscriptForTts(row.mode, segment.text);
 
-  const direction = JSON.parse(row.direction_json) as AudioDirection;
   // Gemini 3.8 ignores an accent asked for in its style; the pre-3.8 models
   // (2.5 Pro) perform one from their prompt, so an accented take starts there.
   const steps = modelChainForMode(getTtsModelConfig(env), row.mode);
@@ -415,9 +435,10 @@ export async function processAudioJob(
 
   try {
     const segments = await getSegments(env.DB, jobId);
+    const direction = await takeDirection(env, row, provider);
     for (const segment of segments) {
       try {
-        await generateSegment(env, row, segment, provider);
+        await generateSegment(env, row, segment, provider, direction);
       } catch (error) {
         const status = error instanceof TtsProviderError ? error.status ?? null : null;
         await env.DB.prepare(

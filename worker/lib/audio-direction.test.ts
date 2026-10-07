@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TranscriptValidationError, compileDirection, hasRegionalAccent, validateTranscriptForTts } from "./audio-direction";
+import { TranscriptValidationError, compileDirection, hasRegionalAccent, validateTranscriptForTts, withAccentBriefs } from "./audio-direction";
 
 describe("compileDirection", () => {
   it("snapshots an A2 monologue direction", () => {
@@ -105,11 +105,11 @@ describe("compileDirection", () => {
 
       AUDIO PROFILE:
       Speaker 1: A clear, balanced classroom delivery focused on comprehension. Accent: English with a French accent, a learner from Lyon. Manner of speaking: hesitates and searches for words.
-      Speaker 2: Objective, measured, calm, and consistent.
+      Speaker 2: Objective, measured, calm, and consistent. Accent: A neutral, clear accent, natural for the language of the transcript.
 
       DIRECTOR'S NOTES:
       Style: A clear, balanced classroom delivery focused on comprehension.
-      Accent: A neutral, clear accent, natural for the language of the transcript.
+      Accent: each speaker keeps the accent given in the audio profile, in every line
       Pacing: Natural classroom speed, clear but not artificial. Controlled natural pace with moderate pauses between ideas.
       Clarity: Clear articulation, limited reduced forms, clear sentence stress.
       Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.
@@ -290,5 +290,33 @@ describe("hasRegionalAccent", () => {
     const direction = { ...base, accent: "Neutral", speakers: { "Speaker 2": { accentDetail: "marseillais prononcé" } } };
     expect(hasRegionalAccent(direction, "dialogue")).toBe(true);
     expect(hasRegionalAccent(direction, "monologue")).toBe(false);
+  });
+});
+
+describe("withAccentBriefs", () => {
+  const base = { level: "B1", pace: "Natural classroom speed", style: "Informal conversation" } as const;
+  const brief = async (accent: string) => `BRIEF(${accent})`;
+
+  it("rewrites a regional accent and leaves a native one alone", async () => {
+    expect((await withAccentBriefs({ ...base, accent: "Neutral", accentDetail: "accent du midi" }, "monologue", brief)).accentDetail)
+      .toBe("BRIEF(accent du midi)");
+    expect((await withAccentBriefs({ ...base, accent: "Canadian" }, "monologue", brief)).accentDetail)
+      .toBe("BRIEF(Canadian French)");
+    expect(await withAccentBriefs({ ...base, accent: "Parisian" }, "monologue", brief)).toEqual({ ...base, accent: "Parisian" });
+  });
+
+  it("rewrites a dialogue speaker's own accent, and the prompt states each speaker's accent", async () => {
+    const direction = await withAccentBriefs(
+      { ...base, accent: "Neutral", speakers: { "Speaker 2": { accentDetail: "accent du sud" } } },
+      "dialogue",
+      brief
+    );
+    expect(direction.accentDetail).toBeUndefined();
+    expect(direction.speakers?.["Speaker 2"]?.accentDetail).toBe("BRIEF(accent du sud)");
+
+    const prompt = compileDirection({ direction, mode: "dialogue", speakers: ["Speaker 1", "Speaker 2"], script: "Speaker 1: Salut.\nSpeaker 2: Bonjour." });
+    expect(prompt).toContain("Speaker 1: Relaxed, spontaneous, and natural. Accent: Neutral French.");
+    expect(prompt).toContain("Speaker 2: Relaxed, spontaneous, and natural. Accent: BRIEF(accent du sud).");
+    expect(prompt).not.toContain("\nAccent: Neutral French.");
   });
 });

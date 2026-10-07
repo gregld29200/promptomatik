@@ -6,6 +6,7 @@ import {
   expandPreset,
   type AudioDirection,
   type AudioMode,
+  type AudioSpeakerDirection,
 } from "./audio-config";
 import { monologueSpeakerLabels } from "../../src/lib/audio-script-rules";
 
@@ -36,6 +37,10 @@ function accentPhrase(accent: string, accentDetail: string | undefined): string 
   return expandPreset(ACCENT_EXPANSIONS, accent).replace(/\.+$/, "");
 }
 
+function hasSpeakerAccent(override: AudioSpeakerDirection | undefined): boolean {
+  return Boolean(trimOptional(override?.accent) || trimOptional(override?.accentDetail));
+}
+
 function audioProfile(mode: AudioMode, speakers: string[], direction: AudioDirection): string {
   const globalPersona = expandPreset(STYLE_EXPANSIONS, direction.style).replace(/\.+$/, "");
   if (mode === "monologue") {
@@ -43,14 +48,19 @@ function audioProfile(mode: AudioMode, speakers: string[], direction: AudioDirec
     return `The speaker: ${globalPersona}.${notes ? ` Manner of speaking: ${notes.replace(/\.+$/, "")}.` : ""}`;
   }
 
+  const anyOverride = speakers.some((speaker) => hasSpeakerAccent(direction.speakers?.[speaker]));
   return speakers.map((speaker) => {
     const override = direction.speakers?.[speaker];
     const persona = override?.style
       ? expandPreset(STYLE_EXPANSIONS, override.style).replace(/\.+$/, "")
       : globalPersona;
     const parts = [`${speaker}: ${persona}.`];
-    if (override && (trimOptional(override.accent) || trimOptional(override.accentDetail))) {
-      parts.push(`Accent: ${accentPhrase(override.accent ?? direction.accent, override.accentDetail)}.`);
+    // Once one speaker has their own accent, every speaker states theirs:
+    // a single global accent line would contradict the override.
+    if (hasSpeakerAccent(override)) {
+      parts.push(`Accent: ${accentPhrase(override?.accent ?? direction.accent, override?.accentDetail)}.`);
+    } else if (anyOverride) {
+      parts.push(`Accent: ${accentPhrase(direction.accent, direction.accentDetail)}.`);
     }
     const notes = trimOptional(override?.notes);
     if (notes) {
@@ -106,9 +116,10 @@ ${audioProfile(mode, speakers, direction)}`,
 ${scene}`);
   }
 
+  const perSpeakerAccent = mode === "dialogue" && speakers.some((speaker) => hasSpeakerAccent(direction.speakers?.[speaker]));
   sections.push(`DIRECTOR'S NOTES:
 Style: ${style}
-Accent: ${accent}.
+Accent: ${perSpeakerAccent ? "each speaker keeps the accent given in the audio profile, in every line" : `${accent}.`}
 Pacing: ${pace} ${cefr.pacing}
 Clarity: ${cefr.clarity}
 Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.`);
@@ -144,6 +155,29 @@ export function hasRegionalAccent(direction: AudioDirection, mode: AudioMode): b
   return Object.values(direction.speakers ?? {}).some((override) =>
     isRegionalAccent(override?.accent, override?.accentDetail)
   );
+}
+
+// Rewrites every regional accent of the take (global, and each dialogue
+// speaker's own) with `brief`, as a free accent text that replaces the preset.
+export async function withAccentBriefs(
+  direction: AudioDirection,
+  mode: AudioMode,
+  brief: (accent: string) => Promise<string>
+): Promise<AudioDirection> {
+  const result: AudioDirection = { ...direction };
+  if (isRegionalAccent(direction.accent, direction.accentDetail)) {
+    result.accentDetail = await brief(accentPhrase(direction.accent, direction.accentDetail));
+  }
+  if (mode === "dialogue" && direction.speakers) {
+    const speakers: NonNullable<AudioDirection["speakers"]> = {};
+    for (const [speaker, override] of Object.entries(direction.speakers)) {
+      speakers[speaker as keyof typeof speakers] = override && isRegionalAccent(override.accent, override.accentDetail)
+        ? { ...override, accentDetail: await brief(accentPhrase(override.accent ?? direction.accent, override.accentDetail)) }
+        : override;
+    }
+    result.speakers = speakers;
+  }
+  return result;
 }
 
 export interface SpeechStyleInput {
