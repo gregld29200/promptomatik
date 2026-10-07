@@ -62,6 +62,12 @@ export function isOpenRouterTtsModel(model: string): boolean {
   return model.includes("/");
 }
 
+// The 2.5 TTS models on the Gemini API read their direction, accent included,
+// from the prompt; 3.8 speaks its input verbatim and ignores a style accent.
+export function isPre38TtsModel(model: string): boolean {
+  return !isOpenRouterTtsModel(model) && /^gemini-2\./.test(model);
+}
+
 function readNumber(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number(value);

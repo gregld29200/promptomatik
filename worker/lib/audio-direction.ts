@@ -119,6 +119,33 @@ ${script}`);
   return sections.join("\n\n");
 }
 
+// Presets that are a language's everyday pronunciation: every model speaks
+// them well enough, so they need no special routing.
+const NATIVE_ACCENT_PRESETS = new Set([
+  "Neutral international",
+  "Neutral",
+  "Slow classroom French",
+  "Parisian",
+  "North American",
+]);
+
+function isRegionalAccent(preset: string | undefined, detail: string | undefined): boolean {
+  if (trimOptional(detail)) return true;
+  const key = trimOptional(preset);
+  return Boolean(key && !NATIVE_ACCENT_PRESETS.has(key));
+}
+
+// Whether any speaker of the take has a regional or foreign accent (a free
+// accent text, or a non-native preset). Gemini 3.8 ignores an accent asked for
+// in its style, so such a take is voiced by a model that reads it.
+export function hasRegionalAccent(direction: AudioDirection, mode: AudioMode): boolean {
+  if (isRegionalAccent(direction.accent, direction.accentDetail)) return true;
+  if (mode !== "dialogue") return false;
+  return Object.values(direction.speakers ?? {}).some((override) =>
+    isRegionalAccent(override?.accent, override?.accentDetail)
+  );
+}
+
 export interface SpeechStyleInput {
   direction: AudioDirection;
   mode: AudioMode;

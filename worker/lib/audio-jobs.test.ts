@@ -697,3 +697,76 @@ describe("audio job lifecycle", () => {
     expect(new Set(body.voices.map((voice) => voice.tone))).toEqual(new Set(["energetic", "warm", "composed"]));
   });
 });
+
+describe("accented takes", () => {
+  beforeEach(resetDb);
+
+  async function createAccentJob(userId: string, accentDetail: string) {
+    return createAudioJob(testEnv, {
+      userId,
+      mode: "monologue",
+      quality: "final",
+      script: "Bonjour tout le monde.",
+      direction: {
+        level: "B1",
+        accent: "Neutral",
+        accentDetail,
+        pace: "Natural classroom speed",
+        style: "Informal conversation",
+      },
+      voices: { solo: "Kore" },
+    });
+  }
+
+  it("starts an accented take on 2.5 Pro, which performs the accent", async () => {
+    const userId = "accent-user";
+    await seedParticipant(userId);
+    const job = await createAccentJob(userId, "accent du midi");
+
+    const attempted: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(attempted).toEqual([getTtsModelConfig(testEnv).finalModel]);
+  });
+
+  it("falls back to 3.8 when 2.5 Pro is out of quota, so the take still happens", async () => {
+    const userId = "accent-quota-user";
+    await seedParticipant(userId);
+    const job = await createAccentJob(userId, "accent marseillais prononcé");
+
+    const attempted: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        if (input.model === getTtsModelConfig(testEnv).finalModel) {
+          throw new TtsProviderError("Quota exceeded.", true, 429);
+        }
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    const config = getTtsModelConfig(testEnv);
+    expect(attempted).toEqual([config.finalModel, config.monologueModel]);
+  });
+
+  it("keeps 3.8 first for a native accent", async () => {
+    const userId = "native-accent-user";
+    await seedParticipant(userId);
+    const job = await createBasicJob(userId);
+
+    const attempted: string[] = [];
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        attempted.push(input.model);
+        return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
+      },
+    });
+
+    expect(attempted).toEqual([getTtsModelConfig(testEnv).monologueModel]);
+  });
+});

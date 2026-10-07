@@ -3,6 +3,7 @@ import type { Env } from "../env";
 import {
   getTtsModelConfig,
   isOpenRouterTtsModel,
+  isPre38TtsModel,
   modelChainForMode,
   priceForModel,
   audioCostUsd,
@@ -11,7 +12,7 @@ import {
   type AudioMode,
   type AudioQuality,
 } from "./audio-config";
-import { validateTranscriptForTts } from "./audio-direction";
+import { hasRegionalAccent, validateTranscriptForTts } from "./audio-direction";
 import { SPEAKER_LABEL_WORDS, lintAudioScript, normalizeDialogueLabels } from "../../src/lib/audio-script-rules";
 import { concatPcmWithSilence, durationFromPcmBytes, mp3FromPcm, peaksFromPcm, wavFromPcm } from "./audio-assembly";
 import {
@@ -250,13 +251,19 @@ async function generateSegment(
   // A malformed transcript fails before any provider is paid for it.
   validateTranscriptForTts(row.mode, segment.text);
 
+  const direction = JSON.parse(row.direction_json) as AudioDirection;
+  // Gemini 3.8 ignores an accent asked for in its style; the pre-3.8 models
+  // (2.5 Pro) perform one from their prompt, so an accented take starts there.
+  const steps = modelChainForMode(getTtsModelConfig(env), row.mode);
+  const ordered = hasRegionalAccent(direction, row.mode)
+    ? [...steps.filter((step) => isPre38TtsModel(step.model)), ...steps.filter((step) => !isPre38TtsModel(step.model))]
+    : steps;
   // A model whose provider has no key configured is skipped.
-  const chain = modelChainForMode(getTtsModelConfig(env), row.mode).flatMap((step) => {
+  const chain = ordered.flatMap((step) => {
     const apiKey = ttsApiKey(env, step.model);
     return apiKey ? [{ model: step.model, apiKey }] : [];
   });
   if (chain.length === 0) throw new Error("No text-to-speech API key is configured.");
-  const direction = JSON.parse(row.direction_json) as AudioDirection;
   const voices = JSON.parse(row.voices_json) as Record<string, string>;
 
   let fallbackStatus: number | undefined;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TranscriptValidationError, compileDirection, validateTranscriptForTts } from "./audio-direction";
+import { TranscriptValidationError, compileDirection, hasRegionalAccent, validateTranscriptForTts } from "./audio-direction";
 
 describe("compileDirection", () => {
   it("snapshots an A2 monologue direction", () => {
@@ -272,3 +272,23 @@ describe("compileDirection tolerates a malformed direction", () => {
     ).not.toThrow();
   });
 })
+
+describe("hasRegionalAccent", () => {
+  const base = { level: "B1", pace: "Natural classroom speed", style: "Informal conversation" } as const;
+
+  it("is false for a language's everyday pronunciation", () => {
+    expect(hasRegionalAccent({ ...base, accent: "Neutral" }, "monologue")).toBe(false);
+    expect(hasRegionalAccent({ ...base, accent: "Parisian", accentDetail: "  " }, "monologue")).toBe(false);
+  });
+
+  it("is true for a free accent text or a regional preset", () => {
+    expect(hasRegionalAccent({ ...base, accent: "Neutral", accentDetail: "accent du midi" }, "monologue")).toBe(true);
+    expect(hasRegionalAccent({ ...base, accent: "Canadian" }, "monologue")).toBe(true);
+  });
+
+  it("looks at each speaker's own accent in a dialogue only", () => {
+    const direction = { ...base, accent: "Neutral", speakers: { "Speaker 2": { accentDetail: "marseillais prononcé" } } };
+    expect(hasRegionalAccent(direction, "dialogue")).toBe(true);
+    expect(hasRegionalAccent(direction, "monologue")).toBe(false);
+  });
+});
