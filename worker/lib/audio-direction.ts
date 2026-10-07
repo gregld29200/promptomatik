@@ -91,9 +91,64 @@ export function validateTranscriptForTts(mode: AudioMode, script: string): void 
   }
 }
 
+function sentence(value: string): string {
+  return `${value.trim().replace(/[.\s]+$/, "")}.`;
+}
+
+// An accent sentence: a brief already reads "Speak with …"; a teacher's raw
+// words or a preset expansion are introduced.
+function accentSentence(accent: string): string {
+  return /^speak\b/i.test(accent.trim()) ? sentence(accent) : `Speak with this accent: ${sentence(accent)}`;
+}
+
+// 2.5 Pro reads an accent out of a short prompt where it is the lead
+// instruction, but ignores it inside the sectioned template below (measured
+// 2026-10-07: 0 strong takes in 4 with the template, 3-4 in 4 with this
+// shape, for the same accent text). So a take with a regional accent gets
+// this compact prompt, carrying the same direction.
+function compileAccentedDirection(input: CompileDirectionInput): string {
+  const { direction, mode, speakers, script } = input;
+  const cefr = CEFR_DELIVERY[direction.level] ?? CEFR_DELIVERY.B1;
+  const pace = [expandPreset(PACE_EXPANSIONS, direction.pace), cefr.pacing].filter(Boolean).join(" ");
+  const scene = trimOptional(direction.scene);
+  const lines: string[] = [];
+
+  if (mode === "monologue") {
+    const notes = trimOptional(direction.notes);
+    lines.push(
+      `Read this text aloud. ${accentSentence(accentPhrase(direction.accent, direction.accentDetail))}`,
+      `Tone: ${sentence(expandPreset(STYLE_EXPANSIONS, direction.style))}${notes ? ` Manner of speaking: ${sentence(notes)}` : ""}`
+    );
+  } else {
+    lines.push("Read this dialogue aloud.");
+    for (const speaker of speakers) {
+      const override = direction.speakers?.[speaker];
+      const persona = expandPreset(STYLE_EXPANSIONS, override?.style || direction.style);
+      const accent = hasSpeakerAccent(override)
+        ? accentPhrase(override?.accent ?? direction.accent, override?.accentDetail)
+        : accentPhrase(direction.accent, direction.accentDetail);
+      const notes = trimOptional(override?.notes);
+      lines.push(`${speaker}: ${sentence(persona)} ${accentSentence(accent)}${notes ? ` Manner of speaking: ${sentence(notes)}` : ""}`);
+    }
+    lines.push("Each speaker keeps their own accent in every line.");
+  }
+
+  lines.push(`Pace: ${pace}`, `Articulation: ${cefr.clarity}`);
+  if (scene) lines.push(`Scene: ${sentence(scene)}`);
+  lines.push(
+    "Perform each bracketed tag, like [laughs] or [excited], as a sound or emotion at that exact spot; never read it aloud.",
+    `Read only the ${mode === "dialogue" ? "dialogue" : "text"} below, exactly as written.`,
+    "",
+    "TEXT:",
+    script
+  );
+  return lines.join("\n");
+}
+
 export function compileDirection(input: CompileDirectionInput): string {
   const { direction, mode, speakers, script } = input;
   validateTranscriptForTts(mode, script);
+  if (hasRegionalAccent(direction, mode)) return compileAccentedDirection(input);
   // Fall back to B1 delivery if a stored job carries an unknown level, so a
   // bad `direction_json` degrades instead of crashing the generation worker.
   const cefr = CEFR_DELIVERY[direction.level] ?? CEFR_DELIVERY.B1;

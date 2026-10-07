@@ -21,12 +21,12 @@ const REQUEST_TIMEOUT_MS = 20_000;
 
 const PROMPT = [
   "A language teacher asks a text-to-speech voice to speak with an accent and typed the request below, in any language and in their own words.",
-  "Identify the accent they mean and rewrite it as one to three English sentences a voice actor can perform: the accent's precise name and region, then its most recognisable pronunciation features (vowel quality, nasal vowels, dropped or added sounds, rhythm, intonation).",
+  "Identify the accent they mean and rewrite it as one to three English sentences a voice actor can perform, starting with \"Speak with\": the accent's strength, precise name and region, then its most recognisable pronunciation features (vowel quality, nasal vowels, dropped or added sounds, rhythm, intonation).",
   "Generic wordings name the archetypal accent: \"accent du midi\", \"accent du sud\" and \"provençal\" mean the southern French accent of Marseille and Provence; \"accent du nord\" and \"ch'ti\" mean the northern French accent of Lille. A city or region the teacher names keeps its own accent (toulousain is Toulouse).",
   "Strength: broad, strong and unmistakable in every word, unless the teacher asks for a light or slight accent; then say it is light but clearly audible.",
   "Be phonetically accurate and never invent a feature. Reference features: southern French (Marseille, Provence) pronounces every final mute e (\"une belle-e table-e\"), ends nasal vowels in an audible ng (\"pain\" sounds like \"paing\", \"maman\" like \"mamang\"), opens o where Paris closes it (\"rose\" rhymes with \"bosse\"), times syllables evenly, has a lively sing-song melody, and keeps a uvular r, never rolled. Northern French (ch'ti): open a pushed back towards o, a flatter melody. Quebec French: t and d before i and u become ts and dz (\"tu\" is \"tsu\"), short i, u and ou are lax, long vowels are diphthongised (\"père\" like \"paère\"). Belgian French: w in words like \"huit\" (\"wit\"), long vowels kept distinct, a slower, even melody.",
   "Describe pronunciation only, never age, gender or personality.",
-  'Return ONLY valid JSON: {"description":"..."}',
+  'Return ONLY valid JSON: {"description":"Speak with a broad ..."}',
 ].join("\n");
 
 function normalize(accent: string): string {

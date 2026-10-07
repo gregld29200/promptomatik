@@ -1,9 +1,9 @@
 import { nanoid } from "nanoid";
 import type { Env } from "../env";
 import {
+  accentModelChainForMode,
   getTtsModelConfig,
   isOpenRouterTtsModel,
-  isPre38TtsModel,
   modelChainForMode,
   priceForModel,
   audioCostUsd,
@@ -272,14 +272,14 @@ async function generateSegment(
   // A malformed transcript fails before any provider is paid for it.
   validateTranscriptForTts(row.mode, segment.text);
 
-  // Gemini 3.8 ignores an accent asked for in its style; the pre-3.8 models
-  // (2.5 Pro) perform one from their prompt, so an accented take starts there.
-  const steps = modelChainForMode(getTtsModelConfig(env), row.mode);
-  const ordered = hasRegionalAccent(direction, row.mode)
-    ? [...steps.filter((step) => isPre38TtsModel(step.model)), ...steps.filter((step) => !isPre38TtsModel(step.model))]
-    : steps;
+  // Gemini 3.8 ignores an accent asked for in its style, so an accented take
+  // goes to models that perform one from their prompt first.
+  const config = getTtsModelConfig(env);
+  const steps = hasRegionalAccent(direction, row.mode)
+    ? accentModelChainForMode(config, row.mode)
+    : modelChainForMode(config, row.mode);
   // A model whose provider has no key configured is skipped.
-  const chain = ordered.flatMap((step) => {
+  const chain = steps.flatMap((step) => {
     const apiKey = ttsApiKey(env, step.model);
     return apiKey ? [{ model: step.model, apiKey }] : [];
   });

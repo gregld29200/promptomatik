@@ -718,7 +718,7 @@ describe("accented takes", () => {
     });
   }
 
-  it("starts an accented take on 2.5 Pro, which performs the accent", async () => {
+  it("starts an accented take on the accent model, which performs the accent", async () => {
     const userId = "accent-user";
     await seedParticipant(userId);
     const job = await createAccentJob(userId, "accent du midi");
@@ -731,27 +731,25 @@ describe("accented takes", () => {
       },
     });
 
-    expect(attempted).toEqual([getTtsModelConfig(testEnv).finalModel]);
+    expect(attempted).toEqual(["gemini-3.1-flash-tts-preview"]);
   });
 
-  it("falls back to 3.8 when 2.5 Pro is out of quota, so the take still happens", async () => {
+  it("tries 2.5 Pro, then 3.8, when the accent model is out of quota", async () => {
     const userId = "accent-quota-user";
     await seedParticipant(userId);
     const job = await createAccentJob(userId, "accent marseillais prononcé");
 
+    const config = getTtsModelConfig(testEnv);
     const attempted: string[] = [];
     await processAudioJob(testEnv, job.id, {
       async generateBlock(input) {
         attempted.push(input.model);
-        if (input.model === getTtsModelConfig(testEnv).finalModel) {
-          throw new TtsProviderError("Quota exceeded.", true, 429);
-        }
+        if (input.model !== config.monologueModel) throw new TtsProviderError("Quota exceeded.", true, 429);
         return { pcm: pcm(2), durationSeconds: 2, retryCount: 0, model: input.model };
       },
     });
 
-    const config = getTtsModelConfig(testEnv);
-    expect(attempted).toEqual([config.finalModel, config.monologueModel]);
+    expect(attempted).toEqual(["gemini-3.1-flash-tts-preview", config.finalModel, config.monologueModel]);
   });
 
   it("hands the models the accent as an explicit brief", async () => {

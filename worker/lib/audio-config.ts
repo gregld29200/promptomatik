@@ -32,6 +32,8 @@ export interface TtsModelConfig {
   finalModel: string;
   monologueModel: string;
   dialogueModel: string;
+  /** First model for a take with a regional accent (Gemini API id). */
+  accentModel: string;
   draftPricePer1MTokens: number;
   finalPricePer1MTokens: number;
   openRouterPricePer1MTokens: number;
@@ -55,6 +57,11 @@ const DEFAULT_TTS_MODEL_FINAL = "gemini-2.5-pro-preview-tts";
 // which puts no daily request cap on a paid model — the Gemini API Tier 1
 // caps each TTS model at 50-100 requests/day per project.
 const DEFAULT_TTS_MODEL_PRIMARY = "google/gemini-3.8-flash-tts";
+// Takes with a regional accent: 3.8 ignores an accent in its style, while 3.1
+// Flash performs it from the prompt (measured 2026-10-07 with an audio judge:
+// a broad Marseille accent in 4 takes of 4, where 2.5 Pro managed 0 of 4 on
+// the same prompt).
+const DEFAULT_TTS_MODEL_ACCENT = "gemini-3.1-flash-tts-preview";
 const DEFAULT_LLM_MODEL_PREP = "gemini-2.5-flash";
 
 // OpenRouter ids carry the vendor prefix ("google/…"); Gemini API ids do not.
@@ -62,11 +69,6 @@ export function isOpenRouterTtsModel(model: string): boolean {
   return model.includes("/");
 }
 
-// The 2.5 TTS models on the Gemini API read their direction, accent included,
-// from the prompt; 3.8 speaks its input verbatim and ignores a style accent.
-export function isPre38TtsModel(model: string): boolean {
-  return !isOpenRouterTtsModel(model) && /^gemini-2\./.test(model);
-}
 
 function readNumber(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
@@ -80,6 +82,7 @@ export function getTtsModelConfig(env: Env): TtsModelConfig {
     finalModel: env.TTS_MODEL_FINAL?.trim() || DEFAULT_TTS_MODEL_FINAL,
     monologueModel: env.TTS_MODEL_MONOLOGUE?.trim() || DEFAULT_TTS_MODEL_PRIMARY,
     dialogueModel: env.TTS_MODEL_DIALOGUE?.trim() || DEFAULT_TTS_MODEL_PRIMARY,
+    accentModel: env.TTS_MODEL_ACCENT?.trim() || DEFAULT_TTS_MODEL_ACCENT,
     draftPricePer1MTokens: readNumber(env.TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT, 10),
     finalPricePer1MTokens: readNumber(env.TTS_PRICE_AUDIO_PER_1M_TOKENS_FINAL, 20),
     // OpenRouter list price of 3.8 Flash TTS: $9 per 1M audio tokens.
@@ -113,6 +116,17 @@ export function modelChainForMode(config: TtsModelConfig, mode: AudioMode): TtsM
     chain.push({ model: config.finalModel, pricePer1MTokens: priceForModel(config, config.finalModel) });
   }
   return chain;
+}
+
+// A take with a regional accent starts on the accent model, then the pre-3.8
+// Gemini models, which also read the accent from their prompt, and only then
+// 3.8, which would drop it. Each Gemini model has its own daily quota, so
+// the chain also spreads accented takes across them.
+export function accentModelChainForMode(config: TtsModelConfig, mode: AudioMode): TtsModelStep[] {
+  const usual = modelChainForMode(config, mode).map((step) => step.model);
+  const readsAccent = (model: string) => !isOpenRouterTtsModel(model) && !/^gemini-3\.8-/.test(model);
+  const models = [config.accentModel, ...usual.filter(readsAccent), ...usual.filter((model) => !readsAccent(model))];
+  return [...new Set(models)].map((model) => ({ model, pricePer1MTokens: priceForModel(config, model) }));
 }
 
 // Gemini 3.8 TTS bills 32 audio tokens per second of speech, not the 25 of
