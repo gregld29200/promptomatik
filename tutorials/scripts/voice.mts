@@ -1,0 +1,78 @@
+// The narration, one take per paragraph, read by a studio voice (Marco).
+// A recorded voice-over can replace it take by take (see README.md).
+//
+//   npm run voice                           Studio audio, missing paragraphs only
+//   npm run voice -- documents              another tutorial
+//   npm run voice -- documents --force      every paragraph again
+//   npm run voice -- documents --only=ch2-3,ch5-1
+//
+// Needs OPENROUTER_API_KEY. Writes public/<tutorial>/voice/.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { generateBlock } from "../../worker/lib/tts-provider";
+import { wavFromPcm } from "../../worker/lib/audio-assembly";
+import { PCM_BYTES_PER_SECOND, type AudioDirection } from "../../worker/lib/audio-config";
+import { speakerLabelPrefix } from "../../src/lib/audio-script-rules";
+import { tutorialScript } from "../src/tutorial/catalog";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const script = tutorialScript(process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? "studio-audio");
+const OUT = resolve(ROOT, "public", script.id, "voice");
+const MANIFEST = resolve(OUT, "manifest.json");
+const MODEL = "google/gemini-3.8-flash-tts";
+const NARRATOR = "Algieba";
+// The voice drifted from take to take (higher, Canadian-sounding) on the
+// bare "Neutral" accent: the accent and the timbre are pinned down here.
+const DIRECTION: AudioDirection = {
+  level: "C1",
+  accent: "Neutral",
+  accentDetail: "Standard French from France, as spoken in Paris; never Canadian, Belgian or Swiss",
+  pace: "Natural classroom speed",
+  style: "Warm and encouraging",
+  notes: "the same calm adult male narrator in every take, low and steady pitch",
+};
+const CONCURRENCY = 3;
+
+interface VoiceEntry {
+  file: string;
+  seconds: number;
+  text: string;
+  source: "studio" | "recorded";
+}
+
+const apiKey = process.env.OPENROUTER_API_KEY;
+if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set.");
+
+const force = process.argv.includes("--force");
+const only = process.argv.find((arg) => arg.startsWith("--only="))?.slice("--only=".length).split(",");
+
+mkdirSync(OUT, { recursive: true });
+const manifest: Record<string, VoiceEntry> = existsSync(MANIFEST) ? JSON.parse(readFileSync(MANIFEST, "utf8")) : {};
+const paragraphs = script.chapters.flatMap((chapter) => chapter.paragraphs).filter((paragraph) => {
+  if (only) return only.includes(paragraph.id);
+  const entry = manifest[paragraph.id];
+  return force || !entry || entry.text !== paragraph.text || !existsSync(resolve(ROOT, "public", entry.file));
+});
+
+// A monologue line opening on "Un petit conseil :" reads as a speaker label
+// to the studio, which refuses it: the narrator says a comma instead.
+function spoken(text: string): string {
+  return speakerLabelPrefix(text) ? text.replace(/\s*:/, ",") : text;
+}
+
+async function read(id: string, text: string) {
+  const result = await generateBlock({ apiKey: apiKey as string, model: MODEL, script: spoken(text), mode: "monologue", voices: { solo: NARRATOR }, direction: DIRECTION });
+  const file = `${script.id}/voice/${id}.wav`;
+  writeFileSync(resolve(ROOT, "public", file), wavFromPcm(result.pcm));
+  manifest[id] = { file, seconds: result.pcm.byteLength / PCM_BYTES_PER_SECOND, text, source: "studio" };
+  writeFileSync(MANIFEST, `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`${id}: ${manifest[id].seconds.toFixed(1)} s`);
+}
+
+const queue = [...paragraphs];
+await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
+  for (let next = queue.shift(); next; next = queue.shift()) await read(next.id, next.text);
+}));
+const total = Object.values(manifest).reduce((sum, entry) => sum + entry.seconds, 0);
+console.log(`${paragraphs.length} paragraph(s) read; narration ${Math.round(total)} s in all.`);

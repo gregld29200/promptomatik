@@ -1,0 +1,131 @@
+{
+  "key": "7ea03259a998c62a5f566b922bca22b4424da925249a696d5d5b1cba0c256e30",
+  "material": {
+    "material_type": "clean_handout",
+    "title": "Samedi matin au marché",
+    "source_text": "# Samedi matin au marché\n\n## Consigne\n\nLisez le texte, puis répondez aux questions. Aidez-vous des mots utiles en bas de la fiche.\n\n## Le texte\n\nTous les samedis, Inès va au marché de son quartier. Elle aime l'ambiance : les marchands parlent fort, les clients discutent, ça sent le pain chaud et les fraises.\n\nElle commence toujours par l'étal de Marcel, le maraîcher. Aujourd'hui, elle achète un kilo de tomates et une barquette de fraises. Marcel lui propose de goûter une nouvelle variété de pommes. Elle en prend trois.\n\nEnsuite, elle passe chez le fromager. Il y a la queue, mais elle n'est pas pressée. Elle paie en espèces, compte sa monnaie et rentre à pied, son panier bien rempli.\n\n\n\n![Un étal de fruits et légumes](studio:etal01)\n\n## Questions\n\n1. Quel jour Inès va-t-elle au marché ?\n2. Qu'est-ce qu'elle achète chez Marcel ?\n3. Pourquoi est-ce qu'elle n'est pas pressée chez le fromager ?\n\nVocabulaire utile : un étal, une barquette, goûter, la queue, la monnaie\n\n> **Pour aller plus loin :** racontez à votre voisin votre marché préféré.",
+    "bold_phrases": [
+      "étal",
+      "barquette",
+      "goûter"
+    ],
+    "heading_phrases": [
+      "Samedi matin au marché",
+      "Consigne",
+      "Le texte",
+      "Questions"
+    ],
+    "structure": [
+      {
+        "type": "heading",
+        "line_ids": [
+          1
+        ]
+      },
+      {
+        "type": "heading",
+        "line_ids": [
+          2
+        ]
+      },
+      {
+        "type": "paragraph",
+        "line_ids": [
+          3
+        ]
+      },
+      {
+        "type": "heading",
+        "line_ids": [
+          4
+        ]
+      },
+      {
+        "type": "paragraph",
+        "line_ids": [
+          5
+        ]
+      },
+      {
+        "type": "paragraph",
+        "line_ids": [
+          6
+        ]
+      },
+      {
+        "type": "paragraph",
+        "line_ids": [
+          7
+        ]
+      },
+      {
+        "type": "image",
+        "line_ids": [
+          8
+        ]
+      },
+      {
+        "type": "heading",
+        "line_ids": [
+          9
+        ]
+      },
+      {
+        "type": "numbered_list",
+        "line_ids": [
+          10,
+          11,
+          12
+        ]
+      },
+      {
+        "type": "word_bank",
+        "line_ids": [
+          13
+        ]
+      },
+      {
+        "type": "callout",
+        "line_ids": [
+          14
+        ]
+      }
+    ],
+    "template_id": "editorial_reader",
+    "document_type": "worksheet",
+    "orientation": "portrait",
+    "level": "A2",
+    "language_focus": "français",
+    "locale": "fr",
+    "blocks": [
+      {
+        "type": "matching",
+        "pairs": [
+          {
+            "left": "Marcel",
+            "right": "le maraîcher"
+          },
+          {
+            "left": "un kilo",
+            "right": "de tomates"
+          },
+          {
+            "left": "une barquette",
+            "right": "de fraises"
+          },
+          {
+            "left": "payer",
+            "right": "en espèces"
+          },
+          {
+            "left": "rentrer",
+            "right": "à pied"
+          }
+        ]
+      }
+    ],
+    "id": "material-1791800513453-0",
+    "preset_id": "studio_academic",
+    "request_status": "applied"
+  }
+}
