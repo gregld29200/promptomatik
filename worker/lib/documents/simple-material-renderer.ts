@@ -35,6 +35,7 @@ type ChromeLabels = Record<BadgeType, string> & {
   situation: string;
   goal: string;
   answer: string;
+  matching: string;
   true_label: string;
   false_label: string;
   image_missing: string;
@@ -61,6 +62,7 @@ const CHROME_LABELS: Record<'fr' | 'en' | 'es', ChromeLabels> = {
     situation: 'Situation',
     goal: 'Objectif',
     answer: 'Réponse',
+    matching: 'Associez chaque élément à sa paire',
     true_label: 'Vrai',
     false_label: 'Faux',
     image_missing: 'Image introuvable',
@@ -85,6 +87,7 @@ const CHROME_LABELS: Record<'fr' | 'en' | 'es', ChromeLabels> = {
     situation: 'Situation',
     goal: 'Goal',
     answer: 'Answer',
+    matching: 'Match each item to its pair',
     true_label: 'True',
     false_label: 'False',
     image_missing: 'Image not found',
@@ -109,6 +112,7 @@ const CHROME_LABELS: Record<'fr' | 'en' | 'es', ChromeLabels> = {
     situation: 'Situación',
     goal: 'Objetivo',
     answer: 'Respuesta',
+    matching: 'Relaciona cada elemento con su pareja',
     true_label: 'Verdadero',
     false_label: 'Falso',
     image_missing: 'Imagen no encontrada',
@@ -413,9 +417,61 @@ function renderFillBlanks(block: Extract<MaterialBlock, { type: 'fill_blanks' }>
   return `<section>${heading(block.heading)}${wordBank}<ol>${items}</ol></section>`;
 }
 
-function renderMatching(block: Extract<MaterialBlock, { type: 'matching' }>): string {
-  const items = block.pairs.map((pair) => `<li><span>${renderInlineText(pair.left)}</span><span>${renderInlineText(pair.right)}</span></li>`).join('');
-  return `<section>${heading(block.heading)}<ul class="matching">${items}</ul></section>`;
+/** A small, stable hash: the same pairs always print in the same order. */
+function seedOf(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * The order the right-hand column is printed in on learner documents: shuffled
+ * so that no item sits next to its pair, and identical on every render, so the
+ * preview, the PDF and a reprint always agree.
+ */
+export function matchingOrder(pairs: Array<{ left: string; right: string }>): number[] {
+  const count = pairs.length;
+  const identity = pairs.map((_, index) => index);
+  if (count < 2) return identity;
+  let seed = seedOf(pairs.map((pair) => `${pair.left}\u0000${pair.right}`).join('\u0001'));
+  const random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  };
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const order = [...identity];
+    for (let index = count - 1; index > 0; index -= 1) {
+      const swap = Math.floor(random() * (index + 1));
+      [order[index], order[swap]] = [order[swap], order[index]];
+    }
+    if (order.every((value, index) => value !== index)) return order;
+  }
+  // A rotation never leaves an item in place.
+  return identity.map((index) => (index + 1) % count);
+}
+
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+function renderMatching(
+  block: Extract<MaterialBlock, { type: 'matching' }>,
+  documentType: DocumentType,
+  labels: ChromeLabels,
+): string {
+  const title = heading(block.heading || labels.matching);
+  // Teacher-facing documents keep the pairs side by side: it is the key.
+  if (documentType === 'teacher_guide' || documentType === 'lesson_plan') {
+    const items = block.pairs.map((pair) => `<li><span>${renderInlineText(pair.left)}</span><span>${renderInlineText(pair.right)}</span></li>`).join('');
+    return `<section>${title}<ul class="matching">${items}</ul></section>`;
+  }
+  const order = matchingOrder(block.pairs);
+  const rows = block.pairs.map((pair, index) => {
+    const right = block.pairs[order[index]].right;
+    return `<li><span class="match-left"><b>${index + 1}.</b> ${renderInlineText(pair.left)}<span class="match-slot" aria-hidden="true"></span></span><span class="match-right"><b>${LETTERS[index] ?? index + 1})</b> ${renderInlineText(right)}</span></li>`;
+  }).join('');
+  return `<section>${title}<ul class="matching matching-exercise">${rows}</ul></section>`;
 }
 
 function renderRoleCards(block: Extract<MaterialBlock, { type: 'role_cards' }>, labels: ChromeLabels): string {
@@ -440,7 +496,7 @@ function renderBlock(
     case 'reference_list': return renderReferenceList(block);
     case 'questions': return renderQuestions(block, documentType, labels);
     case 'fill_blanks': return renderFillBlanks(block, labels);
-    case 'matching': return renderMatching(block);
+    case 'matching': return renderMatching(block, documentType, labels);
     case 'role_cards': return renderRoleCards(block, labels);
     default: return '';
   }
@@ -947,6 +1003,9 @@ function buildCss(template: SimpleTemplate, orientation: DocumentOrientation): s
   .answer-key ul, .answer-key ol { background: none; }
   .matching { margin-left: 0; padding: 0; list-style: none; }
   .matching li { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; padding: 2mm 0; border-bottom: 1px solid ${template.rule}; }
+  .matching-exercise .match-left { display: flex; align-items: baseline; gap: 2mm; }
+  .matching-exercise .match-slot { margin-left: auto; width: 12mm; border-bottom: 1px solid ${template.muted}; }
+  .matching-exercise b { color: ${template.accent}; }
   .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
   .role-card { padding: 4mm; border: 1px solid ${template.rule}; break-inside: avoid; }
   .role-card p { margin-bottom: 2mm; }

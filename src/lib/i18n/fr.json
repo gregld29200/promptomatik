@@ -600,7 +600,7 @@
     "language_placeholder": "Ex. : français",
     "level_label": "Niveau",
     "level_unspecified": "Non précisé",
-    "help_level": "Affiché dans l'en-tête du document. Si vous demandez un ajout (banque de mots, questions…), il guide aussi sa difficulté.",
+    "help_level": "Affiché dans l'en-tête du document, sauf sur un document libre ou un support apprenant. Si vous demandez un ajout (banque de mots, questions…), il guide aussi sa difficulté.",
     "emphasis_label": "Mots à mettre en gras",
     "emphasis_placeholder": "Ex. : retard, délai, reformuler",
     "emphasis_help": "Séparez-les par des virgules. Ils seront en gras partout où ils apparaissent dans votre texte.",
@@ -871,7 +871,7 @@
     "missing_type": "Choisissez le type de document à l'étape 2.",
     "optional_title": "Précisions facultatives",
     "optional_count": "{{count}} renseignée(s)",
-    "optional_intro": "Rien d'obligatoire ici. Le titre, le niveau et la langue s'affichent dans l'en-tête du document.",
+    "optional_intro": "Rien d'obligatoire ici. Le titre s'affiche en tête du document ; le niveau et la langue aussi, sauf sur un document libre ou un support apprenant.",
     "additions_label": "Ajouter au document",
     "additions_help": "Seul ajout possible par l'IA, uniquement si vous cochez. Il est tiré de votre texte et placé à la fin.",
     "additions": {
