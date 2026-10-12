@@ -22,11 +22,15 @@ const OUT = resolve(ROOT, "public", script.id, "voice");
 const MANIFEST = resolve(OUT, "manifest.json");
 const MODEL = "google/gemini-3.8-flash-tts";
 const NARRATOR = "Algieba";
+// The voice drifted from take to take (higher, Canadian-sounding) on the
+// bare "Neutral" accent: the accent and the timbre are pinned down here.
 const DIRECTION: AudioDirection = {
   level: "C1",
   accent: "Neutral",
+  accentDetail: "Standard French from France, as spoken in Paris; never Canadian, Belgian or Swiss",
   pace: "Natural classroom speed",
   style: "Warm and encouraging",
+  notes: "the same calm adult male narrator in every take, low and steady pitch",
 };
 const CONCURRENCY = 3;
 
