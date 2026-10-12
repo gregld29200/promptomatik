@@ -5,7 +5,7 @@ Tutorial videos for TeachInspire Studio, edited in code with [Remotion](https://
 Two tutorials so far:
 
 - **Prise en main du Studio audio** (Module 5, video 1), in two cuts: `StudioAudioModule`, with the module's opening and its hand-off to video 2, and `StudioAudioSite`, the same tutorial on its own, for the help pages;
-- **Prise en main de Documents**, for the site: `DocumentsSite`.
+- **Prise en main de Documents** (Module 6, video 1), in two cuts: `DocumentsModule`, with the module's opening and its hand-off to video 2 (Katrin's session), and `DocumentsSite`, for the help pages.
 
 ## Making the videos
 
@@ -23,10 +23,11 @@ npm run render:site
 # Documents
 npm run voice -- documents
 npm run capture -- documents   # also builds the demo worksheet and prints its PDF
-npm run render:documents
+npm run render:documents:module
+npm run render:documents:site
 ```
 
-`demo` needs `GEMINI_API_KEY` (first run only: the review it gets is kept in `fixtures/`) and `OPENROUTER_API_KEY`; `voice` needs `OPENROUTER_API_KEY`, and so does the Documents capture the first time (the comprehension questions it adds are kept in `fixtures/documents/`). Everything they make lands in `public/` and the videos in `out/`, neither of which is committed.
+`demo` needs `GEMINI_API_KEY` (first run only: the review it gets is kept in `fixtures/`) and `OPENROUTER_API_KEY`; `voice` needs `OPENROUTER_API_KEY`, and so does the Documents capture the first time (the matching exercise it adds is kept in `fixtures/documents/`). Everything they make lands in `public/` and the videos in `out/`, neither of which is committed.
 
 `capture` drives Chromium with Playwright: run `npx playwright install chromium` once, or point `CHROMIUM_PATH` at a Chromium (the full browser, not the headless shell: the Documents capture uses its PDF viewer). Remotion downloads its own browser; `REMOTION_BROWSER` points it at a local one instead.
 

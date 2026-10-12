@@ -1,21 +1,19 @@
 {
-  "key": "29eb667eeb6e8895bbd85320c15120263a595b9e0a6ad7822abb3e8c9a21977d",
+  "key": "7ea03259a998c62a5f566b922bca22b4424da925249a696d5d5b1cba0c256e30",
   "material": {
     "material_type": "clean_handout",
-    "title": "Fiche apprenant — Le jour de l'emménagement",
-    "source_text": "# Fiche apprenant — Le jour de l'emménagement\n\n**Objectif :** comprendre un dialogue du quotidien et parler de son logement.\n\n**Niveau :** B1 · **Durée :** 45 min\n\n\n\n![Cartons du déménagement](studio:cartons01)\n\n## Activité 1 — Écoute globale\n\nÉcoutez le dialogue entre Leïla et Antoine. Où sont-ils ?\n\na) Dans un magasin de meubles\n\nb) Dans leur nouvel appartement\n\nc) Chez des voisins\n\n## Activité 2 — Vrai ou faux ?\n\n1. Leïla porte un carton plein de livres.\n2. Antoine veut mettre la table dans la chambre.\n3. Il reste encore une vingtaine de boîtes à ouvrir.\n\n## Activité 3 — Où va chaque meuble ?\n\n| **Meuble** | **Pièce** | **Où exactement ?** |\n| --- | --- | --- |\n| La bibliothèque | Le salon | À côté du canapé |\n| La table |  |  |\n| Les livres |  |  |\n\n## Activité 4 — Complétez\n\nBanque de mots : bibliothèque, carton, week-end\n\n1. Ce _______ est trop lourd pour moi.\n2. On pourrait mettre une petite _______ à côté du canapé du salon.\n3. Pas de panique, on a tout le _______.\n\n> **Rappel :** on *emménage* dans un nouveau logement ; on *déménage* quand on le quitte.\n\n## Activité 5 — À vous !\n\nDécrivez la pièce que vous préférez chez vous, en quelques phrases.\n\n[lignes: 5]\n\n- [ ] Je nomme au moins trois meubles.\n\n- [ ] J'utilise des prépositions de lieu.\n\n- [ ] Je dis pourquoi j'aime cette pièce.",
+    "title": "Samedi matin au marché",
+    "source_text": "# Samedi matin au marché\n\n## Consigne\n\nLisez le texte, puis répondez aux questions. Aidez-vous des mots utiles en bas de la fiche.\n\n## Le texte\n\nTous les samedis, Inès va au marché de son quartier. Elle aime l'ambiance : les marchands parlent fort, les clients discutent, ça sent le pain chaud et les fraises.\n\nElle commence toujours par l'étal de Marcel, le maraîcher. Aujourd'hui, elle achète un kilo de tomates et une barquette de fraises. Marcel lui propose de goûter une nouvelle variété de pommes. Elle en prend trois.\n\nEnsuite, elle passe chez le fromager. Il y a la queue, mais elle n'est pas pressée. Elle paie en espèces, compte sa monnaie et rentre à pied, son panier bien rempli.\n\n\n\n![Un étal de fruits et légumes](studio:etal01)\n\n## Questions\n\n1. Quel jour Inès va-t-elle au marché ?\n2. Qu'est-ce qu'elle achète chez Marcel ?\n3. Pourquoi est-ce qu'elle n'est pas pressée chez le fromager ?\n\nVocabulaire utile : un étal, une barquette, goûter, la queue, la monnaie\n\n> **Pour aller plus loin :** racontez à votre voisin votre marché préféré.",
     "bold_phrases": [
-      "Carton",
-      "canapé",
-      "bibliothèque"
+      "étal",
+      "barquette",
+      "goûter"
     ],
     "heading_phrases": [
-      "Fiche apprenant — Le jour de l'emménagement",
-      "Activité 1 — Écoute globale",
-      "Activité 2 — Vrai ou faux ?",
-      "Activité 3 — Où va chaque meuble ?",
-      "Activité 4 — Complétez",
-      "Activité 5 — À vous !"
+      "Samedi matin au marché",
+      "Consigne",
+      "Le texte",
+      "Questions"
     ],
     "structure": [
       {
@@ -25,20 +23,25 @@
         ]
       },
       {
-        "type": "fields",
+        "type": "heading",
         "line_ids": [
-          2,
+          2
+        ]
+      },
+      {
+        "type": "paragraph",
+        "line_ids": [
           3
         ]
       },
       {
-        "type": "image",
+        "type": "heading",
         "line_ids": [
           4
         ]
       },
       {
-        "type": "heading",
+        "type": "paragraph",
         "line_ids": [
           5
         ]
@@ -50,130 +53,78 @@
         ]
       },
       {
-        "type": "lettered_list",
+        "type": "paragraph",
         "line_ids": [
-          7,
-          8,
-          9
+          7
+        ]
+      },
+      {
+        "type": "image",
+        "line_ids": [
+          8
         ]
       },
       {
         "type": "heading",
         "line_ids": [
-          10
+          9
         ]
       },
       {
         "type": "numbered_list",
         "line_ids": [
+          10,
           11,
-          12,
-          13
-        ]
-      },
-      {
-        "type": "heading",
-        "line_ids": [
-          14
-        ]
-      },
-      {
-        "type": "table",
-        "line_ids": [
-          15,
-          16,
-          17,
-          18,
-          19
-        ]
-      },
-      {
-        "type": "heading",
-        "line_ids": [
-          20
+          12
         ]
       },
       {
         "type": "word_bank",
         "line_ids": [
-          21
-        ]
-      },
-      {
-        "type": "numbered_list",
-        "line_ids": [
-          22,
-          23,
-          24
+          13
         ]
       },
       {
         "type": "callout",
         "line_ids": [
-          25
-        ]
-      },
-      {
-        "type": "heading",
-        "line_ids": [
-          26
-        ]
-      },
-      {
-        "type": "paragraph",
-        "line_ids": [
-          27
-        ]
-      },
-      {
-        "type": "answer_space",
-        "line_ids": [
-          28
-        ]
-      },
-      {
-        "type": "checklist",
-        "line_ids": [
-          29,
-          30,
-          31
+          14
         ]
       }
     ],
     "template_id": "editorial_reader",
     "document_type": "worksheet",
     "orientation": "portrait",
-    "level": "B1",
+    "level": "A2",
     "language_focus": "français",
     "locale": "fr",
     "blocks": [
       {
-        "type": "questions",
-        "items": [
+        "type": "matching",
+        "pairs": [
           {
-            "prompt": "Qui sont les deux personnes qui parlent dans le dialogue ?",
-            "answer": "Ce sont Leïla et Antoine."
+            "left": "Marcel",
+            "right": "le maraîcher"
           },
           {
-            "prompt": "Qu'y a-t-il dans le carton que porte Leïla ?",
-            "answer": "Le carton est plein de livres."
+            "left": "un kilo",
+            "right": "de tomates"
           },
           {
-            "prompt": "Combien de boîtes reste-t-il environ à ouvrir ?",
-            "answer": "Il reste encore une vingtaine de boîtes à ouvrir."
+            "left": "une barquette",
+            "right": "de fraises"
           },
           {
-            "prompt": "Où vont-ils mettre la bibliothèque ?",
-            "answer": "Ils vont la mettre dans le salon, à côté du canapé."
+            "left": "payer",
+            "right": "en espèces"
           },
           {
-            "prompt": "Combien de temps ont-ils pour finir de s'installer ?",
-            "answer": "Ils ont tout le week-end."
+            "left": "rentrer",
+            "right": "à pied"
           }
         ]
       }
     ],
-    "id": "material-1791201789656-0",
+    "id": "material-1791800513453-0",
     "preset_id": "studio_academic",
     "request_status": "applied"
   }

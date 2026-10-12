@@ -3,7 +3,7 @@
 // PDF printed by Chromium as the worker does, and the one AI addition kept as
 // a fixture so every capture shows the same document.
 //
-// Needs OPENROUTER_API_KEY the first time (the comprehension questions).
+// Needs OPENROUTER_API_KEY the first time (the matching exercise).
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -11,15 +11,13 @@ import type { Browser, Locator, Page, Route } from "playwright";
 import { additionsAllowedTypes, buildDocument, isDocumentAddition } from "../../../worker/lib/documents/generate";
 import { renderMaterialHtml } from "../../../worker/lib/documents/material-renderer";
 import type { DocumentDesign, SimpleTemplateId, SimpleTransformMaterial } from "../../../worker/lib/documents/types";
-import { ACCENT, DEMO_PASTE_HTML, EMPHASIS, FOOTER, IMAGE_BEFORE, IMAGE_FILE } from "../../src/documents/script";
-import { CARTONS_SIZE, CARTONS_SVG } from "./illustration.mts";
+import { ACCENT, DEMO_PASTE_HTML, EMPHASIS, FOOTER, IMAGE_BEFORE, IMAGE_FILE, LANGUAGE, LEVEL } from "../../src/documents/script";
+import { STALL_SIZE, STALL_SVG } from "./illustration.mts";
 import { MOCK_USER, ROOT, json, measure, type Box, type BoxSpec, type Shooter, type Walk, type WalkContext } from "./kit.mts";
 
 const OUT = resolve(ROOT, "public/documents");
 const FIXTURE = resolve(ROOT, "fixtures/documents/material.json");
-const IMAGE_ID = "cartons01";
-/** Where the added questions start, in pages from the top of the PDF. */
-const QUESTIONS_AT = 1.72;
+const IMAGE_ID = "etal01";
 const DAY = 86_400_000;
 const iso = (offset: number) => new Date(Date.now() + offset).toISOString();
 
@@ -81,7 +79,7 @@ async function buildMaterial(request: TransformRequest): Promise<SimpleTransform
     if (cached.key === key) return cached.material;
   }
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set: the comprehension questions are written by the model.");
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY is not set: the matching exercise is written by the model.");
   const additions = (request.additions ?? []).filter(isDocumentAddition);
   const result = await buildDocument({ apiKey, fetcher: narrowedFetcher(additionsAllowedTypes(additions)) }, request.content, {
     title: request.title,
@@ -319,6 +317,8 @@ const BOXES: Record<string, BoxSpec> = {
   addImage: (p) => p.getByRole("button", { name: "Ajouter une image" }),
   syntaxToggle: (p) => p.getByRole("button", { name: "Ce que Documents reconnaît" }),
   syntaxHelp: (p) => p.locator("dl").filter({ hasText: "# Titre" }).first(),
+  syntaxWordBank: (p) => p.locator("dl > div").filter({ hasText: "Banque de mots" }).first(),
+  syntaxBreaks: (p) => p.locator("dl > div").filter({ hasText: "[lignes: 6]" }).first(),
   caret: (p) => p.evaluate(() => (window as unknown as { __caret?: { x: number; y: number; w: number; h: number } }).__caret ?? null),
   catalogue: (p) => p.getByRole("radiogroup").first(),
   groupLearner: (p) => group(p, "À distribuer à l'apprenant"),
@@ -327,23 +327,27 @@ const BOXES: Record<string, BoxSpec> = {
   groupOther: (p) => p.getByRole("radiogroup").locator("p", { hasText: /^Autre$/ }).locator(".."),
   typeWorksheet: (p) => p.locator("label").filter({ hasText: "Support apprenant (exercices)" }),
   typeFree: (p) => p.locator("label").filter({ hasText: "Document libre" }),
+  typeTeacherGuide: (p) => p.locator("label").filter({ hasText: "Guide enseignant et corrigés" }),
   optionalSummary: (p) => p.locator("details summary").filter({ hasText: "Précisions facultatives" }),
   optionalBody: (p) => p.locator("details").filter({ hasText: "Précisions facultatives" }),
-  titleLanguage: (p) => [labelled(p, "Titre du document"), labelled(p, "Langue enseignée")],
+  titleField: (p) => labelled(p, "Titre du document"),
+  languageField: (p) => labelled(p, "Langue enseignée"),
   levelChips: (p) => fieldset(p, "Niveau"),
-  levelB1: (p) => fieldset(p, "Niveau").getByRole("button", { name: "B1", exact: true }),
+  levelChoice: (p) => fieldset(p, "Niveau").getByRole("button", { name: LEVEL, exact: true }),
   emphasisField: (p) => labelled(p, "Mots à mettre en gras"),
   levelEmphasis: (p) => [fieldset(p, "Niveau"), labelled(p, "Mots à mettre en gras")],
   additions: (p) => fieldset(p, "Ajouter au document"),
-  additionQuestions: (p) => p.locator("label").filter({ hasText: "Des questions de compréhension" }),
+  additionMatching: (p) => p.locator("label").filter({ hasText: "Un exercice d'appariement" }),
   submitBar: (p) => submit(p).locator(".."),
   submitBtn: (p) => submit(p),
   submitHint: (p) => submit(p).locator("..").locator("p"),
   recent: (p) => recent(p),
   recentRow: (p) => recent(p).locator("button:not([aria-label])").first(),
+  recentDelete: (p) => recent(p).locator("button[aria-label]").first(),
   waiting: (p) => p.locator("section").filter({ hasText: "Mise en page de votre document" }).first(),
   reviewTop: (p) => [p.locator("#review-title").locator("..").locator(".."), p.getByRole("button", { name: "Modifier le texte" }).locator("..")],
   downloadBtn: (p) => p.getByRole("button", { name: "Télécharger le PDF" }).first(),
+  docTitle: (p) => p.locator("#review-title").locator("xpath=following-sibling::p[1]"),
   editText: (p) => p.getByRole("button", { name: "Modifier le texte" }),
   copyText: (p) => p.getByRole("button", { name: "Copier le texte" }),
   previewFrame: (p) => p.locator("iframe").first(),
@@ -354,6 +358,7 @@ const BOXES: Record<string, BoxSpec> = {
   panel: (p) => panel(p),
   panelTop: (p) => [p.locator("#appearance-panel-title").locator(".."), fieldset(p, "Orientation")],
   panelIntro: (p) => panel(p).locator("p").first(),
+  saveStatus: (p) => p.locator("#appearance-panel-title").locator(".."),
   stylePicker: (p) => panel(p).locator("fieldset").first(),
   styleClassroom: (p) => panel(p).locator("label").filter({ hasText: "Support de classe" }),
   accent: (p) => fieldset(p, "Couleur"),
@@ -361,13 +366,14 @@ const BOXES: Record<string, BoxSpec> = {
   orientation: (p) => fieldset(p, "Orientation"),
   moreSummary: (p) => panel(p).locator("details > summary"),
   moreBody: (p) => panel(p).locator("details"),
-  headerBand: (p) => p.getByRole("button", { name: "Titre sur fond de couleur" }),
+  logoArea: (p) => fieldset(p, "Logo"),
   footerField: (p) => labelled(p, "Pied de page"),
   footerArea: (p) => [labelled(p, "Pied de page"), p.getByRole("button", { name: "Revenir au style d'origine" })],
   resetBtn: (p) => p.getByRole("button", { name: "Revenir au style d'origine" }),
   guidePanel: (p) => p.getByRole("dialog"),
   guideSteps: (p) => p.getByRole("dialog").locator("ol"),
   guidePrompt: (p) => p.getByRole("dialog").locator("section"),
+  guideCopy: (p) => p.getByRole("button", { name: "Copier la consigne" }),
 };
 
 // ---- The walk ----
@@ -416,9 +422,9 @@ async function previewSettled(page: Page) {
 
 async function run(page: Page, shoot: Shooter, ctx: WalkContext) {
   state.browser = ctx.browser;
-  const drawing = await ctx.browser.newPage({ viewport: CARTONS_SIZE });
-  await drawing.setContent(`<body style="margin:0">${CARTONS_SVG}</body>`);
-  state.image = await drawing.screenshot({ clip: { x: 0, y: 0, ...CARTONS_SIZE } });
+  const drawing = await ctx.browser.newPage({ viewport: STALL_SIZE });
+  await drawing.setContent(`<body style="margin:0">${STALL_SVG}</body>`);
+  state.image = await drawing.screenshot({ clip: { x: 0, y: 0, ...STALL_SIZE } });
   await drawing.close();
   page.on("dialog", (dialog) => void dialog.accept());
 
@@ -444,9 +450,9 @@ async function run(page: Page, shoot: Shooter, ctx: WalkContext) {
   });
   await shoot(page, "pasted");
 
-  await markCaret(page, pasted.search(/^\|/m));
+  await markCaret(page, pasted.search(/^1\. /m));
   await clearCaret(page);
-  await shoot(page, "pastedTable");
+  await shoot(page, "pastedList");
 
   const imageAt = pasted.indexOf(IMAGE_BEFORE);
   if (imageAt < 0) throw new Error(`"${IMAGE_BEFORE}" is not in the pasted text.`);
@@ -478,21 +484,23 @@ async function run(page: Page, shoot: Shooter, ctx: WalkContext) {
   await page.locator("details summary").filter({ hasText: "Précisions facultatives" }).click();
   await shoot(page, "optional");
 
-  await fieldset(page, "Niveau").getByRole("button", { name: "B1", exact: true }).click();
-  await labelled(page, "Langue enseignée").locator("input").fill("français");
+  await labelled(page, "Langue enseignée").locator("input").fill(LANGUAGE);
+  await shoot(page, "optionalLanguage");
+  await fieldset(page, "Niveau").getByRole("button", { name: LEVEL, exact: true }).click();
+  await shoot(page, "optionalLevel");
   await labelled(page, "Mots à mettre en gras").locator("input").fill(EMPHASIS);
   await shoot(page, "optionalFilled");
 
-  await page.locator("label").filter({ hasText: "Des questions de compréhension" }).click();
+  await page.locator("label").filter({ hasText: "Un exercice d'appariement" }).click();
   await shoot(page, "addition");
 
   // The document is built before the click, so the studio's request does
   // not wait on the model: same request, same cache key.
   await buildMaterial({
     content,
-    level: "B1",
-    languageFocus: "français",
-    additions: ["questions"],
+    level: LEVEL,
+    languageFocus: LANGUAGE,
+    additions: ["matching"],
     emphasisTerms: EMPHASIS.split(",").map((term) => term.trim()),
     templateId: "editorial_reader",
     documentType: "worksheet",
@@ -518,10 +526,6 @@ async function run(page: Page, shoot: Shooter, ctx: WalkContext) {
   await panel(page).locator("details > summary").click();
   await shoot(page, "more");
 
-  await page.getByRole("button", { name: "Titre sur fond de couleur" }).click();
-  await previewSettled(page);
-  await shoot(page, "band");
-
   await labelled(page, "Pied de page").locator("input").fill(FOOTER);
   await page.waitForTimeout(900);
   await previewSettled(page);
@@ -538,8 +542,8 @@ async function run(page: Page, shoot: Shooter, ctx: WalkContext) {
   await showPdf(page, pages, 0);
   await shoot(page, "exact");
 
-  // The teacher scrolls down to the questions added at the end.
-  await showPdf(page, pages, QUESTIONS_AT);
+  // The teacher scrolls down to the last page, where the matching exercise was added.
+  await showPdf(page, pages, Math.max(0, pages.length - 1));
   await shoot(page, "exactLast");
 
   await page.getByRole("button", { name: "Nouveau document" }).click();
