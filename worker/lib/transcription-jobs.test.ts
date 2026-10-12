@@ -710,7 +710,12 @@ describe("handleTranscriptionJobBatch", () => {
   // Groq would have been eligible again. They cannot succeed by construction.
   it("waits for the Groq breaker when Groq is the only tier there is", async () => {
     await seedJob("job-groq-only");
-    const groqOnly = { ...testEnv, DEEPGRAM_API_KEY: undefined, ASSEMBLYAI_API_KEY: undefined } as Env;
+    const groqOnly = {
+      ...testEnv,
+      GROQ_API_KEY: "test-groq",
+      DEEPGRAM_API_KEY: undefined,
+      ASSEMBLYAI_API_KEY: undefined,
+    } as Env;
     await openGroqBreaker(groqOnly, 180);
 
     const run = recorder({
@@ -728,7 +733,14 @@ describe("handleTranscriptionJobBatch", () => {
 
   it("keeps the prompt ladder when another tier is configured", async () => {
     await seedJob("job-has-fallback");
-    await openGroqBreaker(testEnv, 180);
+    // Explicit keys: the test must not depend on whatever .dev.vars holds.
+    const withFallback = {
+      ...testEnv,
+      GROQ_API_KEY: "test-groq",
+      DEEPGRAM_API_KEY: "test-deepgram",
+      ASSEMBLYAI_API_KEY: "test-assemblyai",
+    } as Env;
+    await openGroqBreaker(withFallback, 180);
 
     const run = recorder({
       submit: async () => {
@@ -736,7 +748,7 @@ describe("handleTranscriptionJobBatch", () => {
       },
     });
     const first = batchOf("job-has-fallback", 1);
-    await handleTranscriptionJobBatch(first.batch, testEnv, run.deps);
+    await handleTranscriptionJobBatch(first.batch, withFallback, run.deps);
 
     // Deepgram and AssemblyAI are configured in this env, so the next delivery
     // has somewhere to go and should be prompt.

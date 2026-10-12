@@ -16,6 +16,8 @@ export interface Env {
   TTS_MODEL_FINAL?: string;
   TTS_MODEL_MONOLOGUE?: string;
   TTS_MODEL_DIALOGUE?: string;
+  /** First model for takes with a regional accent (Gemini API id). */
+  TTS_MODEL_ACCENT?: string;
   TTS_PRICE_AUDIO_PER_1M_TOKENS_DRAFT?: string;
   TTS_PRICE_AUDIO_PER_1M_TOKENS_FINAL?: string;
   TTS_PRICE_AUDIO_PER_1M_TOKENS_OPENROUTER?: string;

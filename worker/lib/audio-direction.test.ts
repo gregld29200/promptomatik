@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TranscriptValidationError, compileDirection, validateTranscriptForTts } from "./audio-direction";
+import { TranscriptValidationError, compileDirection, hasRegionalAccent, validateTranscriptForTts, withAccentBriefs } from "./audio-direction";
 
 describe("compileDirection", () => {
   it("snapshots an A2 monologue direction", () => {
@@ -54,22 +54,16 @@ describe("compileDirection", () => {
         },
       })
     ).toMatchInlineSnapshot(`
-      "Synthesize the following dialogue as speech. Everything before
-      "TRANSCRIPT:" is performance direction — do not read it aloud. Read only the
-      transcript, exactly as written, following the bracketed audio tags.
+      "Read this dialogue aloud.
+      Speaker 1: Natural professional conversation with attentive turn-taking. Speak with this accent: a light Croydon accent.
+      Speaker 2: Natural professional conversation with attentive turn-taking. Speak with this accent: a light Croydon accent.
+      Each speaker keeps their own accent in every line.
+      Pace: Business meeting speed with realistic professional rhythm. Close to natural pace, realistic rhythm.
+      Articulation: Natural but clear; reduced forms allowed.
+      Perform each bracketed tag, like [laughs] or [excited], as a sound or emotion at that exact spot; never read it aloud.
+      Read only the dialogue below, exactly as written.
 
-      AUDIO PROFILE:
-      Speaker 1: Natural professional conversation with attentive turn-taking.
-      Speaker 2: Natural professional conversation with attentive turn-taking.
-
-      DIRECTOR'S NOTES:
-      Style: Natural professional conversation with attentive turn-taking.
-      Accent: a light Croydon accent.
-      Pacing: Business meeting speed with realistic professional rhythm. Close to natural pace, realistic rhythm.
-      Clarity: Natural but clear; reduced forms allowed.
-      Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.
-
-      TRANSCRIPT:
+      TEXT:
       Speaker 1: Could we move the meeting?
       Speaker 2: Yes, Friday works."
     `);
@@ -99,22 +93,16 @@ describe("compileDirection", () => {
         },
       })
     ).toMatchInlineSnapshot(`
-      "Synthesize the following dialogue as speech. Everything before
-      "TRANSCRIPT:" is performance direction — do not read it aloud. Read only the
-      transcript, exactly as written, following the bracketed audio tags.
+      "Read this dialogue aloud.
+      Speaker 1: A clear, balanced classroom delivery focused on comprehension. Speak with this accent: English with a French accent, a learner from Lyon. Manner of speaking: hesitates and searches for words.
+      Speaker 2: Objective, measured, calm, and consistent. Speak with this accent: A neutral, clear accent, natural for the language of the transcript.
+      Each speaker keeps their own accent in every line.
+      Pace: Natural classroom speed, clear but not artificial. Controlled natural pace with moderate pauses between ideas.
+      Articulation: Clear articulation, limited reduced forms, clear sentence stress.
+      Perform each bracketed tag, like [laughs] or [excited], as a sound or emotion at that exact spot; never read it aloud.
+      Read only the dialogue below, exactly as written.
 
-      AUDIO PROFILE:
-      Speaker 1: A clear, balanced classroom delivery focused on comprehension. Accent: English with a French accent, a learner from Lyon. Manner of speaking: hesitates and searches for words.
-      Speaker 2: Objective, measured, calm, and consistent.
-
-      DIRECTOR'S NOTES:
-      Style: A clear, balanced classroom delivery focused on comprehension.
-      Accent: A neutral, clear accent, natural for the language of the transcript.
-      Pacing: Natural classroom speed, clear but not artificial. Controlled natural pace with moderate pauses between ideas.
-      Clarity: Clear articulation, limited reduced forms, clear sentence stress.
-      Audio tags: perform every bracketed tag (like [laughs] or [excited]) as a vocal expression at that exact spot; never read the bracket text aloud.
-
-      TRANSCRIPT:
+      TEXT:
       Speaker 1: Good morning.
       Speaker 2: Good morning, do sit down."
     `);
@@ -272,3 +260,73 @@ describe("compileDirection tolerates a malformed direction", () => {
     ).not.toThrow();
   });
 })
+
+describe("hasRegionalAccent", () => {
+  const base = { level: "B1", pace: "Natural classroom speed", style: "Informal conversation" } as const;
+
+  it("is false for a language's everyday pronunciation", () => {
+    expect(hasRegionalAccent({ ...base, accent: "Neutral" }, "monologue")).toBe(false);
+    expect(hasRegionalAccent({ ...base, accent: "Parisian", accentDetail: "  " }, "monologue")).toBe(false);
+  });
+
+  it("is true for a free accent text or a regional preset", () => {
+    expect(hasRegionalAccent({ ...base, accent: "Neutral", accentDetail: "accent du midi" }, "monologue")).toBe(true);
+    expect(hasRegionalAccent({ ...base, accent: "Canadian" }, "monologue")).toBe(true);
+  });
+
+  it("looks at each speaker's own accent in a dialogue only", () => {
+    const direction = { ...base, accent: "Neutral", speakers: { "Speaker 2": { accentDetail: "marseillais prononcé" } } };
+    expect(hasRegionalAccent(direction, "dialogue")).toBe(true);
+    expect(hasRegionalAccent(direction, "monologue")).toBe(false);
+  });
+});
+
+describe("compileDirection with a regional accent", () => {
+  it("leads a short prompt with the accent, which 2.5 Pro performs there", () => {
+    const prompt = compileDirection({
+      mode: "monologue",
+      speakers: ["solo"],
+      script: "Bonjour [laughs] tout le monde.",
+      direction: {
+        level: "A2",
+        accent: "Neutral",
+        accentDetail: "Speak with a broad Marseille accent.",
+        pace: "Slow learner-friendly",
+        style: "Warm and encouraging",
+        scene: "A busy market",
+      },
+    });
+    expect(prompt.split("\n")[0]).toBe("Read this text aloud. Speak with a broad Marseille accent.");
+    expect(prompt).toContain("\nScene: A busy market.\n");
+    expect(prompt).not.toContain("DIRECTOR'S NOTES");
+    expect(prompt.endsWith("TEXT:\nBonjour [laughs] tout le monde.")).toBe(true);
+  });
+});
+
+describe("withAccentBriefs", () => {
+  const base = { level: "B1", pace: "Natural classroom speed", style: "Informal conversation" } as const;
+  const brief = async (accent: string) => `BRIEF(${accent})`;
+
+  it("rewrites a regional accent and leaves a native one alone", async () => {
+    expect((await withAccentBriefs({ ...base, accent: "Neutral", accentDetail: "accent du midi" }, "monologue", brief)).accentDetail)
+      .toBe("BRIEF(accent du midi)");
+    expect((await withAccentBriefs({ ...base, accent: "Canadian" }, "monologue", brief)).accentDetail)
+      .toBe("BRIEF(Canadian French)");
+    expect(await withAccentBriefs({ ...base, accent: "Parisian" }, "monologue", brief)).toEqual({ ...base, accent: "Parisian" });
+  });
+
+  it("rewrites a dialogue speaker's own accent, and the prompt states each speaker's accent", async () => {
+    const direction = await withAccentBriefs(
+      { ...base, accent: "Neutral", speakers: { "Speaker 2": { accentDetail: "accent du sud" } } },
+      "dialogue",
+      brief
+    );
+    expect(direction.accentDetail).toBeUndefined();
+    expect(direction.speakers?.["Speaker 2"]?.accentDetail).toBe("BRIEF(accent du sud)");
+
+    const prompt = compileDirection({ direction, mode: "dialogue", speakers: ["Speaker 1", "Speaker 2"], script: "Speaker 1: Salut.\nSpeaker 2: Bonjour." });
+    expect(prompt).toContain("Speaker 1: Relaxed, spontaneous, and natural. Speak with this accent: Neutral French.");
+    expect(prompt).toContain("Speaker 2: Relaxed, spontaneous, and natural. Speak with this accent: BRIEF(accent du sud).");
+    expect(prompt).not.toContain("DIRECTOR'S NOTES");
+  });
+});
