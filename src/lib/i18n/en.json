@@ -600,7 +600,7 @@
     "language_placeholder": "E.g. French",
     "level_label": "Level",
     "level_unspecified": "Unspecified",
-    "help_level": "Shown in the document header. When you ask for an addition (word bank, questions…), it also guides its difficulty.",
+    "help_level": "Shown in the document header, except on a free document or a learner handout. When you ask for an addition (word bank, questions…), it also guides its difficulty.",
     "emphasis_label": "Words to put in bold",
     "emphasis_placeholder": "E.g. delay, deadline, rephrase",
     "emphasis_help": "Separate them with commas. They will be bold wherever they appear in your text.",
@@ -871,7 +871,7 @@
     "missing_type": "Choose the document type in step 2.",
     "optional_title": "Optional details",
     "optional_count": "{{count}} filled in",
-    "optional_intro": "Nothing required here. Title, level and language appear in the document header.",
+    "optional_intro": "Nothing required here. The title appears at the top of the document; level and language do too, except on a free document or a learner handout.",
     "additions_label": "Add to the document",
     "additions_help": "The only thing AI can add, and only if you tick it. Drawn from your text and placed at the end.",
     "additions": {
