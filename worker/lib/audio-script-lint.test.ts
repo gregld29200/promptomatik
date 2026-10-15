@@ -68,6 +68,23 @@ describe("lintAudioScript", () => {
     }
   });
 
+  it("accepts reported speech in monologue mode", () => {
+    for (const script of [
+      "Die Befürworter sagen: Wir brauchen mehr Freizeit.\nSie sagen: Wir haben schon jetzt zu wenig Fachkräfte.",
+      "Les partisans disent : il faut travailler moins.\nLes opposants disent : c'est impossible.",
+      "Supporters say: we need more free time.\nCritics say: we already lack workers.",
+      "Los defensores dicen: necesitamos más tiempo.\nElla pregunta: ¿por qué?",
+    ]) {
+      expect(lintAudioScript(script, "monologue"), script).toEqual([]);
+    }
+  });
+
+  it("still blocks a cast in monologue mode next to reported speech", () => {
+    const findings = lintAudioScript("Sarah: Hello.\nTom: Hi.\nCritics say: no.", "monologue");
+    expect(findings.map((finding) => finding.line)).toEqual([1, 2]);
+    expect(findings[0]).toMatchObject({ code: "speaker_label_in_monologue", names: ["Sarah", "Tom"] });
+  });
+
   it("carries the offending tag so the UI can localize the message", () => {
     expect(lintAudioScript("Speaker 1: Bonjour [sigh]", "dialogue"))
       .toContainEqual({ severity: "warning", code: "unknown_tag", line: 1, tag: "[sigh]" });
