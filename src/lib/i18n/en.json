@@ -261,6 +261,7 @@
     "regenerate_block": "Regenerate this block",
     "regenerate_block_aria": "Regenerate block {{index}}",
     "player_block_hint": "Click a waveform block to regenerate only that part.",
+    "accent_dropped": "The accent you asked for couldn't be applied: this take uses a neutral voice. Try it again a little later to get the accent.",
     "player_est_actual": "Estimated {{estimated}} · actual {{actual}}",
     "expires_in_days": "Expires in {{days}}d",
     "expires_today": "Expires today",

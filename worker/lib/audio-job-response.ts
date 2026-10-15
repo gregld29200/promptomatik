@@ -1,5 +1,6 @@
 import type { Env } from "../env";
-import type { AudioDirection, AudioMode, AudioQuality } from "./audio-config";
+import { modelReadsAccent, type AudioDirection, type AudioMode, type AudioQuality } from "./audio-config";
+import { hasRegionalAccent } from "./audio-direction";
 
 export type AudioJobStatus = "queued" | "generating" | "assembling" | "ready" | "failed";
 
@@ -59,6 +60,8 @@ export interface AudioJobResponse {
   actualSeconds: number | null;
   error: string | null;
   modelUsed: string | null;
+  /** The take asked for an accent, but a model that drops it voiced some of it. */
+  accentDropped: boolean;
   genMs: number | null;
   retryCount: number;
   apiCostUsd: number | null;
@@ -97,20 +100,33 @@ function r2Prefix(jobId: string): string {
   return `audio/${jobId}`;
 }
 
+// When the accent models all fail (a spent Gemini balance, a quota), the
+// chain ends on 3.8, which voices the take without its accent: the teacher
+// must hear about it rather than receive a neutral take as if it were right.
+function accentDropped(row: AudioJobRow, direction: AudioDirection, segments?: AudioSegmentRow[]): boolean {
+  if (row.status !== "ready" || !hasRegionalAccent(direction, row.mode)) return false;
+  const models = segments?.some((segment) => segment.model_used)
+    ? segments.flatMap((segment) => (segment.model_used ? [segment.model_used] : []))
+    : row.model_used ? [row.model_used] : [];
+  return models.some((model) => !modelReadsAccent(model));
+}
+
 export function rowToAudioJob(row: AudioJobRow, segments?: AudioSegmentRow[]): AudioJobResponse {
+  const direction = JSON.parse(row.direction_json) as AudioDirection;
   const job: AudioJobResponse = {
     id: row.id,
     mode: row.mode,
     quality: row.quality,
     title: row.title,
     script: row.script_raw,
-    direction: JSON.parse(row.direction_json) as AudioDirection,
+    direction,
     voices: JSON.parse(row.voices_json) as Record<string, string>,
     status: row.status,
     estimatedSeconds: row.estimated_seconds,
     actualSeconds: row.actual_seconds,
     error: row.error,
     modelUsed: row.model_used,
+    accentDropped: accentDropped(row, direction, segments),
     genMs: row.gen_ms,
     retryCount: row.retry_count,
     apiCostUsd: row.api_cost_usd,

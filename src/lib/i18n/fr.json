@@ -261,6 +261,7 @@
     "regenerate_block": "Régénérer ce bloc",
     "regenerate_block_aria": "Régénérer le bloc {{index}}",
     "player_block_hint": "Cliquez un bloc de la forme d'onde pour le régénérer seul.",
+    "accent_dropped": "L'accent demandé n'a pas pu être appliqué : ce take est lu avec une voix neutre. Relancez-le un peu plus tard pour retrouver l'accent.",
     "player_est_actual": "Estimé {{estimated}} · réel {{actual}}",
     "expires_in_days": "Expire dans {{days}} j",
     "expires_today": "Expire aujourd'hui",

@@ -218,6 +218,7 @@
     "regenerate_block": "Regenerar este bloque",
     "regenerate_block_aria": "Regenerar el bloque {{index}}",
     "player_block_hint": "Haga clic en un bloque de la forma de onda para regenerarlo solo.",
+    "accent_dropped": "No se pudo aplicar el acento pedido: esta toma usa una voz neutra. Vuelve a generarla un poco más tarde para obtener el acento.",
     "player_est_actual": "Estimado {{estimated}} · real {{actual}}",
     "expires_in_days": "Caduca en {{days}} d",
     "expires_today": "Caduca hoy",
