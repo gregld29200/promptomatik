@@ -36,6 +36,7 @@ describe("PreviewPanel", () => {
     const html = renderToStaticMarkup(<PreviewPanel state={{ status: "ready", url: "blob:x", usage: usage(1) }} />);
     expect(html).toContain("<audio");
     expect(html).toContain('src="blob:x"');
+    expect(html).toContain('controlsList="nodownload"');
     expect(html.match(/<p/g)).toHaveLength(1);
   });
 });
