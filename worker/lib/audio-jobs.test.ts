@@ -19,6 +19,7 @@ const testEnv = env as unknown as Env;
 
 const TEST_SCHEMA_STATEMENTS = [
   "PRAGMA foreign_keys = OFF",
+  "DROP TABLE IF EXISTS tts_usage_log",
   "DROP TABLE IF EXISTS quota_ledger",
   "DROP TABLE IF EXISTS credit_balances",
   "DROP TABLE IF EXISTS audio_segments",
@@ -90,6 +91,18 @@ const TEST_SCHEMA_STATEMENTS = [
   user_id TEXT PRIMARY KEY,
   seconds INTEGER NOT NULL DEFAULT 0,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+)`,
+  `CREATE TABLE tts_usage_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('preview','full')),
+  status TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('pending','ok','failed')),
+  model TEXT,
+  audio_seconds REAL NOT NULL DEFAULT 0,
+  chars_sent INTEGER NOT NULL DEFAULT 0,
+  cache_hit INTEGER NOT NULL DEFAULT 0 CHECK (cache_hit IN (0, 1)),
+  job_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`,
 ];
 
@@ -180,6 +193,30 @@ async function sessionCookie(userId: string) {
 describe("audio job lifecycle", () => {
   beforeEach(async () => {
     await resetDb();
+  });
+
+  it("logs every block request of a full take, failed fallbacks included", async () => {
+    const userId = "logged-user";
+    await seedParticipant(userId);
+    const job = await createBasicJob(userId);
+    let calls = 0;
+
+    await processAudioJob(testEnv, job.id, {
+      async generateBlock(input) {
+        calls += 1;
+        if (calls === 1) throw new TtsProviderError("Rate limited.", true, 429);
+        return { pcm: pcm(3), durationSeconds: 3, retryCount: 0, model: input.model };
+      },
+    });
+
+    const { results } = await testEnv.DB.prepare(
+      "SELECT user_id, kind, status, model, audio_seconds, chars_sent, cache_hit, job_id FROM tts_usage_log ORDER BY id"
+    ).all();
+    const chain = ["google/gemini-3.8-flash-tts", getTtsModelConfig(testEnv).finalModel];
+    expect(results).toEqual([
+      { user_id: userId, kind: "full", status: "failed", model: chain[0], audio_seconds: 0, chars_sent: 22, cache_hit: 0, job_id: job.id },
+      { user_id: userId, kind: "full", status: "ok", model: chain[1], audio_seconds: 3, chars_sent: 22, cache_hit: 0, job_id: job.id },
+    ]);
   });
 
   it("processes a job to ready, stores downloads, and charges actual seconds", async () => {

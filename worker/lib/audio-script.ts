@@ -91,7 +91,7 @@ function pushBlock(blocks: AudioBlock[], parts: string[]) {
   });
 }
 
-function dialogueUnits(script: string): string[] {
+export function dialogueUnits(script: string): string[] {
   const units: string[] = [];
   let current: string[] = [];
 
@@ -132,7 +132,7 @@ const SENTENCE_END_RE = /[.!?]+["'”’»)\]]*\s+/g;
 
 // Splits on terminal punctuation followed by a space, so "3.5" stays whole,
 // and not after a known abbreviation or a single initial ("J. Martin").
-function monologueUnits(script: string): string[] {
+export function monologueUnits(script: string): string[] {
   const normalized = script.replace(/\s+/g, " ").trim();
   if (!normalized) return [];
   const units: string[] = [];
