@@ -118,14 +118,23 @@ export function modelChainForMode(config: TtsModelConfig, mode: AudioMode): TtsM
   return chain;
 }
 
+// Whether a model performs an accent asked for in its prompt: the Gemini API
+// models do, 3.8 (direct or through OpenRouter) drops it.
+export function modelReadsAccent(model: string): boolean {
+  return !isOpenRouterTtsModel(model) && !/^gemini-3\.8-/.test(model);
+}
+
 // A take with a regional accent starts on the accent model, then the pre-3.8
 // Gemini models, which also read the accent from their prompt, and only then
 // 3.8, which would drop it. Each Gemini model has its own daily quota, so
 // the chain also spreads accented takes across them.
 export function accentModelChainForMode(config: TtsModelConfig, mode: AudioMode): TtsModelStep[] {
   const usual = modelChainForMode(config, mode).map((step) => step.model);
-  const readsAccent = (model: string) => !isOpenRouterTtsModel(model) && !/^gemini-3\.8-/.test(model);
-  const models = [config.accentModel, ...usual.filter(readsAccent), ...usual.filter((model) => !readsAccent(model))];
+  const models = [
+    config.accentModel,
+    ...usual.filter(modelReadsAccent),
+    ...usual.filter((model) => !modelReadsAccent(model)),
+  ];
   return [...new Set(models)].map((model) => ({ model, pricePer1MTokens: priceForModel(config, model) }));
 }
 

@@ -719,6 +719,8 @@ export interface AudioJob {
   actualSeconds: number | null;
   error: string | null;
   modelUsed: string | null;
+  /** The take asked for an accent, but it was voiced without it. */
+  accentDropped?: boolean;
   genMs: number | null;
   retryCount: number;
   apiCostUsd: number | null;

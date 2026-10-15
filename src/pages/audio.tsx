@@ -860,6 +860,10 @@ export function AudioStudioPage() {
 
             <GenerationConsole job={activeJob} elapsedSeconds={elapsed} slotNames={names} />
 
+            {activeJob?.status === "ready" && activeJob.accentDropped && (
+              <p className={s.warning} role="status">{t("audio.accent_dropped")}</p>
+            )}
+
             {activeJob?.status === "ready" && (
               <WaveformPlayer
                 job={activeJob}
