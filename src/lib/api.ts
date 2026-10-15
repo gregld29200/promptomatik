@@ -797,6 +797,70 @@ export function createAudioJob(data: {
   });
 }
 
+export interface AudioPreviewUsage {
+  dailyUsed: number;
+  dailyLimit: number;
+  monthlyUsed: number;
+  monthlyLimit: number;
+}
+
+export interface AudioPreview extends AudioPreviewUsage {
+  audio: Blob;
+  cached: boolean;
+}
+
+// Free preview of a take's opening seconds. The endpoint answers with the mp3
+// itself and the preview caps in headers, so it bypasses `request`; a refusal
+// (caps, lint, model failure) is JSON like every other error.
+export async function previewAudio(data: {
+  mode: AudioMode;
+  script: string;
+  direction: AudioDirection;
+  voices: Record<string, string>;
+}): Promise<ApiResult<AudioPreview>> {
+  const controller = new AbortController();
+  // A dialogue preview runs up to three model requests back to back.
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const res = await fetch("/api/audio/preview", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as Partial<AudioPreviewUsage> & { error?: string; code?: string };
+      return {
+        data: null,
+        error: { error: body.error ?? "Request failed", status: res.status, code: body.code },
+      };
+    }
+    const header = (name: string) => Number(res.headers.get(name) ?? 0);
+    return {
+      data: {
+        audio: await res.blob(),
+        cached: res.headers.get("X-Preview-Cached") === "1",
+        dailyUsed: header("X-Preview-Daily-Used"),
+        dailyLimit: header("X-Preview-Daily-Limit"),
+        monthlyUsed: header("X-Preview-Monthly-Used"),
+        monthlyLimit: header("X-Preview-Monthly-Limit"),
+      },
+      error: null,
+    };
+  } catch (error) {
+    const timedOut = error instanceof DOMException && error.name === "AbortError";
+    return {
+      data: null,
+      error: timedOut
+        ? { error: "Request timed out. Please try again.", status: 408, code: "request_timeout" }
+        : { error: "Network error. Please try again.", status: 0, code: "network_error" },
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function regenerateAudioSegment(jobId: string, segmentIdx: number) {
   return request<{ accepted: boolean }>(`/api/audio/jobs/${jobId}/segments/${segmentIdx}/regenerate`, {
     method: "POST",
