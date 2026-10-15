@@ -96,7 +96,18 @@ export function PreviewPanel({ state }: { state: PreviewState }) {
   const counter = previewCounter(state.usage);
   return (
     <div className={s.panel}>
-      <audio className={s.player} src={state.url} controls autoPlay aria-label={t("audio.preview_player_label")} />
+      {/* A preview is for listening, not keeping: no download button (Chrome)
+          and no "Save audio as" menu (Firefox). Friction, not protection —
+          the caps in worker/lib/audio-preview.ts are the real guard. */}
+      <audio
+        className={s.player}
+        src={state.url}
+        controls
+        controlsList="nodownload"
+        onContextMenu={(event) => event.preventDefault()}
+        autoPlay
+        aria-label={t("audio.preview_player_label")}
+      />
       <p className={s.note}>{t("audio.preview_note")}</p>
       {counter && <p className={s.counter} role="status">{counter}</p>}
     </div>
