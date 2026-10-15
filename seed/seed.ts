@@ -6,7 +6,7 @@
  * Requires wrangler to be installed (uses local D1).
  */
 import bcrypt from "bcryptjs";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const ADMIN_EMAIL = "greg@teachinspire.com";
 const ADMIN_NAME = "Greg";
@@ -20,8 +20,10 @@ async function seed() {
   const sql = `INSERT OR REPLACE INTO users (id, email, name, password_hash, role, language_preference, profile) VALUES ('${ADMIN_ID}', '${ADMIN_EMAIL}', '${ADMIN_NAME}', '${hash}', 'admin', 'fr', '{}');`;
 
   console.log(`Seeding admin user: ${ADMIN_EMAIL}`);
-  execSync(
-    `npx wrangler d1 execute promptomatik-db --local --command="${sql}"`,
+  // No shell: bcrypt hashes contain "$2a$10$...", which a shell would expand.
+  execFileSync(
+    "npx",
+    ["wrangler", "d1", "execute", "promptomatik-db", "--local", `--command=${sql}`],
     { stdio: "inherit" }
   );
 
