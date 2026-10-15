@@ -20,6 +20,7 @@ import {
 import { AUDIO_VOICES, isAudioVoiceName } from "../lib/audio-voices";
 import { getAudioAdminMetrics, grantAudioCredits } from "../lib/audio-metrics";
 import { createCheckoutSession, packsWithPrices, stripeConfigured } from "../lib/audio-credits";
+import { AudioPreviewInputError, createAudioPreview } from "../lib/audio-preview";
 
 type AudioEnv = { Bindings: Env; Variables: { session: SessionData } };
 
@@ -59,6 +60,11 @@ const createAudioJobSchema = z.object({
   script: z.string(),
   direction: audioDirectionSchema,
   voices: z.record(z.string(), z.string()),
+});
+
+// A preview takes the body of a take; `quality` is accepted and ignored.
+const audioPreviewSchema = createAudioJobSchema.extend({
+  quality: z.enum(["draft", "final"]).optional(),
 });
 
 async function jobAccessStatus(db: D1Database, jobId: string, userId: string): Promise<200 | 403 | 404> {
@@ -160,6 +166,57 @@ audio.post("/jobs", requireParticipant, async (c) => {
     }
     return c.json({ error: message }, 400);
   }
+});
+
+// Free preview of a take's opening seconds (worker/lib/audio-preview.ts).
+// Answers with the mp3 itself; the caps travel in headers. Never touches the
+// monthly quota or the credits, and its caps never block a full take.
+audio.post("/preview", requireParticipant, async (c) => {
+  const session = c.get("session");
+  const rawBody = await c.req.json().catch(() => null);
+  const parsed = audioPreviewSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_request" }, 400);
+  }
+
+  let result: Awaited<ReturnType<typeof createAudioPreview>>;
+  try {
+    result = await createAudioPreview(c.env, {
+      userId: session.userId,
+      mode: parsed.data.mode,
+      script: parsed.data.script,
+      direction: parsed.data.direction,
+      voices: parsed.data.voices,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to preview audio.";
+    // Validation and lint codes come back like POST /jobs; a model failure
+    // gets its own code so the studio can say so kindly.
+    if (error instanceof AudioPreviewInputError) return c.json({ error: message }, 400);
+    console.error("Audio preview failed", { userId: session.userId, error: message });
+    return c.json({ error: message, code: "audio_preview_failed" }, 502);
+  }
+
+  const usage = {
+    dailyUsed: result.dailyUsed,
+    dailyLimit: result.dailyLimit,
+    monthlyUsed: result.monthlyUsed,
+    monthlyLimit: result.monthlyLimit,
+  };
+  if (!result.ok) {
+    return c.json({ error: result.code, code: result.code, ...usage }, 429);
+  }
+  return new Response(result.mp3, {
+    headers: {
+      "Content-Type": "audio/mpeg",
+      "Cache-Control": "private, no-store",
+      "X-Preview-Cached": result.cached ? "1" : "0",
+      "X-Preview-Daily-Used": String(usage.dailyUsed),
+      "X-Preview-Daily-Limit": String(usage.dailyLimit),
+      "X-Preview-Monthly-Used": String(usage.monthlyUsed),
+      "X-Preview-Monthly-Limit": String(usage.monthlyLimit),
+    },
+  });
 });
 
 audio.get("/jobs", requireParticipant, async (c) => {

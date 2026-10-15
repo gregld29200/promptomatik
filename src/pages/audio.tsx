@@ -5,7 +5,7 @@ import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import "@fontsource/playfair-display/latin-600.css";
 import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { Copy, FileAudio, HelpCircle, RotateCcw, Wand2, X } from "lucide-react";
+import { Copy, FileAudio, Headphones, HelpCircle, RotateCcw, Wand2, X } from "lucide-react";
 import { Link } from "react-router";
 import { Shell } from "@/components/layout/shell";
 import { UpgradeGate } from "@/components/upgrade-gate";
@@ -16,6 +16,8 @@ import { WaveformPlayer } from "@/components/audio/waveform-player";
 import { ScriptReview } from "@/components/audio/script-review";
 import { ScriptStatus } from "@/components/audio/script-status";
 import { EmotionMenu } from "@/components/audio/emotion-menu";
+import { PreviewPanel, useAudioPreview } from "@/components/audio/audio-preview";
+import { Spinner } from "@/components/ui/spinner";
 import { applySuggestions, type SuggestionDecision } from "@/lib/audio-suggestions";
 import { useAuth } from "@/lib/auth/auth-context";
 import { SUPPORTED_LANGUAGES, getLanguage, t, type Language } from "@/lib/i18n";
@@ -261,7 +263,12 @@ export function AudioStudioPage() {
   const missingVoices = missingVoiceSlot !== undefined;
   const quotaPool = (quota?.includedRemaining ?? 0) + (quota?.credits ?? 0);
   const quotaBlocked = quota ? estimate > quotaPool * 1.2 : false;
-  const canGenerate = script.trim().length > 0 && blockingFindings.length === 0 && !missingVoices && !quotaBlocked && review === null;
+  // A preview follows the same script rules as a take but never the quota:
+  // it is free, and running low on minutes is exactly when it helps most.
+  const canPreview = script.trim().length > 0 && blockingFindings.length === 0 && !missingVoices && review === null;
+  const canGenerate = canPreview && !quotaBlocked;
+  const previewSettings = JSON.stringify({ mode, script, direction, voices: selectedVoices });
+  const preview = useAudioPreview(previewSettings, jobErrorMessage);
   // Says why the button is grey, in one sentence, next to the button.
   const generateHint = !script.trim()
     ? t("audio.why_empty")
@@ -427,6 +434,11 @@ export function AudioStudioPage() {
     }
     const jobRes = await api.getAudioJob(res.data.jobId);
     if (jobRes.data) setActiveJob(jobRes.data.job);
+  }
+
+  function runPreview() {
+    if (!canPreview || preview.state.status === "loading") return;
+    void preview.run({ mode, script, direction, voices: selectedVoices });
   }
 
   async function suggestEdits() {
@@ -828,18 +840,38 @@ export function AudioStudioPage() {
             <VoiceCasting voices={catalog} mode={mode} selected={voices} onChange={setVoices} slotNames={names} />
 
             <div className={s.generateDock}>
-              <button
-                type="button"
-                className={s.primary}
-                disabled={!canGenerate}
-                onClick={() => void generate()}
-                aria-describedby={generateHint ? "generate-hint" : undefined}
-              >
-                <FileAudio size={17} aria-hidden />
-                {t("audio.generate")}
-              </button>
+              <div className={s.generateActions}>
+                <button
+                  type="button"
+                  className={s.primary}
+                  disabled={!canGenerate}
+                  onClick={() => void generate()}
+                  aria-describedby={generateHint ? "generate-hint" : undefined}
+                >
+                  <FileAudio size={17} aria-hidden />
+                  {t("audio.generate")}
+                </button>
+                <div className={s.previewAction}>
+                  <button
+                    type="button"
+                    className={s.secondaryAction}
+                    disabled={!canPreview || preview.state.status === "loading"}
+                    aria-busy={preview.state.status === "loading"}
+                    onClick={runPreview}
+                    aria-describedby="preview-free"
+                  >
+                    {/* The dock stays in view on a phone; the panel may not. */}
+                    {preview.state.status === "loading" ? <Spinner size={16} /> : <Headphones size={16} aria-hidden />}
+                    {t("audio.preview")}
+                  </button>
+                  <p id="preview-free" className={s.previewFree}>{t("audio.preview_free")}</p>
+                </div>
+              </div>
               {generateHint && <p id="generate-hint" className={s.generateHint}>{generateHint}</p>}
             </div>
+
+            {/* Outside the dock: on a phone the dock is pinned to the screen. */}
+            <PreviewPanel state={preview.state} />
 
             {quotaBlocked && (
               <p className={s.warning}>

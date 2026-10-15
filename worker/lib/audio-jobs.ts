@@ -27,6 +27,7 @@ import {
 import { estimateAudioSeconds, normalizeSpeakerDirections, normalizeSpeakerLabels, normalizeVoiceMap, splitScriptIntoBlocks } from "./audio-script";
 import { chargeAudioQuota, precheckAudioQuota } from "./audio-quota";
 import { generateBlock, TtsProviderError, type GenerateBlockInput, type GenerateBlockResult } from "./tts-provider";
+import { logTtsUsage } from "./tts-usage";
 
 export type { CreateAudioJobInput } from "./audio-job-response";
 
@@ -36,7 +37,7 @@ export interface AudioGenerationProvider {
   briefAccent?(accent: string, env: Env): Promise<string>;
 }
 
-const DEFAULT_PROVIDER: AudioGenerationProvider = {
+export const DEFAULT_PROVIDER: AudioGenerationProvider = {
   generateBlock,
   briefAccent: async (accent, env) => {
     const apiKey = env.GEMINI_API_KEY?.trim();
@@ -48,11 +49,19 @@ const DEFAULT_PROVIDER: AudioGenerationProvider = {
 // "accent du midi" alone reads as standard French to 2.5 Pro; the same accent
 // spelled out (region, features, strength) is performed. Briefed once per
 // phrase and cached, so a take pays for it only the first time.
-async function takeDirection(env: Env, row: AudioJobRow, provider: AudioGenerationProvider): Promise<AudioDirection> {
-  const direction = JSON.parse(row.direction_json) as AudioDirection;
-  if (!provider.briefAccent || !hasRegionalAccent(direction, row.mode)) return direction;
+export async function briefedDirection(
+  env: Env,
+  direction: AudioDirection,
+  mode: AudioMode,
+  provider: AudioGenerationProvider
+): Promise<AudioDirection> {
+  if (!provider.briefAccent || !hasRegionalAccent(direction, mode)) return direction;
   const brief = provider.briefAccent.bind(provider);
-  return withAccentBriefs(direction, row.mode, (accent) => brief(accent, env).catch(() => accent));
+  return withAccentBriefs(direction, mode, (accent) => brief(accent, env).catch(() => accent));
+}
+
+function takeDirection(env: Env, row: AudioJobRow, provider: AudioGenerationProvider): Promise<AudioDirection> {
+  return briefedDirection(env, JSON.parse(row.direction_json) as AudioDirection, row.mode, provider);
 }
 const DOWNLOAD_FILES = ["final.mp3", "final.wav", "transcript.txt"] as const;
 export type AudioDownloadFile = (typeof DOWNLOAD_FILES)[number];
@@ -141,7 +150,9 @@ async function markJobFailed(db: D1Database, jobId: string, error: string): Prom
     .run();
 }
 
-export async function createAudioJob(env: Env, input: CreateAudioJobInput): Promise<AudioJobResponse> {
+// Normalizes and validates a take's request; throws the message or lint code
+// the route returns. Shared by full takes and free previews.
+export function prepareAudioInput(input: CreateAudioJobInput): CreateAudioJobInput {
   const normalizedInput: CreateAudioJobInput = {
     ...input,
     // Teachers name their characters ("Léa : …"); speech reads voice slots.
@@ -160,6 +171,11 @@ export async function createAudioJob(env: Env, input: CreateAudioJobInput): Prom
     // Return the code, not a sentence: only the client knows the user's language.
     throw new Error(`audio_lint_${blockingFindings[0].code}`);
   }
+  return normalizedInput;
+}
+
+export async function createAudioJob(env: Env, input: CreateAudioJobInput): Promise<AudioJobResponse> {
+  const normalizedInput = prepareAudioInput(input);
 
   const estimatedSeconds = estimateAudioSeconds(normalizedInput.script);
   const precheck = await precheckAudioQuota(env, normalizedInput.userId, estimatedSeconds);
@@ -261,6 +277,87 @@ function ttsApiKey(env: Env, model: string): string | undefined {
   return key?.trim() ? key : undefined;
 }
 
+export interface TtsChainStep {
+  model: string;
+  apiKey: string;
+}
+
+// The models a take is voiced by, in order. Gemini 3.8 ignores an accent asked
+// for in its style, so an accented take goes to models that perform one from
+// their prompt first. A model whose provider has no key configured is skipped.
+export function ttsModelChain(env: Env, direction: AudioDirection, mode: AudioMode): TtsChainStep[] {
+  const config = getTtsModelConfig(env);
+  const steps = hasRegionalAccent(direction, mode)
+    ? accentModelChainForMode(config, mode)
+    : modelChainForMode(config, mode);
+  return steps.flatMap((step) => {
+    const apiKey = ttsApiKey(env, step.model);
+    return apiKey ? [{ model: step.model, apiKey }] : [];
+  });
+}
+
+export interface VoiceWithChainInput {
+  chain: TtsChainStep[];
+  script: string;
+  direction: AudioDirection;
+  mode: AudioMode;
+  voices: Record<string, string>;
+  backoffMs?: readonly number[];
+  /** Called once per model request, for the usage log. */
+  onAttempt?: (model: string, outcome: { ok: true; seconds: number } | { ok: false }) => Promise<void>;
+  logContext?: Record<string, unknown>;
+}
+
+export interface VoiceWithChainResult extends GenerateBlockResult {
+  /** Status of the last model that failed before this one succeeded. */
+  fallbackStatus?: number;
+}
+
+// Voices one transcript down the model chain: full takes (block by block) and
+// free previews go through the same models with the same direction.
+export async function voiceWithModelChain(
+  provider: AudioGenerationProvider,
+  input: VoiceWithChainInput
+): Promise<VoiceWithChainResult> {
+  const { chain } = input;
+  if (chain.length === 0) throw new Error("No text-to-speech API key is configured.");
+
+  let fallbackStatus: number | undefined;
+  for (let i = 0; i < chain.length; i += 1) {
+    const isLast = i === chain.length - 1;
+    try {
+      const result = await provider.generateBlock({
+        apiKey: chain[i].apiKey,
+        model: chain[i].model,
+        script: input.script,
+        direction: input.direction,
+        mode: input.mode,
+        voices: input.voices,
+        backoffMs: input.backoffMs,
+        // Non-final models fail fast on a rate/quota 429 so we switch to the
+        // next model immediately; the final model keeps its normal backoff.
+        fastFailStatuses: isLast ? undefined : [429],
+      });
+      await input.onAttempt?.(result.model, { ok: true, seconds: result.durationSeconds });
+      return { ...result, fallbackStatus };
+    } catch (error) {
+      await input.onAttempt?.(chain[i].model, { ok: false });
+      // Any failure of a non-final model hands the block to the next one: the
+      // chain spans two providers, so an OpenRouter outage, a spent balance
+      // (402) or a refused request must not fail the teacher's take.
+      if (isLast) throw error;
+      fallbackStatus = error instanceof TtsProviderError ? error.status : undefined;
+      console.warn("TTS model failed, falling back", {
+        ...input.logContext,
+        model: chain[i].model,
+        status: fallbackStatus,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  throw new Error("No text-to-speech API key is configured.");
+}
+
 async function generateSegment(
   env: Env,
   row: AudioJobRow,
@@ -272,75 +369,47 @@ async function generateSegment(
   // A malformed transcript fails before any provider is paid for it.
   validateTranscriptForTts(row.mode, segment.text);
 
-  // Gemini 3.8 ignores an accent asked for in its style, so an accented take
-  // goes to models that perform one from their prompt first.
-  const config = getTtsModelConfig(env);
-  const steps = hasRegionalAccent(direction, row.mode)
-    ? accentModelChainForMode(config, row.mode)
-    : modelChainForMode(config, row.mode);
-  // A model whose provider has no key configured is skipped.
-  const chain = steps.flatMap((step) => {
-    const apiKey = ttsApiKey(env, step.model);
-    return apiKey ? [{ model: step.model, apiKey }] : [];
+  const result = await voiceWithModelChain(provider, {
+    chain: ttsModelChain(env, direction, row.mode),
+    script: segment.text,
+    direction,
+    mode: row.mode,
+    voices: JSON.parse(row.voices_json) as Record<string, string>,
+    logContext: { jobId: row.id, segmentIdx: segment.idx },
+    onAttempt: (model, outcome) => logTtsUsage(env.DB, {
+      userId: row.user_id,
+      kind: "full",
+      status: outcome.ok ? "ok" : "failed",
+      model,
+      audioSeconds: outcome.ok ? outcome.seconds : 0,
+      charsSent: segment.text.length,
+      jobId: row.id,
+    }),
   });
-  if (chain.length === 0) throw new Error("No text-to-speech API key is configured.");
-  const voices = JSON.parse(row.voices_json) as Record<string, string>;
-
-  let fallbackStatus: number | undefined;
-  for (let i = 0; i < chain.length; i += 1) {
-    const isLast = i === chain.length - 1;
-    try {
-      const result = await provider.generateBlock({
-        apiKey: chain[i].apiKey,
-        model: chain[i].model,
-        script: segment.text,
-        direction,
-        mode: row.mode,
-        voices,
-        // Non-final models fail fast on a rate/quota 429 so we switch to the
-        // next model immediately; the final model keeps its normal backoff.
-        fastFailStatuses: isLast ? undefined : [429],
-      });
-      const key = `${row.r2_prefix ?? r2Prefix(row.id)}/seg-${segment.idx}.pcm`;
-      await env.MEDIA.put(key, result.pcm, {
-        httpMetadata: { contentType: "audio/L16" },
-      });
-      await env.DB.prepare(
-        `UPDATE audio_segments
-         SET status = 'ok',
-             duration_seconds = ?,
-             retry_count = ?,
-             last_error_status = ?,
-             model_used = ?,
-             r2_key = ?
-         WHERE job_id = ? AND idx = ?`
-      )
-        .bind(
-          result.durationSeconds,
-          result.retryCount,
-          result.lastErrorStatus ?? fallbackStatus ?? null,
-          result.model,
-          key,
-          row.id,
-          segment.idx
-        )
-        .run();
-      return;
-    } catch (error) {
-      // Any failure of a non-final model hands the block to the next one: the
-      // chain spans two providers, so an OpenRouter outage, a spent balance
-      // (402) or a refused request must not fail the teacher's take.
-      if (isLast) throw error;
-      fallbackStatus = error instanceof TtsProviderError ? error.status : undefined;
-      console.warn("TTS model failed, falling back", {
-        jobId: row.id,
-        segmentIdx: segment.idx,
-        model: chain[i].model,
-        status: fallbackStatus,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
+  const key = `${row.r2_prefix ?? r2Prefix(row.id)}/seg-${segment.idx}.pcm`;
+  await env.MEDIA.put(key, result.pcm, {
+    httpMetadata: { contentType: "audio/L16" },
+  });
+  await env.DB.prepare(
+    `UPDATE audio_segments
+     SET status = 'ok',
+         duration_seconds = ?,
+         retry_count = ?,
+         last_error_status = ?,
+         model_used = ?,
+         r2_key = ?
+     WHERE job_id = ? AND idx = ?`
+  )
+    .bind(
+      result.durationSeconds,
+      result.retryCount,
+      result.lastErrorStatus ?? result.fallbackStatus ?? null,
+      result.model,
+      key,
+      row.id,
+      segment.idx
+    )
+    .run();
 }
 
 async function assembleFinal(env: Env, row: AudioJobRow, regeneratedSegmentIdx?: number): Promise<void> {
