@@ -80,7 +80,7 @@ internal.post("/notify", async (c) => {
   }
 
   const payload: Record<string, unknown> = {
-    from: "TeachInspire Témoignages <noreply@promptomatik.com>",
+    from: "TeachInspire Témoignages <noreply@mail.teachinspire.me>",
     to: [body.to],
     subject: body.subject.trim(),
     text: body.text,
