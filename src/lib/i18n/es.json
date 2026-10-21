@@ -38,6 +38,7 @@
     "reset_invalid": "Este enlace de acceso no es valido o ha caducado.",
     "reset_used": "Este enlace de acceso ya se ha utilizado. Solicita uno nuevo.",
     "reset_expired": "Este enlace de acceso ha caducado. Solicita uno nuevo.",
+    "reset_continue": "Continuar a la pagina solicitada",
     "back_to_login": "Volver al inicio de sesion",
     "invalid_credentials": "Correo o contrasena incorrectos",
     "invite_expired": "Esta invitacion ha caducado. Contacta con tu formador para obtener una nueva.",

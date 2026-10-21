@@ -154,10 +154,10 @@ export function signup(email: string, language: Language) {
   });
 }
 
-export function forgotPassword(email: string) {
+export function forgotPassword(email: string, next?: string | null) {
   return request<{ success: boolean }>("/api/auth/forgot-password", {
     method: "POST",
-    body: JSON.stringify({ email }),
+    body: JSON.stringify(next ? { email, next } : { email }),
   });
 }
 

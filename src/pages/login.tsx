@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from "react";
-import { Navigate, Link } from "react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import { Navigate, Link, useSearchParams } from "react-router";
 import { Card, Button, Input, Spinner } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
 import BlurText from "@/reactbits/blur-text";
 import { useAuth } from "@/lib/auth/auth-context";
 import { t } from "@/lib/i18n";
+import { isExternalReturnUrl, safeReturnUrl } from "../../shared/return-url";
 import s from "./login.module.css";
 
 export function LoginPage() {
@@ -13,9 +14,17 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const next = safeReturnUrl(searchParams.get("next"));
+  const leavesStudio = !!user && !!next && isExternalReturnUrl(next);
 
-  // Already logged in — redirect to dashboard
-  if (authLoading) {
+  // Logged in and sent here by another TeachInspire site: go back there.
+  useEffect(() => {
+    if (leavesStudio && next) window.location.replace(next);
+  }, [leavesStudio, next]);
+
+  // Already logged in — redirect to dashboard (or to ?next)
+  if (authLoading || leavesStudio) {
     return (
       <div className={s.page}>
         <Spinner size={28} />
@@ -24,7 +33,7 @@ export function LoginPage() {
   }
 
   if (user) {
-    return <Navigate to="/home" replace />;
+    return <Navigate to={next ?? "/home"} replace />;
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -78,7 +87,10 @@ export function LoginPage() {
                   required
                 />
                 <div className={s.forgotRow}>
-                  <Link to="/forgot-password" className={s.forgotLink}>
+                  <Link
+                    to={next ? `/forgot-password?next=${encodeURIComponent(next)}` : "/forgot-password"}
+                    className={s.forgotLink}
+                  >
                     {t("auth.forgot_password")}
                   </Link>
                 </div>
