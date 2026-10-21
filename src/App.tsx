@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { AuthProvider } from "@/lib/auth/auth-context";
 import { ProtectedRoute } from "@/lib/auth/protected-route";
-import { useParams } from "react-router";
+import { useLocation, useParams } from "react-router";
 import { t, useLanguage } from "@/lib/i18n";
 import { OnboardingProvider } from "@/lib/onboarding/onboarding-context";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
@@ -50,6 +50,8 @@ export function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {/* The testimonial site linked here for a while; without this it fell through to /login. */}
+            <Route path="/forgot-password.html" element={<ForgotPasswordAlias />} />
             <Route
               path="/home"
               element={
@@ -167,6 +169,11 @@ export function App() {
       </AuthProvider>
     </BrowserRouter>
   );
+}
+
+function ForgotPasswordAlias() {
+  const { search } = useLocation();
+  return <Navigate to={`/forgot-password${search}`} replace />;
 }
 
 function LegacyPromptRedirect() {
