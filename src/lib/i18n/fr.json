@@ -38,6 +38,7 @@
     "reset_invalid": "Ce lien de connexion est invalide ou expiré.",
     "reset_used": "Ce lien de connexion a déjà été utilisé. Demandez-en un nouveau.",
     "reset_expired": "Ce lien de connexion a expiré. Demandez-en un nouveau.",
+    "reset_continue": "Continuer vers la page demandée",
     "back_to_login": "Retour à la connexion",
     "invalid_credentials": "E-mail ou mot de passe incorrect",
     "invite_expired": "Cette invitation a expiré. Contactez votre formateur pour en obtenir une nouvelle.",

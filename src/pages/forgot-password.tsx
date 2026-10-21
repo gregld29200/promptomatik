@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, Link } from "react-router";
+import { Navigate, Link, useSearchParams } from "react-router";
 import { Card, Button, Input, Spinner } from "@/components/ui";
 import { FadeIn } from "@/reactbits/fade-in";
 import BlurText from "@/reactbits/blur-text";
 import { useAuth } from "@/lib/auth/auth-context";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
+import { safeReturnUrl } from "../../shared/return-url";
 import s from "./forgot-password.module.css";
 
 export function ForgotPasswordPage() {
@@ -14,6 +15,9 @@ export function ForgotPasswordPage() {
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const next = safeReturnUrl(searchParams.get("next"));
+  const loginPath = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
 
   if (authLoading) {
     return (
@@ -24,7 +28,7 @@ export function ForgotPasswordPage() {
   }
 
   if (user) {
-    return <Navigate to="/prompts" replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -32,7 +36,7 @@ export function ForgotPasswordPage() {
     setError("");
     setSubmitting(true);
 
-    const res = await api.forgotPassword(email.trim());
+    const res = await api.forgotPassword(email.trim(), next);
     if (res.error) {
       setError(res.error.error);
     } else {
@@ -80,7 +84,7 @@ export function ForgotPasswordPage() {
             )}
 
             <p className={s.footer}>
-              <Link to="/login">{t("auth.back_to_login")}</Link>
+              <Link to={loginPath}>{t("auth.back_to_login")}</Link>
             </p>
           </Card>
         </FadeIn>

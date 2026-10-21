@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../env";
 import { hashPassword, verifyPassword } from "../lib/password";
+import { safeReturnUrl } from "../../shared/return-url";
 import { sendPasswordResetEmail, sendSignupConfirmationEmail } from "../lib/email";
 import {
   createSession,
@@ -287,13 +288,14 @@ auth.post("/register", async (c) => {
 });
 
 auth.post("/forgot-password", async (c) => {
-  const { email } = await c.req.json<{ email: string }>();
+  const { email, next } = await c.req.json<{ email: string; next?: unknown }>();
 
   if (!email) {
     return c.json({ error: "Email is required" }, 400);
   }
 
   const normalizedEmail = email.toLowerCase().trim();
+  const returnUrl = safeReturnUrl(next);
   const user = await c.env.DB.prepare(
     "SELECT id, email, language_preference FROM users WHERE email = ?"
   )
@@ -323,6 +325,7 @@ auth.post("/forgot-password", async (c) => {
     token,
     lang: normalizeLanguage(user.language_preference),
     appBaseUrl,
+    returnUrl,
   });
 
   if (!emailResult.success) {

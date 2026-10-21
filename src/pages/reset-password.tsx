@@ -6,12 +6,15 @@ import BlurText from "@/reactbits/blur-text";
 import { useAuth } from "@/lib/auth/auth-context";
 import { t } from "@/lib/i18n";
 import * as api from "@/lib/api";
+import { isExternalReturnUrl, safeReturnUrl } from "../../shared/return-url";
 import s from "./reset-password.module.css";
 
 export function ResetPasswordPage() {
   const { user, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
+  const next = safeReturnUrl(searchParams.get("next"));
+  const loginPath = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -27,7 +30,7 @@ export function ResetPasswordPage() {
   }
 
   if (user) {
-    return <Navigate to="/prompts" replace />;
+    return <Navigate to={loginPath} replace />;
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -105,11 +108,22 @@ export function ResetPasswordPage() {
                 </Button>
               </form>
             ) : (
-              <p className={s.success}>{t("auth.reset_success")}</p>
+              <>
+                <p className={s.success}>{t("auth.reset_success")}</p>
+                {next && isExternalReturnUrl(next) ? (
+                  <a href={next} className={s.continueLink}>
+                    {t("auth.reset_continue")}
+                  </a>
+                ) : (
+                  <Link to={loginPath} className={s.continueLink}>
+                    {t("auth.login")}
+                  </Link>
+                )}
+              </>
             )}
 
             <p className={s.footer}>
-              <Link to="/login">{t("auth.back_to_login")}</Link>
+              <Link to={loginPath}>{t("auth.back_to_login")}</Link>
             </p>
           </Card>
         </FadeIn>

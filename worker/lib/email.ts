@@ -13,6 +13,8 @@ interface PasswordResetEmailParams {
   token: string;
   lang: Language;
   appBaseUrl?: string;
+  /** Already validated with safeReturnUrl; carried through to the reset page. */
+  returnUrl?: string | null;
 }
 
 interface SignupConfirmationEmailParams {
@@ -109,7 +111,8 @@ function buildHtml(params: InvitationEmailParams): string {
 
 function buildResetHtml(params: PasswordResetEmailParams): string {
   const baseUrl = params.appBaseUrl || APP_BASE_URL;
-  const link = `${baseUrl}/reset-password?token=${params.token}`;
+  const next = params.returnUrl ? `&next=${encodeURIComponent(params.returnUrl)}` : "";
+  const link = `${baseUrl}/reset-password?token=${params.token}${next}`;
 
   if (params.lang === "fr") {
     return `
