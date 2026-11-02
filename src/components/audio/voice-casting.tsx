@@ -110,6 +110,7 @@ export function VoiceCasting({ voices, mode, selected, onChange, slotNames }: Vo
   const [genderFilter, setGenderFilter] = useState<GenderFilter>("all");
   const [toneFilter, setToneFilter] = useState<ToneFilter>("all");
   const slots = slotsForMode(mode);
+  const activeSlot = slots.includes(targetSlot) ? targetSlot : slots[0];
   // Feminine voices first, then masculine, each alphabetical by display name.
   const visibleVoices = voices
     .filter((voice) => genderFilter === "all" || voice.gender === genderFilter)
@@ -119,9 +120,8 @@ export function VoiceCasting({ voices, mode, selected, onChange, slotNames }: Vo
     );
 
   function selectVoice(name: string) {
-    const slot = slots.includes(targetSlot) ? targetSlot : slots[0];
-    onChange({ ...selected, [slot]: name });
-    setTargetSlot(slots[(slots.indexOf(slot) + 1) % slots.length]);
+    onChange({ ...selected, [activeSlot]: name });
+    setTargetSlot(slots[(slots.indexOf(activeSlot) + 1) % slots.length]);
   }
 
   async function preview(voice: AudioVoice) {
@@ -147,9 +147,9 @@ export function VoiceCasting({ voices, mode, selected, onChange, slotNames }: Vo
             <button
               key={slot}
               type="button"
-              className={`${s.slot} ${targetSlot === slot ? s.slotActive : ""}`}
+              className={`${s.slot} ${activeSlot === slot ? s.slotActive : ""}`}
               onClick={() => setTargetSlot(slot)}
-              aria-pressed={targetSlot === slot}
+              aria-pressed={activeSlot === slot}
             >
               <span>{slotLabel(slot, slotNames)}</span>
               <strong>{selectedVoice?.label ?? t("audio.voice_to_choose")}</strong>
@@ -200,7 +200,12 @@ export function VoiceCasting({ voices, mode, selected, onChange, slotNames }: Vo
 
       <div className={s.grid} aria-label={t("audio.voice_catalog_aria")}>
         {visibleVoices.map((voice) => {
-          const isSelected = Object.values(selected).includes(voice.name);
+          // Only this mode's characters count: the other mode's voices stay
+          // in `selected` but are not on screen. The dot marks the voice of
+          // the character being cast; in a dialogue each card also names the
+          // characters it plays.
+          const castAs = slots.filter((slot) => selected[slot] === voice.name);
+          const isSelected = selected[activeSlot] === voice.name;
           const isPreviewing = activePreview === voice.name;
 
           return (
@@ -209,6 +214,7 @@ export function VoiceCasting({ voices, mode, selected, onChange, slotNames }: Vo
                 type="button"
                 className={s.selectButton}
                 onClick={() => selectVoice(voice.name)}
+                aria-pressed={isSelected}
                 aria-label={t("audio.voice_select_aria", { name: `${voice.label}, ${genderLabel(voice.gender)}` })}
               >
                 <span className={s.name}>{voice.label}</span>
@@ -218,6 +224,11 @@ export function VoiceCasting({ voices, mode, selected, onChange, slotNames }: Vo
                   </span>{" "}
                   · {descriptorLabel(voice.descriptor)}
                 </span>
+                {slots.length > 1 && castAs.length > 0 && (
+                  <span className={s.castAs}>
+                    {castAs.map((slot) => slotLabel(slot, slotNames)).join(" · ")}
+                  </span>
+                )}
                 {isSelected && <span className={s.dot} aria-hidden="true" />}
               </button>
               <button
