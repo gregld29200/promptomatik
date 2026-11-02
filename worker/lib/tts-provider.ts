@@ -10,7 +10,7 @@ import {
 } from "./audio-config";
 import { concatPcmWithSilence } from "./audio-assembly";
 import { compileDirection } from "./audio-direction";
-import { planSpeechRuns, type SpeechRun } from "./speech-runs";
+import { isSpeechRun, planSpeechRuns, type SpeechRun } from "./speech-runs";
 
 type VoiceMap = Record<string, string>;
 
@@ -95,6 +95,11 @@ function base64ToBytes(value: string): Uint8Array {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
+}
+
+function silence(ms: number): Uint8Array {
+  // Whole 16-bit samples, so the next take stays sample-aligned.
+  return new Uint8Array(Math.round((PCM_BYTES_PER_SECOND * ms) / 2000) * 2);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -369,9 +374,11 @@ async function requestOpenRouterRun(input: GenerateBlockInput, run: SpeechRun): 
 }
 
 // OpenRouter's speech endpoint takes one voice per request, so the block is
-// voiced run by run (see planSpeechRuns) and stitched back together.
+// voiced run by run (see planSpeechRuns) and stitched back together, with
+// silence where the script pauses.
 async function generateOpenRouterBlock(input: GenerateBlockInput): Promise<GenerateBlockResult> {
-  const runs = planSpeechRuns(input);
+  const steps = planSpeechRuns(input);
+  const runs = steps.filter(isSpeechRun);
   if (runs.length === 0) {
     throw new TtsProviderError("This block has nothing to read aloud.", false);
   }
@@ -380,9 +387,10 @@ async function generateOpenRouterBlock(input: GenerateBlockInput): Promise<Gener
     withRetries(() => requestOpenRouterRun(input, run), input)
   );
   const turns: Uint8Array[][] = [];
-  takes.forEach((take, index) => {
-    if (index === 0 || runs[index].turn !== runs[index - 1].turn) turns.push([]);
-    turns[turns.length - 1].push(take.value);
+  let taken = 0;
+  steps.forEach((step, index) => {
+    if (index === 0 || step.turn !== steps[index - 1].turn) turns.push([]);
+    turns[turns.length - 1].push(isSpeechRun(step) ? takes[taken++].value : silence(step.pauseMs));
   });
   const pcm = concatPcmWithSilence(turns.map((parts) => concatPcmWithSilence(parts, 0)), TURN_GAP_MS);
 

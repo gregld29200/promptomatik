@@ -11,6 +11,14 @@ export interface SpeechRun {
   turn: number;
 }
 
+/** Silence played inside a turn where the script has a [pause] tag. */
+export interface SpeechPause {
+  pauseMs: number;
+  turn: number;
+}
+
+export type SpeechStep = SpeechRun | SpeechPause;
+
 export interface PlanSpeechRunsInput {
   script: string;
   mode: AudioMode;
@@ -22,14 +30,22 @@ export interface PlanSpeechRunsInput {
 // read performance cues out of the prompt. Gemini 3.8 speaks its input
 // verbatim, so each tag is translated: a momentary sound becomes one of 3.8's
 // inline angle-bracket events, a sustained manner moves into the style of the
-// text it colours, and nothing in brackets is ever read aloud.
+// text it colours, a pause becomes silence, and nothing in brackets is ever
+// read aloud.
 export const EVENT_TAGS: Record<string, string> = {
   "[sighs]": "<sigh>",
   "[laughs]": "<laugh>",
   "[giggles]": "<laugh>",
   "[gasp]": "<gasp>",
-  "[pause]": "<short pause>",
 };
+
+// 3.8's own "<short pause>" event is not reliable through OpenRouter: at the
+// end of a request it read the words "short pause" aloud in 7 of 12 probes
+// (2026-11-02), and mid-request the gap ranged from none to two seconds. So
+// a [pause] splits the run and is played as silence between the two takes,
+// which already carry ~0.3 s of their own silence at each edge.
+export const PAUSE_TAG = "[pause]";
+export const PAUSE_MS = 600;
 
 export const MANNER_TAGS: Record<string, string> = {
   "[whispers]": "whispering",
@@ -63,7 +79,7 @@ function tagKey(tag: string): string {
 // was performed by the 2.5 models; 3.8 would drop it, so a short one is
 // played as a manner instead. Longer bracketed text is a stage direction.
 function freeManner(key: string): string | undefined {
-  if (key in EVENT_TAGS) return undefined;
+  if (key in EVENT_TAGS || key === PAUSE_TAG) return undefined;
   const words = key.slice(1, -1).split(" ").filter(Boolean);
   return words.length > 0 && words.length <= 4 ? words.join(" ") : undefined;
 }
@@ -83,6 +99,33 @@ function spokenText(text: string): string {
     .replace(TAG_RE, (tag) => EVENT_TAGS[tagKey(tag)] ?? " ")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+// The text on either side of each [pause] tag, tags removed.
+function splitAtPauses(text: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  for (const match of text.matchAll(TAG_RE)) {
+    if (tagKey(match[0]) !== PAUSE_TAG) continue;
+    const index = match.index ?? 0;
+    parts.push(text.slice(start, index));
+    start = index + match[0].length;
+  }
+  parts.push(text.slice(start));
+  return parts;
+}
+
+function addPause(steps: SpeechStep[], turn: number): void {
+  const last = steps[steps.length - 1];
+  if (last && "pauseMs" in last && last.turn === turn) {
+    last.pauseMs += PAUSE_MS;
+  } else {
+    steps.push({ pauseMs: PAUSE_MS, turn });
+  }
+}
+
+export function isSpeechRun(step: SpeechStep): step is SpeechRun {
+  return "text" in step;
 }
 
 // Splits after each newline, keeping it, so the pieces rejoin losslessly.
@@ -138,10 +181,11 @@ function voiceFor(input: PlanSpeechRunsInput, speaker: string): string {
 // through OpenRouter: one per dialogue turn, and within a turn one per run
 // of sentences sharing a style. A manner tag colours the rest of its line
 // from the sentence it sits in: the rest of the turn in a dialogue, that one
-// sentence in a monologue block (whose lines are its sentences).
-export function planSpeechRuns(input: PlanSpeechRunsInput): SpeechRun[] {
+// sentence in a monologue block (whose lines are its sentences). A [pause]
+// cuts its run in two around a SpeechPause.
+export function planSpeechRuns(input: PlanSpeechRunsInput): SpeechStep[] {
   validateTranscriptForTts(input.mode, input.script);
-  const runs: SpeechRun[] = [];
+  const steps: SpeechStep[] = [];
 
   turnsOf(input.script, input.mode).forEach((turn, index) => {
     const voice = voiceFor(input, turn.speaker);
@@ -167,10 +211,13 @@ export function planSpeechRuns(input: PlanSpeechRunsInput): SpeechRun[] {
     }
 
     for (const piece of pieces) {
-      const text = spokenText(piece.raw);
-      if (text) runs.push({ text, voice, style: piece.style, turn: index });
+      splitAtPauses(piece.raw).forEach((part, partIndex) => {
+        if (partIndex > 0) addPause(steps, index);
+        const text = spokenText(part);
+        if (text) steps.push({ text, voice, style: piece.style, turn: index });
+      });
     }
   });
 
-  return runs;
+  return steps;
 }

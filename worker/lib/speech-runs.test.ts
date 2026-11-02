@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AudioDirection } from "./audio-config";
 import { SUPPORTED_AUDIO_TAGS } from "../../src/lib/audio-script-rules";
 import { TranscriptValidationError, speechStyle } from "./audio-direction";
-import { EVENT_TAGS, MANNER_TAGS, planSpeechRuns } from "./speech-runs";
+import { EVENT_TAGS, MANNER_TAGS, PAUSE_MS, PAUSE_TAG, isSpeechRun, planSpeechRuns } from "./speech-runs";
 
 const DIRECTION: AudioDirection = {
   level: "B1",
@@ -39,8 +39,9 @@ describe("planSpeechRuns", () => {
         turn: 1,
       },
     ]);
-    expect(runs[1].style).toContain("Helpful, courteous");
-    expect(runs[1].style).toContain("Manner of speaking: a little impatient.");
+    const [, second] = runs.filter(isSpeechRun);
+    expect(second.style).toContain("Helpful, courteous");
+    expect(second.style).toContain("Manner of speaking: a little impatient.");
   });
 
   it("keeps a monologue block in one run, word for word, when no manner tag splits it", () => {
@@ -62,16 +63,64 @@ describe("planSpeechRuns", () => {
   it("turns momentary tags into 3.8 inline events", () => {
     const runs = planSpeechRuns({
       mode: "monologue",
-      script: "C'est drôle ! [laughs] Bon. [Pause] On continue tranquillement. [sighs]",
+      script: "C'est drôle ! [laughs] Bon. On continue tranquillement. [sighs]",
       voices: { solo: "Kore" },
     });
 
     expect(runs).toEqual([{
-      text: "C'est drôle ! <laugh> Bon. <short pause> On continue tranquillement. <sigh>",
+      text: "C'est drôle ! <laugh> Bon. On continue tranquillement. <sigh>",
       voice: "Kore",
       style: "",
       turn: 0,
     }]);
+  });
+
+  it("plays a pause at the end of a dialogue turn as silence, never as words", () => {
+    const steps = planSpeechRuns({
+      mode: "dialogue",
+      script: "Speaker 1: Of course. Are you ready to order? [pause]\nSpeaker 2: Yes, please.",
+      voices: DIALOGUE_VOICES,
+    });
+
+    expect(steps).toEqual([
+      { text: "Of course. Are you ready to order?", voice: "Kore", style: "", turn: 0 },
+      { pauseMs: PAUSE_MS, turn: 0 },
+      { text: "Yes, please.", voice: "Puck", style: "", turn: 1 },
+    ]);
+  });
+
+  it("cuts a run around each pause and merges pauses that follow one another", () => {
+    const steps = planSpeechRuns({
+      mode: "monologue",
+      script: "[pause] Bon. [Pause] [ pause ] On continue.\nEt voilà.",
+      voices: { solo: "Kore" },
+    });
+
+    expect(steps).toEqual([
+      { pauseMs: PAUSE_MS, turn: 0 },
+      { text: "Bon.", voice: "Kore", style: "", turn: 0 },
+      { pauseMs: 2 * PAUSE_MS, turn: 0 },
+      { text: "On continue.\nEt voilà.", voice: "Kore", style: "", turn: 0 },
+    ]);
+  });
+
+  it("never sends a pause tag to the model, nor plays it as a manner", () => {
+    const steps = planSpeechRuns({
+      mode: "dialogue",
+      script: "Speaker 1: Attends. [pause] [whispers] Il arrive ! [pause]",
+      voices: DIALOGUE_VOICES,
+    });
+
+    expect(steps).toEqual([
+      { text: "Attends.", voice: "Kore", style: "", turn: 0 },
+      { pauseMs: PAUSE_MS, turn: 0 },
+      { text: "Il arrive !", voice: "Kore", style: "Whispering.", turn: 0 },
+      { pauseMs: PAUSE_MS, turn: 0 },
+    ]);
+    for (const run of steps.filter(isSpeechRun)) {
+      expect(run.text).not.toMatch(/pause/i);
+      expect(run.style).not.toMatch(/pause/i);
+    }
   });
 
   it("plays a short free tag as a manner and never reads bracketed text aloud", () => {
@@ -81,7 +130,7 @@ describe("planSpeechRuns", () => {
       voices: { solo: "Kore" },
     });
 
-    expect(runs.map((run) => [run.text, run.style])).toEqual([
+    expect(runs.filter(isSpeechRun).map((run) => [run.text, run.style])).toEqual([
       ["Bon.", ""],
       ["On continue.", "Laughing softly."],
       ["Voilà.", ""],
@@ -113,7 +162,7 @@ describe("planSpeechRuns", () => {
       direction: DIRECTION,
     });
 
-    expect(runs.map((run) => [run.text, run.style])).toEqual([
+    expect(runs.filter(isSpeechRun).map((run) => [run.text, run.style])).toEqual([
       ["Je suis là.", base],
       ["Ne dis rien, surtout.", `Whispering. ${base}`],
       ["On y va.", base],
@@ -122,7 +171,7 @@ describe("planSpeechRuns", () => {
 
   it("maps every tag the studio offers", () => {
     for (const tag of SUPPORTED_AUDIO_TAGS) {
-      expect(tag in EVENT_TAGS || tag in MANNER_TAGS, tag).toBe(true);
+      expect(tag === PAUSE_TAG || tag in EVENT_TAGS || tag in MANNER_TAGS, tag).toBe(true);
     }
   });
 
