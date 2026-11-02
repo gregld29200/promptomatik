@@ -42,4 +42,45 @@ describe("VoiceCasting", () => {
     expect(markup).toContain("<strong>Clara</strong>");
     expect(markup).toContain("Féminine · Ferme");
   });
+
+  // A teacher saw the yellow dot on two voices at once: the grid marked every
+  // voice held by any slot, including the dialogue's two characters while
+  // casting a monologue narrator.
+  function markedVoices(markup: string): string[] {
+    return [...markup.matchAll(/aria-pressed="true" aria-label="Choisir ([^,]+),/g)].map((match) => match[1]);
+  }
+
+  it("marks only the narrator's voice in a monologue, not the dialogue's leftovers", () => {
+    const markup = renderToStaticMarkup(
+      <VoiceCasting
+        voices={VOICES}
+        mode="monologue"
+        selected={{ solo: "Kore", "Speaker 1": "Zephyr", "Speaker 2": "Puck" }}
+        onChange={() => {}}
+      />
+    );
+    expect(markedVoices(markup)).toEqual(["Clara"]);
+  });
+
+  it("marks only the voice of the character being cast, and names who plays which voice", () => {
+    const markup = renderToStaticMarkup(
+      <VoiceCasting
+        voices={VOICES}
+        mode="dialogue"
+        selected={{ solo: "Zephyr", "Speaker 1": "Puck", "Speaker 2": "Kore" }}
+        onChange={() => {}}
+        slotNames={{ "Speaker 1": "Le serveur", "Speaker 2": "La cliente" }}
+      />
+    );
+    expect(markedVoices(markup)).toEqual(["Leo"]);
+    expect(card(markup, "Leo")).toContain("Le serveur");
+    expect(card(markup, "Clara")).toContain("La cliente");
+    // Nina is the hidden narrator's voice: nothing on her card in a dialogue.
+    expect(card(markup, "Nina")).not.toMatch(/Le serveur|La cliente/);
+  });
+
+  function card(markup: string, label: string): string {
+    const start = markup.indexOf(`Choisir ${label},`);
+    return markup.slice(start, markup.indexOf("</article>", start));
+  }
 });

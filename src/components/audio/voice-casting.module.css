@@ -101,6 +101,9 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+  /* The grid scrolls, so auto rows never get the free space to grow: size
+     each row to its content, or a card's character tag spills out of it. */
+  grid-auto-rows: max-content;
   gap: 0.65rem;
   max-height: 390px;
   overflow: auto;
@@ -166,6 +169,19 @@
   margin-top: 0.2rem;
   color: #688889;
   font-size: 0.82rem;
+}
+
+.castAs {
+  display: block;
+  margin-top: 0.35rem;
+  overflow: hidden;
+  color: #2c3d57;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dot {
