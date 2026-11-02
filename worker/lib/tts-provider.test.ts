@@ -303,6 +303,59 @@ describe("generateBlock through OpenRouter", () => {
     expect(result.pcm.byteLength).toBe(PCM_BYTES_PER_SECOND);
   });
 
+  it("plays a pause at the end of a turn as silence instead of sending the tag", async () => {
+    const bodies: SpeechBody[] = [];
+    const markers: Record<string, number> = { "Are you ready to order?": 1, "Yes, please.": 2 };
+    const fetcher: typeof fetch = async (_input, init) => {
+      const body = JSON.parse(String(init?.body)) as SpeechBody;
+      bodies.push(body);
+      return pcmResponse(markedPcm(markers[body.input]));
+    };
+
+    const result = await generateBlock({
+      apiKey: "or-key",
+      model: OPENROUTER_MODEL,
+      mode: "dialogue",
+      script: "Speaker 1: Are you ready to order? [pause]\nSpeaker 2: Yes, please.",
+      voices: { "Speaker 1": "Kore", "Speaker 2": "Puck" },
+      fetcher,
+      backoffMs: [0],
+    });
+
+    expect(bodies.map((body) => body.input)).toEqual(["Are you ready to order?", "Yes, please."]);
+    const turn = PCM_BYTES_PER_SECOND / 2;
+    const pause = PCM_BYTES_PER_SECOND * 0.6;
+    const gap = PCM_BYTES_PER_SECOND * 0.3;
+    expect(result.pcm.byteLength).toBe(2 * turn + pause + gap);
+    expect(result.pcm.subarray(turn, turn + pause + gap).every((byte) => byte === 0)).toBe(true);
+    expect([result.pcm[turn - 1], result.pcm[turn + pause + gap]]).toEqual([1, 2]);
+  });
+
+  it("splits a run at a pause inside a turn and fills the gap with silence", async () => {
+    const bodies: SpeechBody[] = [];
+    const fetcher: typeof fetch = async (_input, init) => {
+      bodies.push(JSON.parse(String(init?.body)) as SpeechBody);
+      return pcmResponse(markedPcm(bodies.length));
+    };
+
+    const result = await generateBlock({
+      apiKey: "or-key",
+      model: OPENROUTER_MODEL,
+      mode: "monologue",
+      script: "Bon. [pause] On continue.",
+      voices: { solo: "Kore" },
+      fetcher,
+      backoffMs: [0],
+    });
+
+    expect(bodies.map((body) => body.input)).toEqual(["Bon.", "On continue."]);
+    const half = PCM_BYTES_PER_SECOND / 2;
+    const pause = PCM_BYTES_PER_SECOND * 0.6;
+    expect(result.pcm.byteLength).toBe(2 * half + pause);
+    expect([result.pcm[half - 1], result.pcm[half], result.pcm[half + pause - 1], result.pcm[half + pause]])
+      .toEqual([1, 0, 0, 2]);
+  });
+
   it("strips a WAV header from the returned audio", async () => {
     const pcm = markedPcm(7);
     const fetcher: typeof fetch = async () => pcmResponse(wavFromPcm(pcm), "audio/wav");
