@@ -19,6 +19,7 @@ import { EmotionMenu } from "@/components/audio/emotion-menu";
 import { PreviewPanel, useAudioPreview } from "@/components/audio/audio-preview";
 import { Spinner } from "@/components/ui/spinner";
 import { applySuggestions, type SuggestionDecision } from "@/lib/audio-suggestions";
+import { defaultDialogueVoices } from "@/lib/voice-defaults";
 import { useAuth } from "@/lib/auth/auth-context";
 import { SUPPORTED_LANGUAGES, getLanguage, t, type Language } from "@/lib/i18n";
 import * as api from "@/lib/api";
@@ -181,6 +182,9 @@ export function AudioStudioPage() {
     "Speaker 1": "Kore",
     "Speaker 2": "Puck",
   });
+  // Slots whose voice the teacher chose, or a restored take brought back:
+  // casting by character name never overrides those.
+  const pickedSlots = useRef(new Set<string>());
   const [catalog, setCatalog] = useState<AudioVoice[]>([]);
   const [quota, setQuota] = useState<api.AudioQuota | null>(null);
   const [history, setHistory] = useState<AudioJob[]>([]);
@@ -229,7 +233,7 @@ export function AudioStudioPage() {
       updateScript(job.script);
       setDirection(job.direction);
       setSpeakerSettingsOpen(Boolean(job.direction.speakers));
-      setVoices((prev) => ({ ...prev, ...job.voices }));
+      restoreVoices(job.voices);
       if (job.status === "ready" && !isExpired(job)) setActiveJob(job);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -259,6 +263,23 @@ export function AudioStudioPage() {
   const cast = useMemo(() => (mode === "dialogue" ? dialogueCast(script) : []), [mode, script]);
   const names = useMemo(() => castNames(cast), [cast]);
   const selectedVoices = useMemo(() => voicesForPayload(mode, cast, voices), [mode, cast, voices]);
+  // Until the teacher picks one, each character starts on a voice that fits
+  // its label ("Le serveur" a man's, "Madame Laurent" a woman's).
+  useEffect(() => {
+    if (mode !== "dialogue") return;
+    setVoices((prev) => {
+      const kept: Parameters<typeof defaultDialogueVoices>[1] = {};
+      for (const slot of DIALOGUE_SLOTS) {
+        if (!pickedSlots.current.has(slot)) continue;
+        const voice = catalog.find((entry) => entry.name === prev[slot]);
+        // A chosen voice the catalog has not described yet: wait for it.
+        if (!voice) return prev;
+        kept[slot] = voice;
+      }
+      const next = defaultDialogueVoices(names, kept);
+      return DIALOGUE_SLOTS.every((slot) => prev[slot] === next[slot]) ? prev : { ...prev, ...next };
+    });
+  }, [mode, names, catalog]);
   const missingVoiceSlot = Object.entries(selectedVoices).find(([, voice]) => !voice)?.[0];
   const missingVoices = missingVoiceSlot !== undefined;
   const quotaPool = (quota?.includedRemaining ?? 0) + (quota?.credits ?? 0);
@@ -376,6 +397,18 @@ export function AudioStudioPage() {
       }
       return { ...prev, speakers: Object.keys(speakers).length > 0 ? speakers : undefined };
     });
+  }
+
+  function pickVoices(next: Record<string, string>) {
+    for (const [slot, voice] of Object.entries(next)) {
+      if (voice !== voices[slot]) pickedSlots.current.add(slot);
+    }
+    setVoices(next);
+  }
+
+  function restoreVoices(restored: Record<string, string>) {
+    for (const slot of Object.keys(restored)) pickedSlots.current.add(slot);
+    setVoices((prev) => ({ ...prev, ...restored }));
   }
 
   function clearReview() {
@@ -519,7 +552,7 @@ export function AudioStudioPage() {
     setMode(job.mode);
     updateScript(job.script);
     setDirection(job.direction);
-    setVoices((prev) => ({ ...prev, ...job.voices }));
+    restoreVoices(job.voices);
     const detail = await api.getAudioJob(job.id);
     if (detail.data) setActiveJob(detail.data.job);
   }
@@ -837,7 +870,7 @@ export function AudioStudioPage() {
               </button>
             </div>
 
-            <VoiceCasting voices={catalog} mode={mode} selected={voices} onChange={setVoices} slotNames={names} />
+            <VoiceCasting voices={catalog} mode={mode} selected={voices} onChange={pickVoices} slotNames={names} />
 
             <div className={s.generateDock}>
               <div className={s.generateActions}>
