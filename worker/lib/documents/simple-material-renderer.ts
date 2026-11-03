@@ -716,7 +716,8 @@ function renderStructuredBlocks(
     switch (block.type) {
       case 'heading': {
         const text = cleanHeadingText(blockLines.join(' '));
-        if (blockIndex === 0 && block.line_ids[0] === 1 && sameText(text, material.title)) return;
+        // The opening heading is the title already, even below a leading picture.
+        if (structure.slice(0, blockIndex).every((earlier) => earlier.type === 'image') && sameText(text, material.title)) return;
         const level = block.level === 3 ? 3 : 2;
         ctx.sectionHeading = stripEmphasis(text);
         rendered.push({
