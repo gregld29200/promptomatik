@@ -3,6 +3,28 @@ import { buildDocument } from "./documents/generate";
 
 const CONTENT = Array.from({ length: 40 }, (_, index) => `word${index}`).join(" ");
 
+interface JsonSchemaNode {
+  oneOf?: JsonSchemaNode[];
+  anyOf?: JsonSchemaNode[];
+  properties?: Record<string, JsonSchemaNode & { const?: string }>;
+  required?: string[];
+  items?: JsonSchemaNode;
+  minItems?: number;
+  maxItems?: number;
+}
+
+function additionsSchema(requestBody: Record<string, unknown> | undefined): JsonSchemaNode | undefined {
+  const responseFormat = requestBody?.response_format as { json_schema?: { schema?: JsonSchemaNode } } | undefined;
+  return responseFormat?.json_schema?.schema?.properties?.additions;
+}
+
+// The block types an additions schema lets the model return.
+function offeredBlockTypes(additions: JsonSchemaNode | undefined): Array<string | undefined> {
+  const items = additions?.items;
+  const branches = items?.oneOf ?? items?.anyOf ?? (items ? [items] : []);
+  return branches.map((branch) => branch.properties?.type?.const).sort();
+}
+
 describe("documents structured output", () => {
   it("enforces the additions-only schema when a generation asks for an addition", async () => {
     let requestBody: Record<string, unknown> | undefined;
@@ -40,6 +62,57 @@ describe("documents structured output", () => {
       minItems: 1,
       maxItems: 4,
     });
+    expect(offeredBlockTypes(additionsSchema(requestBody))).toEqual(["reference_list"]);
+  });
+
+  it("offers the model only the block types the teacher ticked", async () => {
+    // Offered all eight block types, Gemini returned an article's title and
+    // paragraphs under "type": "matching", and every attempt failed validation.
+    const matching = {
+      type: "matching",
+      heading: "Associez",
+      pairs: [{ left: "word1", right: "word2" }, { left: "word3", right: "word4" }],
+    };
+    let requestBody: Record<string, unknown> | undefined;
+    const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const content = JSON.stringify({ additions: [matching] });
+      return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
+    }) as typeof fetch;
+
+    const result = await buildDocument(
+      { apiKey: "test-key", fetcher },
+      CONTENT,
+      { documentType: "worksheet", additions: ["matching"] },
+    );
+
+    const additions = additionsSchema(requestBody);
+    expect(additions).toMatchObject({ minItems: 1, maxItems: 4 });
+    expect(offeredBlockTypes(additions)).toEqual(["matching"]);
+    // One block schema, not a union whose branches the model could mix.
+    expect(additions?.items).not.toHaveProperty("oneOf");
+    expect(additions?.items).not.toHaveProperty("anyOf");
+    expect(additions?.items?.required).toContain("pairs");
+    expect(result.materials[0].blocks).toEqual([matching]);
+  });
+
+  it("offers every ticked block type, and no other, when several are ticked", async () => {
+    let requestBody: Record<string, unknown> | undefined;
+    const fetcher = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      const content = JSON.stringify({
+        additions: [{ type: "questions", items: [{ prompt: "Which word comes first?", answer: "word0" }] }],
+      });
+      return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
+    }) as typeof fetch;
+
+    await buildDocument(
+      { apiKey: "test-key", fetcher },
+      CONTENT,
+      { documentType: "worksheet", additions: ["questions", "instructions"] },
+    );
+
+    expect(offeredBlockTypes(additionsSchema(requestBody))).toEqual(["instructions", "notes", "questions"]);
   });
 
   it("rescues a collapsed paste with a light structure-only call, keeping the source immutable", async () => {
