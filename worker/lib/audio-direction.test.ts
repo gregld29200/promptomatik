@@ -182,6 +182,18 @@ describe("validateTranscriptForTts", () => {
     )).toThrow(/Invalid line: Léa : Bonjour\./);
   });
 
+  it("accepts reported speech in monologue mode, as the studio does", () => {
+    for (const script of [
+      "Die Befürworter sagen: Wir brauchen mehr Freizeit.\nSie sagen: Wir haben schon jetzt zu wenig Fachkräfte.",
+      "Les opposants disent : c'est trop cher.\nLe ministre répond : non.",
+      "Critics say: it costs too much.\nShe asks: why?",
+    ]) {
+      expect(() => validateTranscriptForTts("monologue", script), script).not.toThrow();
+    }
+    expect(() => validateTranscriptForTts("monologue", "Sarah: Hello.\nTom: Hi."))
+      .toThrow(/Invalid line: Sarah: Hello\./);
+  });
+
   it("accepts French typography colons in monologue mode, as the studio does", () => {
     for (const script of [
       "Attention : l'examen commence à 9 heures.",

@@ -133,14 +133,31 @@ function isDiscourseMarker(label: string): boolean {
   return label.split(/\s+/).some((word) => DISCOURSE_MARKER_WORDS.has(foldWord(word)));
 }
 
+// Speech verbs that close a reported-speech prefix ("Die Befürworter sagen :
+// …", "Les opposants disent : …", "Critics say: …"): the colon introduces a
+// quote, not a character. Compared without accents or case.
+const REPORTED_SPEECH_VERBS = new Set([
+  "sagen", "sagt", "sagte", "sagten", "meint", "meinen", "meinte", "fragt", "fragen", "fragte",
+  "antwortet", "antworten", "erklart", "erklaren",
+  "dit", "disent", "disait", "repond", "repondent", "demande", "demandent", "explique", "expliquent",
+  "affirme", "affirment", "ajoute", "ajoutent",
+  "say", "says", "said", "ask", "asks", "asked", "reply", "replies", "replied", "explain", "explains",
+  "dicen", "dice", "dijo", "pregunta", "preguntan", "responde", "responden", "explica", "explican",
+]);
+
+function isReportedSpeech(label: string): boolean {
+  const words = label.split(/\s+/);
+  return REPORTED_SPEECH_VERBS.has(foldWord(words[words.length - 1] ?? ""));
+}
+
 export interface MonologueLabelLine {
   /** Index in the lines passed in. */
   index: number;
   label: string;
 }
 
-// In a monologue a short prefix before a colon is usually typography, not a
-// character. A line only reads as dialogue when its label is numbered
+// In a monologue a short prefix before a colon is usually typography or
+// reported speech, not a character. A line only reads as dialogue when its label is numbered
 // ("Locuteur 1 :"), or when the script has a cast: the same name opening two
 // lines, or two different names each opening one. Shared by the studio linter
 // and the worker backstop so both accept the same scripts.
@@ -150,7 +167,7 @@ export function monologueSpeakerLabels(lines: readonly string[]): MonologueLabel
     const label = lineLabel(line);
     if (!label) return;
     const numbered = NUMBERED_LABEL_RE.test(label);
-    if (!numbered && isDiscourseMarker(label)) return;
+    if (!numbered && (isDiscourseMarker(label) || isReportedSpeech(label))) return;
     labelled.push({ index, label, key: castKey(label), numbered });
   });
   const counts = new Map<string, number>();
