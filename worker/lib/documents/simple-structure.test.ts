@@ -162,6 +162,23 @@ describe("deterministic parser behavior", () => {
     expect(isCollapsedStructure(structure)).toBe(true);
   });
 
+  it("never takes a leading picture's markup as the title (Katrin's article, 2026-11-03)", () => {
+    const article = "![Screenshot 2026 11 03 at 10.34.43](studio:2iaV_MH4fYx2XExN)\n\n\nAu départ du port, Flavien doit **faire valider le plomb** de son conteneur avant de prendre la route.\n\nAttendu chez son client en Vendée à 13 h 00, il est bloqué 45 minutes dans des **travaux**.";
+    const material = buildSimpleMaterial(article, { documentType: "reading" });
+    expect(material.title).not.toMatch(/studio:|Screenshot|!\[/);
+    expect(material.title.startsWith("Au départ du port")).toBe(true);
+    const html = renderSimpleMaterialHtml(material, "editorial_reader", { images: { "2iaV_MH4fYx2XExN": "data:image/png;base64,AAAA" } });
+    expect(html).not.toContain("studio:");
+    expect(html).toContain('<img src="data:image/png;base64,AAAA"');
+  });
+
+  it("uses the heading under a leading picture as the title, rendered once", () => {
+    const material = buildSimpleMaterial("![Camion](studio:abc)\n\n# Retards de livraison\n\nAu départ du port, Flavien attend.", { documentType: "reading" });
+    expect(material.title).toBe("Retards de livraison");
+    const html = renderSimpleMaterialHtml(material, "editorial_reader", { images: { abc: "data:image/png;base64,AAAA" } });
+    expect(html.match(/<h[123]>Retards de livraison/g)).toHaveLength(1);
+  });
+
   it("derives a clipped title from the first line when nothing looks like a heading", () => {
     const longFirstLine = "Supplier performance directly affects the efficiency of your entire supply chain and the satisfaction of every customer downstream.";
     const material = buildSimpleMaterial(longFirstLine, { templateId: "editorial_reader" });

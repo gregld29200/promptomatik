@@ -476,11 +476,13 @@ function deriveTitle(
 ): string {
   const trimmed = requestedTitle?.trim();
   if (trimmed) return trimmed;
-  const first = structure[0];
+  // A picture placed above the text illustrates it; it never names the document.
+  const first = structure.find((block) => block.type !== 'image');
   if (first?.type === 'heading') {
     return cleanHeadingText(lines[first.line_ids[0] - 1]);
   }
-  return clipAtWordBoundary(cleanHeadingText(lines[0] ?? 'Document'), MAX_FALLBACK_TITLE_LENGTH);
+  const firstText = lines.find((line) => line.trim() && !IMAGE_PATTERN.test(line.trim()));
+  return clipAtWordBoundary(cleanHeadingText(firstText ?? 'Document'), MAX_FALLBACK_TITLE_LENGTH);
 }
 
 /** Calendars read across: landscape by default, everything else portrait. */
